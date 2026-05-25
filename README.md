@@ -4,11 +4,11 @@
 
 | Item | Description |
 |---|---|
-| Course |  |
-| Class |  |
+| Course | PRN232 |
+| Class | SE18D06 |
 | Semester | SU26 |
-| Group |  |
-| Topic |  |
+| Group | Group 2 |
+| Topic | GearZone |
 | Repository |  |
 
 ---
@@ -17,11 +17,11 @@
 
 | No | Student ID | Full Name | GitHub Username | Role | Main Responsibility |
 |---:|---|---|---|---|---|
-| 1 |  |  |  | Leader |  |
-| 2 |  |  |  | Member |  |
-| 3 |  |  |  | Member |  |
-| 4 |  |  |  | Member |  |
-| 5 |  |  |  | Member |  |
+| 1 | DE180416 | Hồ Huy Hoàng | 3h4524 | Leader |  |
+| 2 | DE180417 | Đàm Nguyên Khang | DamNguyenKhang | Member |  |
+| 3 | DE180430 | Nguyễn Sinh Nhật | nhat251 | Member |  |
+| 4 | DE180494 | Phan Trần Công Vũ | Vu-p | Member |  |
+| 5 | DE180880 | Đặng Công Quốc Khanh | QKhanh04 | Member |  |
 
 ---
 
