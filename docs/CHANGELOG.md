@@ -1,5 +1,7 @@
 # Changelog 
 
+All notable changes on branch `core/infrastructure-ef-config` are documented here.
+
 All notable changes on branch `core/application-abstractions` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
@@ -8,6 +10,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased] -- 2026-05-27
 
 ### Scope
+GearZone.Infrastructure: ApplicationDbContext, IEntityTypeConfiguration<T> per entity, EF migrations, seed data
+
+### Added
+- ApplicationDbContext extending IdentityDbContext<ApplicationUser>
+- 30+ IEntityTypeConfiguration implementations with column types, FK constraints, indexes, and cascade rules
+- 20+ EF migrations from InitialCreate through AddShipmentsAndStoreCoordinates
+- Seed data: IdentitySeeder (admin/demo accounts), CategorySeeder (gear categories), SystemSettingSeeder
+- DependencyInjection.cs wiring all repositories and services
 GearZone.Domain: Entity<TKey> base class, all aggregate roots and value objects, domain enums
 
 ### Added

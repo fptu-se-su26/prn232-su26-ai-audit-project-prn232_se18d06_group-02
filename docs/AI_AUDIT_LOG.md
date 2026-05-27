@@ -1,4 +1,4 @@
-# AI Audit Log -- Core -- Domain Entities
+# AI Audit Log 
 
 ## 1. Project Information
 
@@ -9,6 +9,11 @@
 | Semester | SU26 |
 | Group | Group 2 |
 | Project | GearZone -- Multi-Vendor E-Commerce Platform |
+| Branch | `core/infrastructure-ef-config` |
+| Scope | GearZone.Infrastructure: ApplicationDbContext, IEntityTypeConfiguration<T> per entity, EF migrations, seed data |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Phan Tran Cong Vu (DE180494) |
 | Branch | `core/domain-entities` |
 | Scope | GearZone.Domain: Entity<TKey> base class, all aggregate roots and value objects, domain enums |
 | Date | 2026-05-27 |
@@ -40,6 +45,13 @@
 
 ## 3. AI Usage Goals for This Branch
 
+**Goal:** EF Core configuration, migration strategy, seed data design
+
+Key tasks AI assisted with:
+- How to configure a many-to-many self-referencing relationship in EF Core 8 for store follows?
+- What is the correct EF Core configuration for storing C# enums as strings in SQL Server?
+- How do I seed data through EF migrations safely without duplicating rows on re-run?
+
 **Goal:** Domain model design, aggregate boundary identification, relationship mapping
 
 Key tasks AI assisted with:
@@ -62,6 +74,44 @@ Key tasks AI assisted with:
 ---
 
 ## 4. AI Usage Sessions
+
+### Session 1
+
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code |
+| Purpose | EF Core configuration |
+| Related Files | GearZone.Infrastructure/ApplicationDbContext.cs, Configurations/*.cs, Migrations/*.cs, Seed/*.cs |
+| AI Involvement | Significant assistance |
+
+**Prompt used:**
+
+```
+How to configure a many-to-many self-referencing relationship in EF Core 8 for store follows?
+```
+
+**AI output summary:**
+
+HasMany/WithMany with explicit join entity (StoreFollow) and composite primary key configuration.
+
+**What the team used:**
+The core pattern / design / code structure suggested above.
+
+**What the team changed:**
+Adapted to project naming conventions and verified correctness against actual requirements.
+Tested in the running application before accepting.
+
+---
+
+### Session 2
+
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code / GitHub Copilot |
+| Purpose | Follow-up detail implementation |
+| Related Files | GearZone.Infrastructure/ApplicationDbContext.cs, Configurations/*.cs, Migrations/*.cs, Seed/*.cs |
 
 
 ### Session 1
@@ -136,6 +186,17 @@ The algorithmic or architectural pattern described above.
 **Prompt used:**
 
 ```
+What is the correct EF Core configuration for storing C# enums as strings in SQL Server?
+```
+
+**AI output summary:**
+
+HasConversion<string>() in IEntityTypeConfiguration with HasColumnType('nvarchar(50)').
+
+**What the team used:**
+The algorithmic or architectural pattern described above.
+
+```
 Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
 Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
 ```
@@ -157,6 +218,9 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 
 | Area | No AI | Some AI | Heavy AI | AI Generated | Notes |
 |---|:---:|:---:|:---:|:---:|---|
+| EF entity configuration |  | X |  |  | AI syntax help, team verified logic |
+| Migration generation | X |  |  |  | dotnet ef migrations add (CLI) |
+| Seed data design |  | X |  |  | AI template, team provided real data |
 | Domain modeling |  | X |  |  | AI proposed, team refined boundaries |
 | Enum definition | X |  |  |  | Team-defined from requirements |
 | Aggregate boundaries |  | X |  |  | AI suggestion validated against domain |
