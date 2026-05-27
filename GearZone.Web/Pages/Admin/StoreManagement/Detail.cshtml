@@ -1,0 +1,776 @@
+@page "/admin/stores/{id:guid}"
+@using GearZone.Domain.Enums
+@model GearZone.Web.Pages.Admin.StoreManagement.DetailModel
+@{
+    var store = Model.StoreApplication!;
+    var hasFrontIdImage = !string.IsNullOrWhiteSpace(store.IdentityCardFrontImageUrl);
+    var hasBackIdImage = !string.IsNullOrWhiteSpace(store.IdentityCardBackImageUrl);
+    ViewData["Title"] = "Store Detail - " + store.StoreName;
+    ViewData["PageHeader"] = "Store Detail";
+    ViewData["ActivePage"] = "Stores_Management";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Store Management", store.StoreName };
+    Layout = "_AdminLayout";
+
+    var statusClass = store.Status switch
+    {
+        StoreStatus.Approved => "bg-green-50 text-green-700 ring-green-600/20",
+        StoreStatus.Locked   => "bg-red-50 text-red-700 ring-red-600/10",
+        StoreStatus.Rejected => "bg-slate-50 text-slate-500 ring-slate-600/20",
+        _                    => "bg-slate-50 text-slate-700 ring-slate-600/20"
+    };
+    var dotClass = store.Status switch
+    {
+        StoreStatus.Approved => "bg-green-500",
+        StoreStatus.Locked   => "bg-red-500",
+        _                    => "bg-slate-400"
+    };
+}
+
+<div class="flex flex-col gap-6 pb-8">
+
+    <!-- Page Title Row -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <a asp-page="/Admin/StoreManagement/Index" class="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 shadow-sm transition-all">
+                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+            </a>
+            <h2 class="text-[22px] font-bold text-slate-900">@store.StoreName</h2>
+            <span class="inline-flex items-center gap-1.5 rounded-full @statusClass px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset uppercase tracking-tight">
+                <span class="size-1.5 rounded-full @dotClass"></span>
+                @store.Status
+            </span>
+        </div>
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+            @if (store.Status == StoreStatus.Approved)
+            {
+                <a href="/store/@store.Slug" target="_blank"
+                   class="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary shadow-sm hover:bg-primary hover:text-white transition-all">
+                    <span class="material-symbols-outlined text-[18px]">visibility</span>
+                    View Store
+                </a>
+            }
+            <a asp-page="/Admin/StoreApplications/Detail" asp-route-id="@store.Id"
+               class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                <span class="material-symbols-outlined text-[18px] text-slate-500">description</span>
+                Application
+            </a>
+            @if (store.Status == StoreStatus.Approved)
+            {
+                <button type="button" onclick="document.getElementById('lockModal').classList.remove('hidden')"
+                        class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-100 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">lock</span>
+                    Lock
+                </button>
+            }
+            @if (store.Status == StoreStatus.Locked)
+            {
+                <button type="button" onclick="document.getElementById('activateModal').classList.remove('hidden')"
+                        class="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-100 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">lock_open</span>
+                    Activate
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- BEGIN: StoreHeroCard -->
+    <section class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+        <div class="h-40 bg-gradient-to-r from-blue-500 to-indigo-600 relative">
+            <!-- Banner decoration -->
+            <div class="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent"></div>
+        </div>
+        <div class="px-8 pb-8 relative pt-12 lg:pt-4">
+            <!-- Avatar positioned absolute to avoid layout issues -->
+            <div class="absolute left-8 -top-10 z-20">
+                @if (!string.IsNullOrEmpty(store.LogoUrl))
+                {
+                    <img src="@store.LogoUrl" alt="Logo" class="w-20 h-20 rounded-full border-4 border-white object-cover shadow-md bg-white" />
+                }
+                else
+                {
+                    <div class="w-20 h-20 bg-primary rounded-full border-4 border-white flex items-center justify-center text-white font-bold text-2xl shadow-md">
+                        @(string.IsNullOrEmpty(store.StoreName) ? "ST" : new string(store.StoreName.Take(2).ToArray()).ToUpper())
+                    </div>
+                }
+            </div>
+
+            <!-- Banner Header Info -->
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:ml-24 mb-6 min-h-[48px]">
+                <div class="flex-1 mt-2 lg:mt-0">
+                    <h3 class="text-xl font-bold text-slate-900 leading-tight">@store.StoreName</h3>
+                    <p class="text-sm text-primary font-medium">gearzone.vn/store/@store.Slug</p>
+                </div>
+                <div class="text-left lg:text-right flex flex-col items-start lg:items-end">
+                    <span class="text-xs text-slate-500 mb-1 uppercase tracking-wider">Commission Rate</span>
+                    <span class="text-[18px] font-bold text-primary leading-none">@((store.CommissionRate * 100).ToString("0.##"))%</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                        @(string.IsNullOrEmpty(store.Description) ? "No description provided." : store.Description)
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-medium">@store.BusinessType</span>
+                        @if (!string.IsNullOrEmpty(store.Province))
+                        {
+                            <span class="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-medium">@store.Province</span>
+                        }
+                    </div>
+                </div>
+                <div class="flex justify-start lg:justify-end items-end text-sm text-slate-500">
+                    <span>Member since: <strong class="text-slate-900">@store.CreatedAt.ToString("MMM dd, yyyy")</strong></span>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- END: StoreHeroCard -->
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="size-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                </div>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Products</p>
+            </div>
+            <p class="text-3xl font-bold text-slate-900">@Model.Products.TotalCount.ToString("N0")</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="size-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                </div>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Total Orders</p>
+            </div>
+            <p class="text-3xl font-bold text-slate-900">@Model.Orders.TotalCount.ToString("N0")</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="size-9 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">payments</span>
+                </div>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Revenue</p>
+            </div>
+            <p class="text-3xl font-bold text-slate-900">$0</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="size-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[20px]">account_balance</span>
+                </div>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Commission</p>
+            </div>
+            <p class="text-3xl font-bold text-slate-900">@((store.CommissionRate * 100).ToString("0.##"))%</p>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+        <!-- Left Column (7/12) -->
+        <div class="xl:col-span-7 flex flex-col gap-6">
+
+            <!-- Store Information -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-primary text-[20px]">domain</span>
+                        Store Information
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <dl class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Store Name</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.StoreName</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tax Code / EIN</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900 font-mono tracking-tighter">@store.TaxCode</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Business Type</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.BusinessType</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Store URL Slug</dt>
+                            <dd class="mt-1 text-sm font-semibold text-primary">@store.Slug</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Business Email</dt>
+                            <dd class="mt-1 text-sm font-semibold text-primary">@store.Email</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone Number</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.Phone</dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Description</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.Description) ? "N/A" : store.Description)</dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Address</dt>
+                            <dd class="mt-1 flex items-start justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-sm font-semibold text-slate-900 leading-relaxed">
+                                    @(!string.IsNullOrEmpty(store.AddressLine) ? store.AddressLine : "N/A")
+                                    @if (!string.IsNullOrEmpty(store.Province)) { <text>, @store.Province</text> }
+                                </span>
+                                <button class="rounded p-1.5 text-slate-400 hover:bg-white hover:text-primary hover:shadow-sm transition-all ml-2">
+                                    <span class="material-symbols-outlined text-[20px]">map</span>
+                                </button>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Approved At</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.ApprovedAt.HasValue ? store.ApprovedAt.Value.ToString("MMM dd, yyyy") : "N/A")</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Member Since</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.CreatedAt.ToString("MMM dd, yyyy")</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Owner Information -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-primary text-[20px]">person</span>
+                        Owner & Representative
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <dl class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</dt>
+                            <dd class="mt-1 flex items-center gap-2">
+                                <div class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 shadow-sm border border-blue-200">
+                                    @(string.IsNullOrEmpty(store.OwnerName) ? "OW" : new string(store.OwnerName.Take(1).Concat(store.OwnerName.Split(' ').Last().Take(1)).ToArray()).ToUpper())
+                                </div>
+                                <span class="text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.OwnerName) ? "N/A" : store.OwnerName)</span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</dt>
+                            <dd class="mt-1 text-sm font-semibold text-primary">@store.OwnerEmail</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.OwnerPhone) ? "N/A" : store.OwnerPhone)</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Identity (CCCD)</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.IdentityNumber ?? "N/A")</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Issued Date</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.IdentityIssuedDate.HasValue ? store.IdentityIssuedDate.Value.ToString("MMM dd, yyyy") : "N/A")</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Issued Place</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.IdentityIssuedPlace ?? "N/A")</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Banking & Financial -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-primary text-[20px]">account_balance</span>
+                        Banking & Financial Setup
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <dl class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bank Name</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.BankName) ? "N/A" : store.BankName)</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Account Holder</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900 uppercase">@(string.IsNullOrEmpty(store.BankAccountName) ? "N/A" : store.BankAccountName)</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Account Number</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900 font-mono tracking-tighter">@(string.IsNullOrEmpty(store.BankAccountNumber) ? "N/A" : store.BankAccountNumber)</dd>
+                        </div>
+                        <div>
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Commission Rate</dt>
+                            <dd class="mt-1 text-sm font-bold text-emerald-600">@((store.CommissionRate * 100).ToString("0.##"))%</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column (5/12) -->
+        <div class="xl:col-span-5 flex flex-col gap-6">
+
+            <!-- Status Timeline -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-primary text-[20px]">history</span>
+                        Store Status Timeline
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <div class="relative pl-6 border-l-2 border-slate-100 space-y-8">
+                        @if (store.Status == StoreStatus.Approved)
+                        {
+                            <div class="relative">
+                                <div class="absolute -left-[31px] w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm shadow-green-200"></div>
+                                <p class="text-sm font-bold text-green-700 leading-none">Active</p>
+                                <p class="text-xs text-slate-500 mt-1">Store is currently active and selling</p>
+                            </div>
+                        }
+                        @if (store.ApprovedAt.HasValue)
+                        {
+                            <div class="relative">
+                                <div class="absolute -left-[31px] w-4 h-4 bg-primary rounded-full border-2 border-white shadow-sm"></div>
+                                <p class="text-sm font-bold text-slate-900 leading-none">Approved</p>
+                                <p class="text-xs text-slate-500 mt-1">@store.ApprovedAt.Value.ToString("MMM dd, yyyy • hh:mm tt")</p>
+                                <p class="text-xs text-slate-600 mt-1.5">Verification completed. Store granted access.</p>
+                            </div>
+                        }
+                        <div class="relative">
+                            <div class="absolute -left-[31px] w-4 h-4 bg-slate-300 rounded-full border-2 border-white"></div>
+                            <p class="text-sm font-bold text-slate-400 leading-none">Application Submitted</p>
+                            <p class="text-xs text-slate-400 mt-1">@store.CreatedAt.ToString("MMM dd, yyyy • hh:mm tt")</p>
+                            <p class="text-xs text-slate-500 mt-1.5">Store registration submitted by owner.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Identity Documents -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-primary text-[20px]">badge</span>
+                        Identity Documents
+                    </h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    @if (hasFrontIdImage)
+                    {
+                        <a href="@store.IdentityCardFrontImageUrl" target="_blank" rel="noopener noreferrer" class="group relative block overflow-hidden rounded-xl border border-slate-100 bg-slate-200 aspect-[16/9] shadow-sm">
+                            <img alt="ID Front" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src="@store.IdentityCardFrontImageUrl" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                            <span class="absolute bottom-3 left-4 text-[10px] font-bold text-white uppercase tracking-widest drop-shadow-md">ID Card (Front)</span>
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-[1px]">
+                                <span class="rounded-full bg-white px-4 py-2 text-slate-900 font-bold text-xs shadow-xl flex items-center gap-2 hover:bg-primary hover:text-white transition-all transform translate-y-2 group-hover:translate-y-0">
+                                    <span class="material-symbols-outlined text-[18px]">zoom_in</span>
+                                    Full Image
+                                </span>
+                            </div>
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-700">
+                            ID Card (Front): Not uploaded.
+                        </div>
+                    }
+
+                    @if (hasBackIdImage)
+                    {
+                        <a href="@store.IdentityCardBackImageUrl" target="_blank" rel="noopener noreferrer" class="group relative block overflow-hidden rounded-xl border border-slate-100 bg-slate-200 aspect-[16/9] shadow-sm">
+                            <img alt="ID Back" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src="@store.IdentityCardBackImageUrl" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                            <span class="absolute bottom-3 left-4 text-[10px] font-bold text-white uppercase tracking-widest drop-shadow-md">ID Card (Back)</span>
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-[1px]">
+                                <span class="rounded-full bg-white px-4 py-2 text-slate-900 font-bold text-xs shadow-xl flex items-center gap-2 hover:bg-primary hover:text-white transition-all transform translate-y-2 group-hover:translate-y-0">
+                                    <span class="material-symbols-outlined text-[18px]">zoom_in</span>
+                                    Full Image
+                                </span>
+                            </div>
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-700">
+                            ID Card (Back): Not uploaded.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Quick Store Info -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-primary text-[20px]">info</span>
+                        Store Metadata
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between py-2 border-b border-slate-50">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Store ID</span>
+                            <span class="text-sm font-mono font-semibold text-slate-700">#@store.Id.ToString().Substring(0, 8).ToUpper()</span>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-slate-50">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full @statusClass px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset">
+                                <span class="size-1.5 rounded-full @dotClass"></span>
+                                @store.Status
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-slate-50">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Commission Rate</span>
+                            <span class="text-sm font-bold text-emerald-600">@((store.CommissionRate * 100).ToString("0.##"))%</span>
+                        </div>
+                        <div class="flex items-center justify-between py-2 border-b border-slate-50">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Created</span>
+                            <span class="text-sm font-semibold text-slate-700">@store.CreatedAt.ToString("MMM dd, yyyy")</span>
+                        </div>
+                        <div class="flex items-center justify-between py-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Last Updated</span>
+                            <span class="text-sm font-semibold text-slate-700">@(store.UpdatedAt.HasValue ? store.UpdatedAt.Value.ToString("MMM dd, yyyy") : "N/A")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabbed Section: Products / Orders -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+        <!-- Tab Headers -->
+        <div class="border-b border-slate-100 px-6">
+            <nav class="flex space-x-6" id="storeTabs">
+                <button class="tab-btn py-4 px-1 border-b-2 border-primary text-primary font-bold text-sm whitespace-nowrap" data-tab="products">
+                    Products <span class="ml-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5">@Model.Products.TotalCount</span>
+                </button>
+                <button class="tab-btn py-4 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-medium text-sm whitespace-nowrap" data-tab="orders">
+                    Orders <span class="ml-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5">@Model.Orders.TotalCount</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab: Products -->
+        <div id="tab-products" class="p-0">
+            @if (Model.Products.Items.Any())
+            {
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse min-w-max">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50">
+                                <th class="py-4 pl-6 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Product Info</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Category</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Price</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-center">Stock</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-center">Status</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">Created</th>
+                                <th class="py-4 pl-3 pr-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var product in Model.Products.Items)
+                            {
+                                <tr class="group hover:bg-slate-50 transition-all cursor-pointer" onclick="if(!event.target.closest('a, button, form, input')) window.location.href='/admin/products/@product.Id'">
+                                    <td class="py-4 pl-6 pr-3">
+                                        <a asp-page="/Admin/Products/Detail" asp-route-id="@product.Id" target="_blank" class="flex items-center gap-3 group/info">
+                                            <div class="relative flex-shrink-0">
+                                                <div class="size-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center group-hover/info:border-primary transition-colors">
+                                                    <img src="@product.ThumbnailUrl" alt="@product.Name" class="w-full h-full object-cover" />
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-col max-w-[200px] xl:max-w-xs xl:truncate">
+                                                <span class="text-sm font-semibold text-slate-900 group-hover/info:text-primary transition-colors truncate" title="@product.Name">@product.Name</span>
+                                                <span class="text-xs text-slate-500 font-mono mt-0.5">@product.Sku</span>
+                                            </div>
+                                        </a>
+                                    </td>
+                                    <td class="py-4 px-3 hidden md:table-cell align-middle whitespace-nowrap">
+                                        <span class="text-sm text-slate-600">@product.Category</span>
+                                    </td>
+                                    <td class="py-4 px-3 text-right text-sm font-semibold text-slate-900 align-middle whitespace-nowrap">
+                                        @product.Price.ToString("N0") ₫
+                                    </td>
+                                    <td class="py-4 px-3 text-center align-middle whitespace-nowrap">
+                                        @if (product.Stock > 10)
+                                        {
+                                            <span class="text-sm font-semibold text-slate-700">@product.Stock</span>
+                                        }
+                                        else if (product.Stock > 0)
+                                        {
+                                            <span class="text-sm font-bold text-amber-600">@product.Stock</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-sm font-bold text-red-600">0</span>
+                                        }
+                                    </td>
+                                    <td class="py-4 px-3 text-center align-middle whitespace-nowrap">
+                                        @if (product.Status == "Active")
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1.5 text-xs font-semibold text-green-700 ring-1 ring-inset ring-green-600/20">
+                                                <span class="size-1.5 rounded-full bg-green-600"></span> Active
+                                            </span>
+                                        }
+                                        else if (product.Status == "Pending")
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                <span class="size-1.5 rounded-full bg-amber-500 pr-0.5"></span> Pending
+                                            </span>
+                                        }
+                                        else if (product.Status == "Suspended")
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-500/20">
+                                                <span class="size-1.5 rounded-full bg-slate-500 pr-0.5"></span> Suspended
+                                            </span>
+                                        }
+                                        else if (product.Status == "Rejected")
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+                                                <span class="size-1.5 rounded-full bg-red-600 pr-0.5"></span> Rejected
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="py-4 px-3 hidden lg:table-cell align-middle whitespace-nowrap">
+                                        <p class="text-sm text-slate-500">@product.CreatedAt.ToString("MMM dd, yyyy")</p>
+                                    </td>
+                                    <td class="py-4 pl-3 pr-6 text-right align-middle whitespace-nowrap">
+                                        <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <a asp-page="/Admin/Products/Detail" asp-route-id="@product.Id" target="_blank" class="text-slate-400 hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-blue-50" title="View Detail">
+                                                <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <!-- View more / Footer -->
+                @if (Model.Products.TotalCount > 5)
+                {
+                    <div class="border-t border-slate-100 p-4 bg-slate-50 flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-500 uppercase tracking-widest pl-2">Displaying 5 of @Model.Products.TotalCount products</span>
+                        <a href="/admin/products?Query.StoreId=@store.Id" target="_blank" class="text-sm font-semibold text-primary flex items-center gap-1 bg-white border border-slate-200 py-2 px-4 rounded-lg hover:shadow-sm hover:border-primary transition-all">
+                            View more
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div class="border-t border-slate-100 p-4 bg-slate-50 flex items-center justify-end">
+                        <a href="/admin/products?Query.StoreId=@store.Id" target="_blank" class="text-sm font-semibold text-primary flex items-center gap-1 bg-white border border-slate-200 py-2 px-4 rounded-lg hover:shadow-sm hover:border-primary transition-all">
+                            Manage products
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </a>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="size-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-slate-300 text-3xl">inventory_2</span>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-500">No products yet</p>
+                    <p class="text-xs text-slate-400 mt-1">Products listed by this store will appear here.</p>
+                </div>
+            }
+        </div>
+
+        <!-- Tab: Orders -->
+        <div id="tab-orders" class="p-0 hidden">
+            @if (Model.Orders.Items.Any())
+            {
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse min-w-max">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50">
+                                <th class="py-4 pl-6 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Order Code</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Customer</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Total</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-center">Payment Status</th>
+                                <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var order in Model.Orders.Items)
+                            {
+                                <tr class="group hover:bg-slate-50 transition-all cursor-default">
+                                    <td class="py-4 pl-6 pr-3 align-middle font-mono text-sm font-semibold text-slate-900">
+                                        #@order.OrderCode
+                                    </td>
+                                    <td class="py-4 px-3 align-middle whitespace-nowrap">
+                                        <span class="text-sm text-slate-600">@order.CustomerName</span>
+                                    </td>
+                                    <td class="py-4 px-3 text-right text-sm font-semibold text-slate-900 align-middle whitespace-nowrap">
+                                        @order.GrandTotal.ToString("N0") ₫
+                                    </td>
+                                    <td class="py-4 px-3 text-center align-middle whitespace-nowrap">
+                                        @if (order.PaidAt.HasValue)
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1.5 text-xs font-semibold text-green-700 ring-1 ring-inset ring-green-600/20">
+                                                <span class="size-1.5 rounded-full bg-green-600"></span> Paid
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                <span class="size-1.5 rounded-full bg-amber-500"></span> Unpaid
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="py-4 px-3 align-middle whitespace-nowrap">
+                                        <p class="text-sm text-slate-500">@order.CreatedAt.ToString("MMM dd, yyyy")</p>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <!-- View more / Footer -->
+                @if (Model.Orders.TotalCount > 5)
+                {
+                    <div class="border-t border-slate-100 p-4 bg-slate-50 flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-500 uppercase tracking-widest pl-2">Displaying 5 of @Model.Orders.TotalCount orders</span>
+                        <a href="/admin/orders?Query.StoreId=@store.Id" target="_blank" class="text-sm font-semibold text-primary flex items-center gap-1 bg-white border border-slate-200 py-2 px-4 rounded-lg hover:shadow-sm hover:border-primary transition-all">
+                            View more
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div class="border-t border-slate-100 p-4 bg-slate-50 flex items-center justify-end">
+                        <a href="/admin/orders?Query.StoreId=@store.Id" target="_blank" class="text-sm font-semibold text-primary flex items-center gap-1 bg-white border border-slate-200 py-2 px-4 rounded-lg hover:shadow-sm hover:border-primary transition-all">
+                            Manage orders
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </a>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="size-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-slate-300 text-3xl">shopping_bag</span>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-500">No orders yet</p>
+                    <p class="text-xs text-slate-400 mt-1">Orders placed through this store will appear here.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+</div>
+
+<!-- Suspend Modal -->
+<div id="suspendModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg p-6 mx-auto bg-white rounded-2xl shadow-xl border border-slate-100">
+        <form method="post" asp-page-handler="ChangeStatus" asp-route-id="@store.Id">
+            <input type="hidden" name="status" value="Locked" />
+            <div class="flex gap-4">
+                <div class="mt-1 flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                    <span class="material-symbols-outlined text-2xl">block</span>
+                </div>
+                <div class="w-full">
+                    <h3 class="text-xl font-bold text-slate-900">Suspend Store</h3>
+                    <p class="text-sm text-slate-500 mt-1">You are about to suspend <span class="font-bold text-slate-900">@store.StoreName</span>. The store will be temporarily deactivated.</p>
+                    <div class="mt-5">
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Reason</label>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <button type="button" class="btn-reason-suspend px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:border-orange-300 hover:text-orange-700 transition-colors" data-reason="Violation of Terms">Violation of Terms</button>
+                            <button type="button" class="btn-reason-suspend px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:border-orange-300 hover:text-orange-700 transition-colors" data-reason="Suspected Fraud">Suspected Fraud</button>
+                            <button type="button" class="btn-reason-suspend px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:border-orange-300 hover:text-orange-700 transition-colors" data-reason="Unpaid Fees">Unpaid Fees</button>
+                        </div>
+                        <textarea id="suspendReasonArea" name="reason" rows="3" maxlength="500" class="w-full resize-none rounded-xl border border-slate-200 py-3 px-4 text-sm" placeholder="Provide reason for suspension..." required></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('suspendModal').classList.add('hidden')" class="px-5 py-2 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-6 py-2 text-sm font-bold text-white bg-orange-500 rounded-xl hover:bg-orange-600 transition-colors shadow-sm">Confirm Suspend</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lock Modal -->
+<div id="lockModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg p-6 mx-auto bg-white rounded-2xl shadow-xl border border-slate-100">
+        <form method="post" asp-page-handler="ChangeStatus" asp-route-id="@store.Id">
+            <input type="hidden" name="status" value="Locked" />
+            <div class="flex gap-4">
+                <div class="mt-1 flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                    <span class="material-symbols-outlined text-2xl">lock</span>
+                </div>
+                <div class="w-full">
+                    <h3 class="text-xl font-bold text-slate-900">Lock Store</h3>
+                    <p class="text-sm text-slate-500 mt-1">Locking <span class="font-bold text-slate-900">@store.StoreName</span> will fully restrict access to the seller dashboard.</p>
+                    <div class="mt-5">
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Reason</label>
+                        <textarea name="reason" rows="3" maxlength="500" class="w-full resize-none rounded-xl border border-slate-200 py-3 px-4 text-sm" placeholder="Provide reason for locking..." required></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('lockModal').classList.add('hidden')" class="px-5 py-2 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-6 py-2 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors shadow-sm">Confirm Lock</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Activate Modal -->
+<div id="activateModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-md p-6 mx-auto bg-white rounded-2xl shadow-xl border border-slate-100">
+        <form method="post" asp-page-handler="ChangeStatus" asp-route-id="@store.Id">
+            <input type="hidden" name="status" value="Approved" />
+            <div class="flex flex-col items-center text-center gap-3">
+                <div class="w-16 h-16 mx-auto bg-green-50 rounded-full flex items-center justify-center ring-8 ring-green-50/50">
+                    <span class="material-symbols-outlined text-green-600 text-3xl">lock_open</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">Activate Store</h3>
+                <p class="text-sm text-slate-500">Are you sure you want to reactivate <span class="font-bold text-slate-900">@store.StoreName</span>? The store will regain full access.</p>
+            </div>
+            <div class="flex justify-center gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('activateModal').classList.add('hidden')" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex-1">Cancel</button>
+                <button type="submit" class="px-6 py-2.5 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-colors shadow-lg flex-1">Activate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Tabs
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => {
+                    b.classList.remove('border-primary', 'text-primary', 'font-bold');
+                    b.classList.add('border-transparent', 'text-slate-500', 'font-medium');
+                });
+                btn.classList.add('border-primary', 'text-primary', 'font-bold');
+                btn.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
+
+                document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+                document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        // Quick reason chips for suspend
+        document.querySelectorAll('.btn-reason-suspend').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const area = document.getElementById('suspendReasonArea');
+                const reason = btn.dataset.reason;
+                area.value = area.value ? area.value + '\n- ' + reason : '- ' + reason;
+            });
+        });
+    </script>
+}

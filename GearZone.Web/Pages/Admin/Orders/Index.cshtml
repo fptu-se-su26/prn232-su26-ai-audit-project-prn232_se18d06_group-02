@@ -1,0 +1,454 @@
+@page "/admin/orders"
+@model GearZone.Web.Pages.Admin.Orders.IndexModel
+@{
+    ViewData["Title"] = "Order Management";
+    ViewData["PageHeader"] = "Order Management";
+    ViewData["ActivePage"] = "Orders";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Order Management" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Orders -->
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/50">
+                <span class="material-symbols-outlined">receipt_long</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Orders</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.TotalOrders.ToString("N0")</h3>
+            </div>
+        </div>
+
+        <!-- Paid Orders -->
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-green-50 text-green-600 flex items-center justify-center border border-green-100/50">
+                <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Paid Orders</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.PaidOrders.ToString("N0")</h3>
+            </div>
+        </div>
+
+        <!-- Unpaid Orders -->
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-100/50">
+                <span class="material-symbols-outlined">pending_actions</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Unpaid Orders</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.UnpaidOrders.ToString("N0")</h3>
+            </div>
+        </div>
+
+        <!-- Revenue -->
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/50">
+                <span class="material-symbols-outlined">payments</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Revenue</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.TotalRevenue.ToString("N0") ₫</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Actions Bar -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+        <form method="get" id="filter-form" class="flex flex-col">
+            <input type="hidden" name="Query.PageNumber" id="page-number-input" value="@Model.Query.PageNumber" />
+            <input type="hidden" name="Query.SortBy" id="sort-by-input" value="@Model.Query.SortBy" />
+            <input type="hidden" name="Query.SortDirection" id="sort-dir-input" value="@Model.Query.SortDirection" />
+
+            <!-- Primary toolbar -->
+            <div class="flex flex-col lg:flex-row gap-3 p-4 items-start lg:items-center">
+
+                <!-- Search box -->
+                <div class="relative flex-1 w-full">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
+                        <span class="material-symbols-outlined text-[20px]">search</span>
+                    </span>
+                    <input asp-for="Query.SearchTerm"
+                           class="form-input w-full rounded-lg border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary focus:bg-white transition-colors"
+                           placeholder="Search by order code, customer name, receiver name…"
+                           type="text"
+                           autocomplete="off" />
+                </div>
+
+                <!-- Payment Status quick-filter -->
+                <div class="shrink-0 w-full lg:w-44">
+                    <select asp-for="Query.IsPaid"
+                            class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 text-sm text-slate-900 focus:border-primary focus:ring-primary shadow-sm"
+                            onchange="this.form.submit()">
+                        <option value="">All Payment Statuses</option>
+                        <option value="true">Paid</option>
+                        <option value="false">Unpaid</option>
+                    </select>
+                </div>
+
+                <!-- Toolbar actions -->
+                <div class="flex items-center gap-2 shrink-0 w-full lg:w-auto">
+                    <button type="submit"
+                            class="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm shadow-blue-500/20 transition-all">
+                        <span class="material-symbols-outlined text-[18px]">search</span>
+                        <span>Search</span>
+                    </button>
+
+                    <button type="button" id="toggle-advanced-btn"
+                            class="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm text-sm whitespace-nowrap">
+                        <span class="material-symbols-outlined text-[18px]">tune</span>
+                        <span class="hidden sm:inline font-medium">Filters</span>
+                        @{
+                            var advancedActiveCount = 0;
+                            if (!string.IsNullOrEmpty(Model.DateRangeShortcut)) advancedActiveCount++;
+                            if (Model.Query.MinPrice.HasValue || Model.Query.MaxPrice.HasValue) advancedActiveCount++;
+                        }
+                        @if (advancedActiveCount > 0)
+                        {
+                            <span class="inline-flex items-center justify-center size-5 rounded-full bg-primary text-white text-[10px] font-bold">@advancedActiveCount</span>
+                        }
+                    </button>
+
+                    <a asp-page="/Admin/Orders/Index"
+                       class="flex items-center justify-center p-2.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors bg-white shadow-sm"
+                       title="Reset all filters">
+                        <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+                    </a>
+
+                    <button type="button"
+                            class="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm text-sm whitespace-nowrap">
+                        <span class="material-symbols-outlined text-[18px]">file_download</span>
+                        <span class="hidden sm:inline font-medium">Export</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Advanced Filters (Collapsible) -->
+            @{
+                var hasAdvanced = advancedActiveCount > 0;
+            }
+            <div id="advanced-filters"
+                 class="@(hasAdvanced ? "" : "hidden") border-t border-slate-100 bg-slate-50/40 px-4 pt-4 pb-5 flex flex-col gap-5">
+
+                <div class="flex flex-wrap lg:flex-nowrap items-start gap-4 lg:gap-6">
+                    <!-- Amount Range -->
+                    <div class="w-full lg:w-72 space-y-1 lg:shrink-0">
+                        <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">payments</span> Total Range (₫)
+                        </label>
+                        <div class="flex items-center gap-1.5">
+                            <input asp-for="Query.MinPrice" type="number" placeholder="Min" class="form-input min-w-0 w-full rounded-lg border-slate-200 bg-white py-2 text-sm px-2.5 shadow-sm h-[38px]" />
+                            <span class="text-slate-300 flex-shrink-0 text-lg font-light">—</span>
+                            <input asp-for="Query.MaxPrice" type="number" placeholder="Max" class="form-input min-w-0 w-full rounded-lg border-slate-200 bg-white py-2 text-sm px-2.5 shadow-sm h-[38px]" />
+                        </div>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="w-full lg:w-80 space-y-1 lg:shrink-0">
+                        <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">calendar_today</span> Order Date
+                        </label>
+                        <div class="flex flex-col gap-2">
+                            <select asp-for="DateRangeShortcut" id="dateRangeShortcut" class="form-select w-full rounded-lg border-slate-200 bg-white py-2 text-sm focus:ring-primary focus:border-primary h-[40px]" onchange="toggleCustomDateRange()">
+                                <option value="">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                            <div id="customDateRangeContainer" class="relative @(Model.DateRangeShortcut == "custom" ? "" : "hidden")">
+                                <span class="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                                    <span class="material-symbols-outlined text-[18px]">event</span>
+                                </span>
+                                <input type="text" asp-for="Query.DateRange" id="dateRangePicker" class="form-input w-full pl-10 pr-4 py-2 border-slate-200 bg-white rounded-lg text-sm focus:ring-primary focus:border-primary cursor-pointer transition-all h-[40px]" placeholder="Select Range" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Apply button -->
+                    <div class="w-full lg:w-auto mt-2 lg:mt-[22px] lg:ms-auto">
+                        <button type="submit"
+                                class="w-full sm:w-auto h-[40px] flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-6 rounded-lg text-sm font-semibold transition-colors shadow-sm">
+                            <span class="material-symbols-outlined text-[17px]">check</span>
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Orders Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden flex flex-col">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            <button type="button" class="sort-header inline-flex items-center gap-1 w-full hover:text-primary transition-colors group" data-col="orderCode">
+                                Order Code
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "orderCode" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "orderCode" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "orderCode" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Customer</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Receiver</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">
+                            <button type="button" class="sort-header inline-flex items-center justify-end gap-1 w-full hover:text-primary transition-colors group" data-col="grandTotal">
+                                Total
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "grandTotal" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "grandTotal" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "grandTotal" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-center">Payment Status</th>
+                        <th class="py-4 pr-6 pl-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">
+                            <button type="button" class="sort-header inline-flex items-center justify-end gap-1 w-full hover:text-primary transition-colors group" data-col="createdAt">
+                                Created
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "createdAt" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "createdAt" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "createdAt" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.Orders.Items.Any())
+                    {
+                        foreach (var order in Model.Orders.Items)
+                        {
+                            <tr class="hover:bg-slate-50 transition-all cursor-pointer group/row" onclick="window.location.href='/admin/orders/detail?id=@order.Id'">
+                                <td class="py-4 px-6 align-middle font-mono text-sm font-semibold text-slate-900 group-hover/row:text-primary transition-colors">
+                                    #@order.OrderCode
+                                </td>
+                                <td class="py-4 px-3 hidden md:table-cell align-middle whitespace-nowrap">
+                                    <span class="text-sm text-slate-600">@order.CustomerName</span>
+                                </td>
+                                <td class="py-4 px-3 hidden md:table-cell align-middle whitespace-nowrap">
+                                    <span class="text-sm font-medium text-slate-700">@order.ReceiverName</span>
+                                    <div class="text-xs text-slate-500 mt-0.5">@order.ReceiverPhone</div>
+                                </td>
+                                <td class="py-4 px-3 text-right text-sm font-semibold text-slate-900 align-middle whitespace-nowrap">
+                                    @order.GrandTotal.ToString("N0") ₫
+                                </td>
+                                <td class="py-4 px-3 text-center align-middle whitespace-nowrap">
+                                    @if (order.PaidAt.HasValue)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1.5 text-xs font-semibold text-green-700 ring-1 ring-inset ring-green-600/20">
+                                            <span class="size-1.5 rounded-full bg-green-600"></span> Paid
+                                        </span>
+                                        <div class="text-[10px] text-slate-500 mt-1">@order.PaidAt.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                            <span class="size-1.5 rounded-full bg-amber-500"></span> Unpaid
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-4 px-3 text-right align-middle whitespace-nowrap">
+                                    <p class="text-sm text-slate-500">@order.CreatedAt.ToString("MMM dd, yyyy")</p>
+                                </td>
+                                <td class="py-4 px-6 text-right align-middle whitespace-nowrap">
+                                    <a href="/admin/orders/detail?id=@order.Id" class="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all" title="View Details" onclick="event.stopPropagation();">
+                                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-slate-500">
+                                <div class="flex flex-col items-center justify-center space-y-3">
+                                    <div class="size-16 rounded-full bg-slate-50 flex items-center justify-center">
+                                        <span class="material-symbols-outlined text-4xl text-slate-300">receipt_long</span>
+                                    </div>
+                                    <p class="text-base font-medium text-slate-900 mt-2">No orders found</p>
+                                    <p class="text-sm">We couldn't find any orders matching your criteria.</p>
+                                    <button type="button" class="mt-2 text-sm text-primary font-medium hover:underline" onclick="window.location.href='/admin/orders'">Clear all filters</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="border-t border-slate-100 px-6 py-4 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-sm text-slate-500">
+                Showing <span class="font-medium text-slate-900">@((Model.Orders.PageNumber - 1) * Model.Orders.PageSize + (Model.Orders.Items.Any() ? 1 : 0))</span> to
+                <span class="font-medium text-slate-900">
+                    @(System.Math.Min(Model.Orders.PageNumber * Model.Orders.PageSize, Model.Orders.TotalCount))
+                </span> of
+                <span class="font-medium text-slate-900">@Model.Orders.TotalCount.ToString("N0")</span> orders
+            </div>
+
+            @if (Model.Orders.TotalPages > 1)
+            {
+                <nav aria-label="Pagination" class="flex items-center gap-1">
+                    @if (Model.Orders.PageNumber > 1)
+                    {
+                        <button type="button" onclick="gotoPage(@(Model.Orders.PageNumber - 1))" class="p-2 rounded-lg border border-slate-200 text-slate-400 hover:bg-white hover:text-primary hover:border-primary transition-all shadow-sm">
+                            <span class="material-symbols-outlined text-lg leading-none">chevron_left</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="p-2 rounded-lg border border-slate-100 text-slate-300 bg-slate-50 cursor-not-allowed">
+                            <span class="material-symbols-outlined text-lg leading-none">chevron_left</span>
+                        </div>
+                    }
+
+                    <div class="flex items-center gap-1 px-1">
+                        @{
+                            int startPage = System.Math.Max(1, Model.Orders.PageNumber - 2);
+                            int endPage = System.Math.Min(Model.Orders.TotalPages, startPage + 4);
+                            if (endPage - startPage < 4 && startPage > 1)
+                            {
+                                startPage = System.Math.Max(1, endPage - 4);
+                            }
+                        }
+                        
+                        @if (startPage > 1)
+                        {
+                            <button type="button" onclick="gotoPage(1)" class="min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all border border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-primary">1</button>
+                            @if (startPage > 2)
+                            {
+                                <span class="text-slate-400 px-1">...</span>
+                            }
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <button type="button" @(i != Model.Orders.PageNumber ? $"onclick=gotoPage({i})" : "") class="min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all @(i == Model.Orders.PageNumber ? "bg-primary text-white shadow-sm shadow-blue-500/20" : "border border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-primary")">
+                                @i
+                            </button>
+                        }
+
+                        @if (endPage < Model.Orders.TotalPages)
+                        {
+                            @if (endPage < Model.Orders.TotalPages - 1)
+                            {
+                                <span class="text-slate-400 px-1">...</span>
+                            }
+                            <button type="button" onclick="gotoPage(@Model.Orders.TotalPages)" class="min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all border border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-primary">@Model.Orders.TotalPages</button>
+                        }
+                    </div>
+
+                    @if (Model.Orders.PageNumber < Model.Orders.TotalPages)
+                    {
+                        <button type="button" onclick="gotoPage(@(Model.Orders.PageNumber + 1))" class="p-2 rounded-lg border border-slate-200 text-slate-400 hover:bg-white hover:text-primary hover:border-primary transition-all shadow-sm">
+                            <span class="material-symbols-outlined text-lg leading-none">chevron_right</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="p-2 rounded-lg border border-slate-100 text-slate-300 bg-slate-50 cursor-not-allowed">
+                            <span class="material-symbols-outlined text-lg leading-none">chevron_right</span>
+                        </div>
+                    }
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        function gotoPage(page) {
+            const pageInput = document.getElementById('page-number-input');
+            const filterForm = document.getElementById('filter-form');
+            if (pageInput && filterForm) {
+                pageInput.value = page;
+                filterForm.submit();
+            }
+        }
+
+        function toggleCustomDateRange() {
+            const select = document.getElementById('dateRangeShortcut');
+            const container = document.getElementById('customDateRangeContainer');
+            if (select.value === 'custom') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                const picker = document.getElementById('dateRangePicker');
+                if (picker) picker.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("#dateRangePicker", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                allowInput: true
+            });
+            const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
+            const advancedFilters = document.getElementById('advanced-filters');
+
+            // ─── Set active state if advanced panel is visible server-side ───
+            if (advancedFilters && !advancedFilters.classList.contains('hidden')) {
+                toggleAdvancedBtn?.classList.add('bg-slate-50', 'border-slate-300', 'text-slate-900');
+            }
+
+            // ─── Toggle Advanced Filters Panel ───
+            if (toggleAdvancedBtn) {
+                toggleAdvancedBtn.addEventListener('click', function() {
+                    advancedFilters.classList.toggle('hidden');
+                    if (advancedFilters.classList.contains('hidden')) {
+                        this.classList.remove('bg-slate-50', 'text-slate-900', 'border-slate-300');
+                    } else {
+                        this.classList.add('bg-slate-50', 'text-slate-900', 'border-slate-300');
+                    }
+                });
+            }
+
+            // ─── Column Sort Logic (3-state: desc → asc → default) ───
+            const sortByInput = document.getElementById('sort-by-input');
+            const sortDirInput = document.getElementById('sort-dir-input');
+            const filterForm = document.getElementById('filter-form');
+
+            document.querySelectorAll('.sort-header').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const col = this.dataset.col;
+                    const currentCol = sortByInput.value;
+                    const currentDir = sortDirInput.value;
+
+                    let nextDir = '';
+                    if (currentCol !== col) {
+                        nextDir = 'desc';
+                    } else if (currentDir === 'desc') {
+                        nextDir = 'asc';
+                    } else if (currentDir === 'asc') {
+                        nextDir = '';
+                    } else {
+                        nextDir = 'desc';
+                    }
+
+                    if (nextDir === '') {
+                        sortByInput.value = '';
+                        sortDirInput.value = '';
+                    } else {
+                        sortByInput.value = col;
+                        sortDirInput.value = nextDir;
+                    }
+
+                    // Reset to page 1 when sorting changes
+                    const pageInput = filterForm.querySelector('input[name="Query.PageNumber"]');
+                    if (pageInput) pageInput.value = '1';
+
+                    filterForm.submit();
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,33 @@
+@page "/checkout/payment-cancel"
+@model GearZone.Web.Pages.Checkout.PaymentCancelModel
+@{
+    ViewData["Title"] = "Payment Cancelled - GearZone";
+}
+
+<div class="min-h-[60vh] flex items-center justify-center">
+    <div class="bg-white dark:bg-[#1a202c] rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 p-10 max-w-md w-full text-center">
+        <div class="mb-6">
+            <span class="material-symbols-outlined text-6xl text-amber-500">warning</span>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white mb-3">Payment Cancelled</h1>
+        <p class="text-slate-500 dark:text-slate-400 mb-6">
+            Your payment was cancelled and your order has been voided.
+        </p>
+        <div class="flex flex-col gap-3">
+            <a href="/cart" class="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                <span class="material-symbols-outlined text-lg">shopping_cart</span>
+                Back to Cart
+            </a>
+            <a href="/" class="text-sm text-slate-500 hover:text-primary transition-colors">
+                Continue Shopping
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Break out of iframe if necessary
+    if (window.top !== window.self) {
+        window.top.location.href = window.self.location.href;
+    }
+</script>

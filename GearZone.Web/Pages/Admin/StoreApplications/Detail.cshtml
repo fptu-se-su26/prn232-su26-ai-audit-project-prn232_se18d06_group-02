@@ -1,0 +1,513 @@
+@page "/admin/store-applications/{id:guid}"
+@using GearZone.Domain.Enums
+@model GearZone.Web.Pages.Admin.StoreApplications.DetailModel
+@{
+    var store = Model.StoreApplication!;
+    var hasFrontIdImage = !string.IsNullOrWhiteSpace(store.IdentityCardFrontImageUrl);
+    var hasBackIdImage = !string.IsNullOrWhiteSpace(store.IdentityCardBackImageUrl);
+    var documentCount = (hasFrontIdImage ? 1 : 0) + (hasBackIdImage ? 1 : 0);
+    ViewData["Title"] = "Application Details - " + store.StoreName;
+    ViewData["PageHeader"] = "Application Details";
+    ViewData["ActivePage"] = "Stores";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Store Applications", "Details" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-8 pb-32">
+    <!-- Header with Status -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div class="flex items-center gap-4">
+            @if (!string.IsNullOrEmpty(store.LogoUrl))
+            {
+                <img src="@store.LogoUrl" alt="@store.StoreName Logo" class="w-20 h-20 rounded-xl object-cover border border-slate-200 shadow-sm" />
+            }
+            else
+            {
+                <div class="w-20 h-20 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-200 shadow-sm">
+                    <span class="material-symbols-outlined text-slate-300 text-4xl">store</span>
+                </div>
+            }
+            <div class="flex flex-col gap-2">
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900">@store.StoreName</h1>
+                <div class="flex flex-wrap items-center gap-4">
+                    @{
+                        var statusClass = store.Status switch
+                        {
+                            StoreStatus.Pending => "bg-amber-50 text-amber-700 ring-amber-600/20",
+                            StoreStatus.Approved => "bg-green-50 text-green-700 ring-green-600/20",
+                            StoreStatus.Rejected => "bg-red-50 text-red-700 ring-red-600/10",
+                            _ => "bg-slate-50 text-slate-700 ring-slate-600/20"
+                        };
+                        var dotClass = store.Status switch
+                        {
+                            StoreStatus.Pending => "bg-amber-500",
+                            StoreStatus.Approved => "bg-green-500",
+                            StoreStatus.Rejected => "bg-red-500",
+                            _ => "bg-slate-500"
+                        };
+                    }
+                    <span class="inline-flex items-center gap-1.5 rounded-full @statusClass px-3 py-1 text-sm font-bold ring-1 ring-inset uppercase tracking-tight">
+                        <span class="size-1.5 rounded-full @dotClass"></span>
+                        @store.Status
+                    </span>
+                    <span class="text-sm text-slate-500 font-medium">Submitted on @store.CreatedAt.ToString("MMM dd, yyyy") • @store.BusinessType Application</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                <span class="material-symbols-outlined text-[18px] text-slate-500">print</span>
+                Print
+            </button>
+            <button class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                <span class="material-symbols-outlined text-[18px] text-slate-500">history</span>
+                Audit Log
+            </button>
+        </div>
+    </div>
+
+    <!-- Rejection Reason Banner -->
+    @if (store.Status == StoreStatus.Rejected && !string.IsNullOrEmpty(store.RejectReason))
+    {
+        <div class="rounded-xl border border-[#fee2e2] bg-[#fff5f5] p-6 shadow-sm flex items-start gap-5">
+            <div class="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[#fee2e2] text-[#b91c1c] shadow-sm shadow-red-100">
+                <span class="material-symbols-outlined filled text-[20px]">error</span>
+            </div>
+            <div class="flex-1 mt-0.5">
+                <h3 class="text-base font-bold text-[#7f1d1d] tracking-tight">Rejection Reason</h3>
+                <div class="mt-2 text-sm text-[#991b1b] leading-relaxed font-medium">@store.RejectReason</div>
+                <div class="mt-5 flex items-center gap-3">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" value="" class="sr-only peer" checked>
+                      <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300/50 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2563eb]"></div>
+                      <span class="ml-3 text-sm font-medium text-slate-600">Allow Resubmission</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Main Grid Content -->
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <!-- Left Side: Basic Info & Status -->
+        <div class="flex flex-col gap-6 lg:col-span-12 xl:col-span-7">
+            <!-- Basic Information Card -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        <span class="material-symbols-outlined text-primary text-[20px]">domain</span>
+                        Basic Information
+                    </h3>
+                    <button class="text-sm font-bold text-primary hover:text-primary-dark transition-colors">EDIT</button>
+                </div>
+                <div class="p-6">
+                    <dl class="grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2">
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Company Name</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.StoreName</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tax Code / EIN</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900 font-mono tracking-tighter">@store.TaxCode</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Business Type</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.BusinessType</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Store URL Slug</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.Slug</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Store Email</dt>
+                            <dd class="mt-1 text-sm font-semibold text-primary">@store.Email</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Store Phone</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@store.Phone</dd>
+                        </div>
+                        <div class="col-span-1 sm:col-span-2">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Store Description</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.Description) ? "N/A" : store.Description)</dd>
+                        </div>
+                        <div class="col-span-1 sm:col-span-2">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Headquarters Address</dt>
+                            <dd class="mt-1 flex items-start justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span class="text-sm font-semibold text-slate-900 leading-relaxed">
+                                    @(!string.IsNullOrEmpty(store.AddressLine) ? store.AddressLine : "N/A")<br/>
+                                    @(!string.IsNullOrEmpty(store.Province) ? store.Province : "")
+                                </span>
+                                <button class="rounded p-1.5 text-slate-400 hover:bg-white hover:text-primary hover:shadow-sm transition-all">
+                                    <span class="material-symbols-outlined text-[20px]">map</span>
+                                </button>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Owner Information Card -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        <span class="material-symbols-outlined text-primary text-[20px]">person</span>
+                        Owner & Representative
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <dl class="grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2">
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Representative</dt>
+                            <dd class="mt-1 flex items-center gap-2">
+                                <div class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700 shadow-sm border border-blue-200">@(new string(store.OwnerName.Take(1).Concat(store.OwnerName.Split(' ').Last().Take(1)).ToArray()).ToUpper())</div>
+                                <span class="text-sm font-semibold text-slate-900">@store.OwnerName</span>
+                            </dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email Address</dt>
+                            <dd class="mt-1 text-sm font-semibold text-primary hover:underline cursor-pointer">@store.OwnerEmail</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone Number</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.OwnerPhone) ? "N/A" : store.OwnerPhone)</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Identity Number (CCCD)</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.IdentityNumber ?? "N/A")</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Identity Issued Date</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.IdentityIssuedDate.HasValue ? store.IdentityIssuedDate.Value.ToString("MMM dd, yyyy") : "N/A")</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Identity Issued Place</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(store.IdentityIssuedPlace ?? "N/A")</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Financial Information Card -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        <span class="material-symbols-outlined text-primary text-[20px]">account_balance</span>
+                        Banking & Financial Setup
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <dl class="grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2">
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bank Name</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.BankName) ? "N/A" : store.BankName)</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Account Name</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">@(string.IsNullOrEmpty(store.BankAccountName) ? "N/A" : store.BankAccountName)</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Account Number</dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900 font-mono tracking-tighter">@(string.IsNullOrEmpty(store.BankAccountNumber) ? "N/A" : store.BankAccountNumber)</dd>
+                        </div>
+                        <div class="col-span-1">
+                            <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Commission Rate</dt>
+                            <dd class="mt-1 text-sm font-semibold text-emerald-600">@((store.CommissionRate * 100).ToString("0.##"))%</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Application Metadata Card -->
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        <span class="material-symbols-outlined text-primary text-[20px]">info</span>
+                        Application Metadata
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Application ID</p>
+                            <p class="mt-1 text-sm font-mono font-semibold text-slate-900">#@store.Id.ToString().Substring(0, 8).ToUpper()</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Submission Date</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">@store.CreatedAt.ToString("MMM dd, yyyy")</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Last Updated</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">N/A</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Documents & History -->
+        <div class="flex flex-col gap-6 lg:col-span-12 xl:col-span-5">
+            <!-- Application History Timeline -->
+            <div class="shrink-0 rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        <span class="material-symbols-outlined text-primary text-[20px]">history</span>
+                        Application History
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <div class="relative">
+                        <!-- Connecting Line -->
+                        <div class="absolute left-[7px] top-6 bottom-4 w-px bg-slate-200 z-0"></div>
+                        
+                        <!-- Submission -->
+                        <div class="flex gap-4 relative z-10">
+                            <div class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-300 ring-4 ring-white mt-0.5"></div>
+                            <div class="flex flex-col gap-0.5 pb-8">
+                                <h4 class="text-sm font-bold text-slate-900">Application Submitted</h4>
+                                <p class="text-[11px] font-medium text-slate-500">@store.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</p>
+                            </div>
+                        </div>
+
+                        <!-- Action Decision -->
+                        @if (store.Status == StoreStatus.Approved && store.ApprovedAt.HasValue)
+                        {
+                            <div class="flex gap-4 relative z-10">
+                                <div class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-500 ring-4 ring-white shadow-sm shadow-green-500/30 mt-0.5"></div>
+                                <div class="flex flex-col gap-0.5">
+                                    <h4 class="text-sm font-bold text-green-700">Application Approved</h4>
+                                    <p class="text-[11px] font-medium text-slate-500">@store.ApprovedAt.Value.ToString("MMM dd, yyyy h:mm tt")</p>
+                                </div>
+                            </div>
+                        }
+                        else if (store.Status == StoreStatus.Rejected && store.UpdatedAt.HasValue)
+                        {
+                            <div class="flex gap-4 relative z-10">
+                                <div class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-500 ring-4 ring-white shadow-sm shadow-red-500/30 mt-0.5"></div>
+                                <div class="flex flex-col gap-0.5">
+                                    <h4 class="text-sm font-bold text-red-700">Application Rejected</h4>
+                                    <p class="text-[11px] font-medium text-slate-500">@store.UpdatedAt.Value.ToString("MMM dd, yyyy h:mm tt")</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card overflow-hidden flex flex-col h-full">
+                <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/30">
+                    <h3 class="flex items-center gap-2 text-base font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        <span class="material-symbols-outlined text-primary text-[20px]">description</span>
+                        Documents Preview
+                    </h3>
+                    <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider">@documentCount Files</span>
+                </div>
+                <div class="p-6 flex flex-col gap-6">
+                    <div class="space-y-4">
+                        <div class="mb-3 flex items-center justify-between">
+                            <h4 class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Identity Verification</h4>
+                            @if (hasFrontIdImage && hasBackIdImage)
+                            {
+                                <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-600 uppercase tracking-widest">
+                                    <span class="material-symbols-outlined text-[16px] text-emerald-500 filled">check_circle</span>
+                                    Ready for review
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="flex items-center gap-1 text-[11px] font-bold text-amber-600 uppercase tracking-widest">
+                                    <span class="material-symbols-outlined text-[16px] text-amber-500">warning</span>
+                                    Missing files
+                                </span>
+                            }
+                        </div>
+
+                        @if (hasFrontIdImage)
+                        {
+                            <a href="@store.IdentityCardFrontImageUrl" target="_blank" rel="noopener noreferrer" class="group relative block overflow-hidden rounded-xl border border-slate-100 bg-slate-200 aspect-[16/9] shadow-sm">
+                                <img alt="ID Front" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src="@store.IdentityCardFrontImageUrl" />
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                                <span class="absolute bottom-3 left-4 text-[10px] font-bold text-white uppercase tracking-widest drop-shadow-md">ID Card (Front)</span>
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-[1px]">
+                                    <span class="rounded-full bg-white px-4 py-2 text-slate-900 font-bold text-xs shadow-xl flex items-center gap-2 hover:bg-primary hover:text-white transition-all transform translate-y-2 group-hover:translate-y-0">
+                                        <span class="material-symbols-outlined text-[18px]">zoom_in</span>
+                                        Full Image
+                                    </span>
+                                </div>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-700">
+                                ID Card (Front): Not uploaded.
+                            </div>
+                        }
+
+                        @if (hasBackIdImage)
+                        {
+                            <a href="@store.IdentityCardBackImageUrl" target="_blank" rel="noopener noreferrer" class="group relative block overflow-hidden rounded-xl border border-slate-100 bg-slate-200 aspect-[16/9] shadow-sm">
+                                <img alt="ID Back" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src="@store.IdentityCardBackImageUrl" />
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+                                <span class="absolute bottom-3 left-4 text-[10px] font-bold text-white uppercase tracking-widest drop-shadow-md">ID Card (Back)</span>
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-[1px]">
+                                    <span class="rounded-full bg-white px-4 py-2 text-slate-900 font-bold text-xs shadow-xl flex items-center gap-2 hover:bg-primary hover:text-white transition-all transform translate-y-2 group-hover:translate-y-0">
+                                        <span class="material-symbols-outlined text-[18px]">zoom_in</span>
+                                        Full Image
+                                    </span>
+                                </div>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-700">
+                                ID Card (Back): Not uploaded.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sticky Bottom Action Bar -->
+<!-- Sticky Bottom Action Bar -->
+@if (store.Status == StoreStatus.Pending)
+{
+    <div class="fixed bottom-0 left-[260px] right-0 z-40 border-t border-slate-200 bg-white/80 backdrop-blur-md shadow-2xl transition-all duration-300">
+        <div class="max-w-[1400px] mx-auto flex w-full flex-col gap-4 px-8 py-4 md:flex-row md:items-center justify-between">
+            <div class="text-sm text-slate-500 font-medium flex items-center">
+                <span class="material-symbols-outlined text-[20px] mr-2">pending_actions</span> This application is awaiting your review.
+            </div>
+            <!-- Primary Actions -->
+            <div class="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
+                <button type="button" onclick="document.getElementById('requestInfoModal').classList.remove('hidden')" class="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/20 px-5 py-2.5 text-sm font-bold text-primary hover:bg-primary/5 hover:border-primary transition-all">
+                    <span class="material-symbols-outlined text-[20px]">help_outline</span>
+                    REQUEST INFO
+                </button>
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="document.getElementById('rejectModal').classList.remove('hidden')" class="flex items-center justify-center gap-2 rounded-xl bg-red-50 px-6 py-2.5 text-sm font-bold text-red-600 border-2 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-[20px]">block</span>
+                        REJECT
+                    </button>
+                    <button type="button" onclick="document.getElementById('approveModal').classList.remove('hidden')" class="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/30 hover:bg-primary-dark hover:-translate-y-0.5 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                        APPROVE APPLICATION
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Reject Modal -->
+<div id="rejectModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center overflow-auto bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg p-6 mx-auto bg-white rounded-2xl shadow-xl flex flex-col border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <form method="post" asp-page-handler="Reject" asp-route-id="@store.Id">
+            <div class="flex gap-4">
+                 <div class="mt-1 flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                     <span class="material-symbols-outlined text-2xl">warning</span>
+                 </div>
+                 <div class="w-full">
+                     <h3 class="text-xl font-bold text-slate-900">Reject Registration</h3>
+                     <p class="text-sm text-slate-500 mt-1">You are about to reject the application for <span class="font-bold text-slate-900">@store.StoreName</span>.</p>
+                     
+                     <div class="mt-6 w-full">
+                         <label class="block text-sm font-bold text-slate-700 mb-2">Reason for Rejection</label>
+                         <div class="flex flex-wrap gap-2 mb-3">
+                             <button type="button" class="btn-reason px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm" data-reason="Incomplete Information">Incomplete Info</button>
+                             <button type="button" class="btn-reason px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm" data-reason="Invalid Documents">Invalid Documents</button>
+                             <button type="button" class="btn-reason px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm" data-reason="Duplicate Account">Duplicate Account</button>
+                             <button type="button" class="btn-reason px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm" data-reason="Policy Violation">Policy Violation</button>
+                         </div>
+                         <textarea id="rejectReasonTextarea" name="rejectReason" rows="4" maxlength="500" class="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all" placeholder="Please provide details about why this application is being rejected..." required></textarea>
+                     </div>
+                 </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('rejectModal').classList.add('hidden')" class="px-5 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                <button type="submit" class="px-6 py-2 text-sm font-bold text-white bg-red-600 border border-transparent rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20">Confirm Rejection</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div id="approveModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center overflow-auto bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-md p-6 mx-auto bg-white rounded-2xl shadow-xl flex flex-col gap-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <form method="post" asp-page-handler="Approve" asp-route-id="@store.Id">
+            <div class="flex flex-col items-center justify-center text-center gap-3">
+                 <div class="w-16 h-16 mx-auto bg-green-50 rounded-full flex items-center justify-center mb-2 ring-8 ring-green-50/50">
+                     <span class="material-symbols-outlined text-green-600 text-3xl">check_circle</span>
+                 </div>
+                 <h3 class="text-xl font-bold text-slate-900">Approve Registration</h3>
+                 <p class="text-sm text-slate-500">Are you sure you want to approve the application for <span class="font-bold text-slate-900">@store.StoreName</span>?</p>
+                 <p class="text-xs text-slate-400 mt-2">This will notify the owner and allow them access to the seller dashboard.</p>
+            </div>
+            
+            <div class="flex justify-center gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('approveModal').classList.add('hidden')" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex-1">Cancel</button>
+                <button type="submit" class="px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/30 flex-1">Approve Application</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Request Info Modal -->
+<div id="requestInfoModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center overflow-auto bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg p-6 mx-auto bg-white rounded-2xl shadow-xl flex flex-col border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <form method="post" asp-page-handler="RequestInfo" asp-route-id="@store.Id">
+            <div class="flex gap-4">
+                 <div class="mt-1 flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                     <span class="material-symbols-outlined text-2xl">help_outline</span>
+                 </div>
+                 <div class="w-full">
+                     <h3 class="text-xl font-bold text-slate-900">Request Information</h3>
+                     <p class="text-sm text-slate-500 mt-1">Send a message to the applicant to request additional information or clarification.</p>
+                     
+                     <div class="mt-6 w-full">
+                         <label class="block text-sm font-bold text-slate-700 mb-2">Note to Applicant</label>
+                         <textarea id="requestInfoTextarea" name="informNote" rows="4" class="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" placeholder="E.g., Please provide a clearer copy of your business license..." required></textarea>
+                     </div>
+                 </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('requestInfoModal').classList.add('hidden')" class="px-5 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+                <button type="submit" class="px-6 py-2 text-sm font-bold text-white bg-blue-600 border border-transparent rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-600/20">Send Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Adjust bottom bar position if sidebar state changes
+        const sidebar = document.querySelector('aside');
+        const bottomBar = document.querySelector('.fixed.bottom-0');
+        
+        // This is a simplified version, ideally you'd have a resize observer
+        if (sidebar && sidebar.classList.contains('w-20') && bottomBar) {
+            bottomBar.classList.replace('left-[260px]', 'left-20');
+        }
+
+        // Setup event listeners for quick reasons
+        document.addEventListener('DOMContentLoaded', () => {
+            const textarea = document.getElementById('rejectReasonTextarea');
+            const reasonButtons = document.querySelectorAll('.btn-reason');
+            
+            reasonButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const reason = btn.getAttribute('data-reason');
+                    if (textarea.value) {
+                        if (!textarea.value.includes(reason)) {
+                            textarea.value = textarea.value + '\n- ' + reason;
+                        }
+                    } else {
+                        textarea.value = '- ' + reason;
+                    }
+                });
+            });
+        });
+    </script>
+}

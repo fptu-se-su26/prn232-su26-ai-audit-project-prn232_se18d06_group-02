@@ -1,0 +1,128 @@
+@page "{id:Guid}"
+@model GearZone.Web.Pages.Public.Catalog.PreviewModel
+@{
+    ViewData["Title"] = $"[PREVIEW] {Model.ProductData.Name} - GearZone";
+}
+
+<div class="bg-amber-50 border-y border-amber-200 px-4 py-3 flex items-center justify-center gap-4 sticky top-0 z-50 shadow-sm">
+    <div class="flex items-center gap-2 text-amber-800 font-bold">
+        <span class="material-symbols-outlined">visibility</span>
+        <span>YOU ARE IN PREVIEW MODE</span>
+    </div>
+    <div class="text-amber-700 text-sm hidden md:block">
+        This page shows how the product will look to customers once activated.
+    </div>
+</div>
+
+<div class="flex-grow w-full max-w-[1280px] mx-auto px-4 lg:px-8 py-6">
+    <partial name="/Pages/Public/Catalog/Partials/_ProductDetailContent.cshtml" model="Model.ProductData" view-data="ViewData" />
+</div>
+
+@section Styles {
+    <partial name="/Pages/Shared/_ReviewUiStyles.cshtml" />
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = document.getElementById('product-root');
+            if(!root) return;
+            
+            const variants = JSON.parse(root.getAttribute('data-variants') || '[]');
+            const groups = Array.from(document.querySelectorAll('.attribute-group'));
+            
+            let selectedOptions = {};
+
+            function findMatchingVariant() {
+                if(Object.keys(selectedOptions).length !== groups.length) return null;
+                const selectedIds = Object.values(selectedOptions).map(Number);
+                return variants.find(v => 
+                    selectedIds.every(id => v.SelectedOptionIds.includes(id)) && 
+                    v.SelectedOptionIds.length === selectedIds.length
+                );
+            }
+
+            function updateUI() {
+                const variant = findMatchingVariant();
+                const warningEl = document.getElementById('selection-warning');
+                const btn = document.getElementById('add-to-cart-btn');
+                const stockContainer = document.getElementById('stock-container');
+                const oosContainer = document.getElementById('out-of-stock-container');
+                
+                if (Object.keys(selectedOptions).length === groups.length && !variant) {
+                    warningEl.classList.remove('hidden');
+                } else {
+                    warningEl.classList.add('hidden');
+                }
+
+                if (variant) {
+                    document.getElementById('display-price').textContent = variant.Price.toLocaleString('vi-VN') + ' VND';
+                    const originalPrice = variant.Price * 1.15;
+                    const displayOriginalElement = document.getElementById('display-original-price');
+                    if(displayOriginalElement) displayOriginalElement.textContent = originalPrice.toLocaleString('vi-VN') + ' VND';
+                    
+                    document.getElementById('display-sku').textContent = variant.Sku;
+
+                    const qtyInput = document.getElementById('qty-input');
+                    if (variant.StockQuantity > 0) {
+                        stockContainer.classList.remove('hidden');
+                        oosContainer.classList.add('hidden');
+                        document.getElementById('display-stock').textContent = `In Stock (${variant.StockQuantity} units available)`;
+                        qtyInput.setAttribute('data-max-stock', variant.StockQuantity);
+                    } else {
+                        stockContainer.classList.add('hidden');
+                        oosContainer.classList.remove('hidden');
+                        qtyInput.setAttribute('data-max-stock', 0);
+                    }
+                }
+            }
+
+            document.querySelectorAll('.variant-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const group = e.target.closest('.attribute-group');
+                    const attrId = group.getAttribute('data-attribute-id');
+                    const optId = e.target.getAttribute('data-option-id');
+
+                    group.querySelectorAll('.variant-option').forEach(b => {
+                        b.classList.remove('border-2', 'border-primary', 'bg-primary/5', 'text-primary');
+                        b.classList.add('border', 'border-slate-200');
+                        const check = b.querySelector('.material-symbols-outlined');
+                        if (check) check.remove();
+                    });
+
+                    e.target.classList.remove('border', 'border-slate-200');
+                    e.target.classList.add('border-2', 'border-primary', 'bg-primary/5', 'text-primary', 'relative');
+                    e.target.insertAdjacentHTML('beforeend', '<span class="absolute -top-2 -right-2 bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm material-symbols-outlined text-xs p-1 checkmark-icon">check</span>');
+
+                    selectedOptions[attrId] = optId;
+                    updateUI();
+                });
+            });
+
+            if (groups.length > 0 && variants.length > 0) {
+                variants[0].SelectedOptionIds.forEach(optId => {
+                     const btn = document.querySelector(`.variant-option[data-option-id="${optId}"]`);
+                     if (btn) btn.click();
+                });
+            } else {
+                updateUI();
+            }
+
+            const addToCartBtn = document.getElementById('add-to-cart-btn');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', () => {
+                    window.showToast?.('info', 'This is a preview. Adding to cart is disabled.');
+                });
+            }
+        });
+
+        function updateQty(change) {
+            const input = document.getElementById('qty-input');
+            const maxStock = parseInt(input.getAttribute('data-max-stock') || '1');
+            let val = parseInt(input.value) + change;
+            if (val < 1) val = 1;
+            if (val > maxStock) val = Math.max(1, maxStock);
+            input.value = val;
+        }
+    </script>
+}

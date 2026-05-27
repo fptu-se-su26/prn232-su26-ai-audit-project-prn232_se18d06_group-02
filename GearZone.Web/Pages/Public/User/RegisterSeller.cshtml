@@ -1,0 +1,605 @@
+@page "{step:int?}"
+@model GearZone.Web.Pages.Public.User.RegisterSellerModel
+@{
+    ViewData["Title"] = "Seller Registration - GearZone";
+    Layout = "_Layout";
+    var step = Model.CurrentStep;
+    if (ViewContext.HttpContext.Request.Query.ContainsKey("step"))
+    {
+        int.TryParse(ViewContext.HttpContext.Request.Query["step"], out int queryStep);
+        if (queryStep >= 1 && queryStep <= 4) step = queryStep;
+    }
+}
+
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <span class="material-symbols-outlined text-5xl text-primary mb-3 block">storefront</span>
+        <h1 class="text-3xl font-bold text-gray-900">Seller Registration</h1>
+        <p class="text-gray-500 mt-2">Complete the steps below to open your store on GearZone</p>
+    </div>
+
+    @if (TempData["InfoMessage"] is string infoMessage)
+    {
+        <div class="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-medium text-blue-700">
+            @infoMessage
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
+            @errorMessage
+        </div>
+    }
+
+    @if (Model.ExistingStoreStatus == GearZone.Domain.Enums.StoreStatus.Rejected && !ViewContext.HttpContext.Request.Query.ContainsKey("reapply"))
+    {
+        <div class="mb-6 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-1">
+                    <p class="text-sm font-bold text-orange-700">Your previous store application was rejected.</p>
+                    @if (!string.IsNullOrWhiteSpace(Model.ExistingStoreRejectReason))
+                    {
+                        <p class="text-xs text-orange-700/90">Reason: @Model.ExistingStoreRejectReason</p>
+                    }
+                </div>
+                <a href="/Public/User/RegisterSeller?reapply=true"
+                   class="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-bold text-orange-700 hover:bg-orange-100 transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                    Resubmit Application
+                </a>
+            </div>
+        </div>
+    }
+
+    <!-- Stepper -->
+    <div class="flex items-center justify-between mb-10 relative">
+        <!-- Progress Bar Background -->
+        <div class="absolute top-5 left-[12.5%] right-[12.5%] h-1 bg-gray-200 rounded-full z-0"></div>
+        <!-- Progress Bar Fill -->
+        <div class="absolute top-5 left-[12.5%] h-1 bg-primary rounded-full z-[1] transition-all duration-500"
+             style="width: calc(@((step - 1) * 33.33)% * 0.75)"></div>
+
+        @{
+            var steps = new[] {
+                ("store", "Store"),
+                ("badge", "Verification"),
+                ("account_balance", "Payment"),
+                ("check_circle", "Complete")
+            };
+        }
+
+        @for (int i = 0; i < steps.Length; i++)
+        {
+            var idx = i + 1;
+            var isCompleted = idx < step;
+            var isCurrent = idx == step;
+            var iconName = steps[i].Item1;
+            var label = steps[i].Item2;
+
+            <div class="flex flex-col items-center z-10 relative" style="width: 25%;">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300
+                    @(isCompleted ? "bg-primary border-primary text-white shadow-lg shadow-primary/30" :
+                      isCurrent ? "bg-white border-primary text-primary shadow-lg shadow-primary/20 ring-4 ring-primary/10" :
+                      "bg-white border-gray-300 text-gray-400")">
+                    @if (isCompleted)
+                    {
+                        <span class="material-symbols-outlined text-[18px]">check</span>
+                    }
+                    else
+                    {
+                        <span class="material-symbols-outlined text-[18px]">@iconName</span>
+                    }
+                </div>
+                <span class="text-xs font-semibold mt-2 @(isCurrent ? "text-primary" : isCompleted ? "text-gray-700" : "text-gray-400")">
+                    Step @idx
+                </span>
+                <span class="text-[10px] @(isCurrent ? "text-primary font-bold" : isCompleted ? "text-gray-600" : "text-gray-400")">
+                    @label
+                </span>
+            </div>
+        }
+    </div>
+
+    <!-- Step Content -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+        <!-- ========== STEP 1: Store Info ========== -->
+        @if (step == 1)
+        {
+            <div class="bg-gradient-to-r from-primary/5 to-blue-50 border-b border-primary/10 p-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-2xl text-primary">store</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">Store Information</h2>
+                        <p class="text-sm text-gray-500">Enter basic information about your store</p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" asp-page-handler="Step1" class="p-6 md:p-8 space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Store name <span class="text-red-500">*</span></label>
+                    <input asp-for="Step1Input.StoreName" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="Ex: Acme Electronics" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Business type <span class="text-red-500">*</span></label>
+                    <select asp-for="Step1Input.BusinessType" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white" required>
+                        <option value="0">Individual</option>
+                        <option value="1">Household Business</option>
+                        <option value="2">Enterprise</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Phone number <span class="text-red-500">*</span></label>
+                        <input asp-for="Step1Input.Phone" type="tel" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="0xxx xxx xxx" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Contact email <span class="text-red-500">*</span></label>
+                        <input asp-for="Step1Input.Email" type="email" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="contact@store.com" />
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Full address <span class="text-red-500">*</span></label>
+                    <input asp-for="Step1Input.AddressLine" id="addressInput" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="Street number, street name, ward/commune, district" autocomplete="off" />
+                    <!-- Autocomplete Suggestions -->
+                    <div id="autocomplete-results" class="absolute z-[1000] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl hidden max-h-60 overflow-y-auto">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ward / Commune</label>
+                        <input id="wardInput" class="block w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none transition-all" readonly placeholder="Ward/Commune" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">District</label>
+                        <input id="districtInput" class="block w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:outline-none transition-all" readonly placeholder="District" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Province / City <span class="text-red-500">*</span></label>
+                        <input asp-for="Step1Input.Province" id="provinceInput" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="Province/City" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Location map</label>
+                    <div id="map" class="w-full h-[300px] rounded-xl border border-gray-200 shadow-inner"></div>
+                    <p class="text-[10px] text-gray-400 mt-1 italic">* Move the map or select an address from suggestions to pin the exact location.</p>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-gray-100">
+                    <button type="submit" class="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
+                        Continue
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </button>
+                </div>
+            </form>
+        }
+
+        <!-- ========== STEP 2: Identity Verification ========== -->
+        @if (step == 2)
+        {
+            <div class="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100 p-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-2xl text-amber-600">badge</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">Identity Verification</h2>
+                        <p class="text-sm text-gray-500">Verify personal information of the store owner</p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" asp-page-handler="Step2" enctype="multipart/form-data" class="p-6 md:p-8 space-y-5">
+                <div asp-validation-summary="All" class="text-sm text-red-700"></div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Full Name (as per Identity Card) <span class="text-red-500">*</span></label>
+                    <input asp-for="Step2Input.FullName" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="Nguyen Van A" />
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Identity Card Number <span class="text-red-500">*</span></label>
+                        <input asp-for="Step2Input.IdentityNumber" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="001234567890" maxlength="12" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tax Code <span class="text-red-500">*</span></label>
+                        <input asp-for="Step2Input.TaxCode" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="10 or 13 digits" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Date of Issue <span class="text-red-500">*</span></label>
+                        <input asp-for="Step2Input.IdentityIssuedDate" type="date" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Place of Issue <span class="text-red-500">*</span></label>
+                        <input asp-for="Step2Input.IdentityIssuedPlace" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="Police Department for Administrative Management of Social Order" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Identity card - Front image <span class="text-red-500">*</span></label>
+                        <input asp-for="Step2Input.IdentityCardFrontImage" type="file" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                        @if (!string.IsNullOrWhiteSpace(Model.Step2Input.IdentityCardFrontImageUrl))
+                        {
+                            <p class="mt-1 text-xs font-medium text-emerald-600">Front image already uploaded. Upload a new one to replace it.</p>
+                        }
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Identity card - Back image <span class="text-red-500">*</span></label>
+                        <input asp-for="Step2Input.IdentityCardBackImage" type="file" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                        @if (!string.IsNullOrWhiteSpace(Model.Step2Input.IdentityCardBackImageUrl))
+                        {
+                            <p class="mt-1 text-xs font-medium text-emerald-600">Back image already uploaded. Upload a new one to replace it.</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="flex justify-between pt-4 border-t border-gray-100">
+                    <a asp-page="./RegisterSeller" asp-route-step="1" class="px-6 py-3 text-gray-600 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                        Back
+                    </a>
+                    <button type="submit" class="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
+                        Continue
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </button>
+                </div>
+            </form>
+        }
+
+        <!-- ========== STEP 3: Banking ========== -->
+        @if (step == 3)
+        {
+            <div class="bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-100 p-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-2xl text-emerald-600">account_balance</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">Payment Information</h2>
+                        <p class="text-sm text-gray-500">Bank account to receive payments from GearZone</p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" asp-page-handler="Step3" class="p-6 md:p-8 space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Bank name <span class="text-red-500">*</span></label>
+                    <select id="bankSelect" asp-for="Step3Input.BankName" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white" required>
+                        <option value="">— Select bank —</option>
+                        <option value="Vietcombank" data-bin="970436">Vietcombank (VCB)</option>
+                        <option value="BIDV" data-bin="970418">BIDV</option>
+                        <option value="VietinBank" data-bin="970415">VietinBank (CTG)</option>
+                        <option value="Agribank" data-bin="970405">Agribank</option>
+                        <option value="Techcombank" data-bin="970407">Techcombank (TCB)</option>
+                        <option value="VPBank" data-bin="970432">VPBank</option>
+                        <option value="MBBank" data-bin="970422">MBBank (MB)</option>
+                        <option value="ACB" data-bin="970416">ACB</option>
+                        <option value="TPBank" data-bin="970423">TPBank</option>
+                        <option value="Sacombank" data-bin="970403">Sacombank (STB)</option>
+                        <option value="HDBank" data-bin="970437">HDBank</option>
+                        <option value="SHB" data-bin="970443">SHB</option>
+                        <option value="MSB" data-bin="970426">MSB</option>
+                        <option value="OCB" data-bin="970448">OCB</option>
+                        <option value="LienVietPostBank" data-bin="970449">LienVietPostBank</option>
+                    </select>
+                    <input asp-for="Step3Input.BankBin" type="hidden" id="bankBinInput" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Account number <span class="text-red-500">*</span></label>
+                    <input asp-for="Step3Input.BankAccountNumber" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" required placeholder="Enter account number" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Account holder name <span class="text-red-500">*</span></label>
+                    <input asp-for="Step3Input.BankAccountName" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all uppercase" required placeholder="NGUYEN VAN A" />
+                    <p class="text-xs text-gray-400 mt-1">Account holder name should match the name on Identity Card</p>
+                </div>
+
+                <div class="flex justify-between pt-4 border-t border-gray-100">
+                    <a asp-page="./RegisterSeller" asp-route-step="2" class="px-6 py-3 text-gray-600 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                        Back
+                    </a>
+                    <button type="submit" class="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
+                        Continue
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </button>
+                </div>
+            </form>
+        }
+
+        <!-- ========== STEP 4: Review & Submit ========== -->
+        @if (step == 4)
+        {
+            <div class="bg-gradient-to-r from-violet-50 to-purple-50 border-b border-violet-100 p-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-2xl text-violet-600">check_circle</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">Review & Submit</h2>
+                        <p class="text-sm text-gray-500">Check information before submitting registration</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 md:p-8 space-y-6">
+
+                <!-- Store Info Summary -->
+                <div class="bg-gray-50/80 rounded-xl p-5 border border-gray-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-[18px]">store</span>
+                            Store Information
+                        </h3>
+                        <a asp-page="./RegisterSeller" asp-route-step="1" class="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">edit</span> Edit
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                        <div><span class="text-gray-500">Store name:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step1Input.StoreName</div>
+                        <div><span class="text-gray-500">Type:</span></div>
+                        <div class="font-medium text-gray-800">
+                            @(Model.Step1Input.BusinessType == GearZone.Domain.Enums.BusinessType.Individual ? "Individual" :
+                              Model.Step1Input.BusinessType == GearZone.Domain.Enums.BusinessType.HouseholdBusiness ? "Household Business" : "Enterprise")
+                        </div>
+                        <div><span class="text-gray-500">Phone:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step1Input.Phone</div>
+                        <div><span class="text-gray-500">Email:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step1Input.Email</div>
+                        <div><span class="text-gray-500">Address:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step1Input.AddressLine, @Model.Step1Input.Province</div>
+                    </div>
+                </div>
+
+                <!-- Identity Summary -->
+                <div class="bg-gray-50/80 rounded-xl p-5 border border-gray-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-amber-600 text-[18px]">badge</span>
+                            Identity Verification
+                        </h3>
+                        <a asp-page="./RegisterSeller" asp-route-step="2" class="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">edit</span> Edit
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                        <div><span class="text-gray-500">Full name:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step2Input.FullName</div>
+                        <div><span class="text-gray-500">ID Number:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step2Input.IdentityNumber</div>
+                        <div><span class="text-gray-500">Date of issue:</span></div>
+                        <div class="font-medium text-gray-800">@(Model.Step2Input.IdentityIssuedDate?.ToString("dd/MM/yyyy") ?? "—")</div>
+                        <div><span class="text-gray-500">Place of issue:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step2Input.IdentityIssuedPlace</div>
+                        <div><span class="text-gray-500">Tax code:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step2Input.TaxCode</div>
+                        <div><span class="text-gray-500">ID Card Front:</span></div>
+                        <div class="font-medium text-gray-800">@(string.IsNullOrWhiteSpace(Model.Step2Input.IdentityCardFrontImageUrl) ? "Not uploaded" : "Uploaded")</div>
+                        <div><span class="text-gray-500">ID Card Back:</span></div>
+                        <div class="font-medium text-gray-800">@(string.IsNullOrWhiteSpace(Model.Step2Input.IdentityCardBackImageUrl) ? "Not uploaded" : "Uploaded")</div>
+                    </div>
+                </div>
+
+                <!-- Banking Summary -->
+                <div class="bg-gray-50/80 rounded-xl p-5 border border-gray-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-emerald-600 text-[18px]">account_balance</span>
+                            Payment Information
+                        </h3>
+                        <a asp-page="./RegisterSeller" asp-route-step="3" class="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">edit</span> Edit
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                        <div><span class="text-gray-500">Bank:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step3Input.BankName</div>
+                        <div><span class="text-gray-500">Account number:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step3Input.BankAccountNumber</div>
+                        <div><span class="text-gray-500">Account holder:</span></div>
+                        <div class="font-medium text-gray-800">@Model.Step3Input.BankAccountName</div>
+                    </div>
+                </div>
+
+                <!-- Agreement & Submit -->
+                <form method="post" asp-page-handler="Submit">
+                    <div class="pt-4 border-t border-gray-100 space-y-4">
+                        <label class="flex items-start gap-3 cursor-pointer select-none">
+                            <input type="checkbox" id="agreeTerms" class="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" required />
+                            <span class="text-sm text-gray-600">
+                                I have read and agree to the
+                                <a href="#" class="text-primary font-semibold hover:underline">Terms & Conditions</a>
+                                of selling on GearZone.
+                            </span>
+                        </label>
+
+                        <div class="flex justify-between">
+                            <a asp-page="./RegisterSeller" asp-route-step="3" class="px-6 py-3 text-gray-600 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                                Back
+                            </a>
+                            <button type="submit" id="submitBtn" class="px-8 py-3.5 bg-gradient-to-r from-primary to-blue-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-primary/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <span class="material-symbols-outlined text-[20px]">send</span>
+                                Submit Registration
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+    <link href="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js/dist/goong-js.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js/dist/goong-js.js"></script>
+    <script>
+        // Goong Map Initialization
+        let map, marker;
+        const mapKey = '@Model.GoongMapKey';
+        const addressInput = document.getElementById('addressInput');
+        const wardInput = document.getElementById('wardInput');
+        const districtInput = document.getElementById('districtInput');
+        const provinceInput = document.getElementById('provinceInput');
+        const autocompleteResults = document.getElementById('autocomplete-results');
+
+        const initMap = () => {
+            if (!document.getElementById('map')) return;
+
+            goongjs.accessToken = mapKey;
+            map = new goongjs.Map({
+                container: 'map',
+                style: 'https://tiles.goong.io/assets/goong_map_web.json',
+                center: [105.83991, 21.02800], // Default: Hanoi
+                zoom: 13
+            });
+
+            marker = new goongjs.Marker()
+                .setLngLat([105.83991, 21.02800])
+                .addTo(map);
+
+            map.on('click', (e) => {
+                const { lng, lat } = e.lngLat;
+                marker.setLngLat([lng, lat]);
+            });
+        };
+
+        // Autocomplete Logic
+        let debounceTimer;
+        if (addressInput) {
+            addressInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const query = addressInput.value.trim();
+                
+                if (query.length < 2) {
+                    autocompleteResults.classList.add('hidden');
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/api/maps/autocomplete?input=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+
+                        if (data && data.predictions && data.predictions.length > 0) {
+                            renderSuggestions(data.predictions);
+                        } else {
+                            autocompleteResults.classList.add('hidden');
+                        }
+                    } catch (err) {
+                        console.error('Autocomplete error:', err);
+                    }
+                }, 300);
+            });
+        }
+
+        const renderSuggestions = (predictions) => {
+            autocompleteResults.innerHTML = '';
+            predictions.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors';
+                div.innerHTML = `
+                    <div class="font-semibold text-sm text-gray-800">${p.structured_formatting.main_text}</div>
+                    <div class="text-xs text-gray-500">${p.structured_formatting.secondary_text}</div>
+                `;
+                div.onclick = () => selectSuggestion(p);
+                autocompleteResults.appendChild(div);
+            });
+            autocompleteResults.classList.remove('hidden');
+        };
+
+        const selectSuggestion = async (prediction) => {
+            autocompleteResults.classList.add('hidden');
+
+            try {
+                const response = await fetch(`/api/maps/place-detail?placeId=${prediction.place_id}`);
+                const data = await response.json();
+
+                if (data) {
+                    // Update Map
+                    map.flyTo({ center: [data.lng, data.lat], zoom: 16 });
+                    marker.setLngLat([data.lng, data.lat]);
+
+                    const addrInput = document.getElementById('addressInput');
+                    const wInput = document.getElementById('wardInput');
+                    const dInput = document.getElementById('districtInput');
+                    const pInput = document.getElementById('provinceInput');
+
+                    if (addrInput) addrInput.value = data.fullAddress;
+                    if (wInput) wInput.value = data.ward || '';
+                    if (dInput) dInput.value = data.district || '';
+                    if (pInput) pInput.value = data.province || '';
+
+                    console.log('Filled data from backend unit:', data);
+                }
+            } catch (err) {
+                console.error('Place detail error:', err);
+            }
+        };
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (autocompleteResults && !autocompleteResults.contains(e.target) && e.target !== addressInput) {
+                autocompleteResults.classList.add('hidden');
+            }
+        });
+
+        // Existing Bank Logic
+        const bankSelect = document.getElementById('bankSelect');
+        const bankBinInput = document.getElementById('bankBinInput');
+
+        const syncBankBin = () => {
+            if (!bankSelect || !bankBinInput) return;
+            const selectedOption = bankSelect.options[bankSelect.selectedIndex];
+            bankBinInput.value = selectedOption?.dataset?.bin ?? '';
+        };
+
+        const loadBanks = async () => {
+            if (!bankSelect) return;
+            const selectedBank = bankSelect.value;
+            try {
+                const response = await fetch('/api/banks');
+                const banks = await response.json();
+                bankSelect.innerHTML = '<option value="">— Select bank —</option>';
+                banks.forEach(bank => {
+                    const option = document.createElement('option');
+                    option.value = bank.name;
+                    option.textContent = bank.shortName ? `${bank.name} (${bank.shortName})` : bank.name;
+                    option.dataset.bin = bank.bin ?? '';
+                    bankSelect.appendChild(option);
+                });
+                if (selectedBank) bankSelect.value = selectedBank;
+            } catch {}
+            syncBankBin();
+        };
+
+        const init = () => {
+            initMap();
+            if (bankSelect) {
+                bankSelect.addEventListener('change', syncBankBin);
+                loadBanks();
+            }
+            const checkbox = document.getElementById('agreeTerms');
+            const submitBtn = document.getElementById('submitBtn');
+            if (checkbox && submitBtn) {
+                checkbox.addEventListener('change', function () {
+                    submitBtn.disabled = !this.checked;
+                });
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+}

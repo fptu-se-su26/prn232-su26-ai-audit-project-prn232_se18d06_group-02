@@ -1,0 +1,286 @@
+@page "/admin/seller-payable-summary"
+@model GearZone.Web.Pages.Admin.SellerPayableSummaryModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Seller Payable Summary";
+    ViewData["PageHeader"] = "Seller Payable Summary";
+    ViewData["ActivePage"] = "SellerPayableSummary";
+    ViewData["Breadcrumb"] = new[] { "Dashboard", "Finance", "Seller Payable Summary" };
+    Layout = "_AdminLayout";
+
+    var vn = new CultureInfo("vi-VN");
+    var totalOrders = Model.Payables.Sum(x => x.OrderCount);
+    var totalGross = Model.Payables.Sum(x => x.TotalGrossAmount);
+    var totalCommission = Model.Payables.Sum(x => x.TotalCommissionAmount);
+    var totalNet = Model.Payables.Sum(x => x.TotalNetAmount);
+}
+
+<div class="flex flex-col gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">storefront</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Eligible Sellers</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Payables.Count</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">shopping_bag</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Orders</p>
+                <h3 class="text-2xl font-bold text-slate-900">@totalOrders</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">percent</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Commission</p>
+                <h3 class="text-2xl font-bold text-slate-900">@totalCommission.ToString("C0", vn)</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">payments</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Net Payable</p>
+                <h3 class="text-2xl font-bold text-slate-900">@totalNet.ToString("C0", vn)</h3>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 p-4 rounded-xl shadow-card border border-slate-800 flex items-center gap-4 relative overflow-hidden group">
+            <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                <span class="material-symbols-outlined text-[84px] text-white">savings</span>
+            </div>
+            <div class="size-12 rounded-lg bg-white/10 text-white flex items-center justify-center z-10">
+                <span class="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+            </div>
+            <div class="z-10">
+                <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">Wallet Balance</p>
+                <h3 class="text-2xl font-bold text-white">
+                    @(Model.IsWalletBalanceAvailable ? Model.CurrentWalletBalance.ToString("C0", vn) : "--")
+                </h3>
+                <p class="text-xs mt-1 font-semibold @(Model.IsWalletBalanceAvailable ? "text-emerald-300" : "text-amber-300")">
+                    @(Model.IsWalletBalanceAvailable ? "Live from PayOS" : "Unable to fetch live balance")
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900">Weekly Seller Payable Snapshot</h2>
+            <p class="text-sm text-slate-500 mt-1">
+                From <span class="font-semibold text-primary">@Model.CurrentStart.ToString("dd/MM/yyyy")</span>
+                to <span class="font-semibold text-primary">@Model.CurrentEnd.ToString("dd/MM/yyyy HH:mm")</span>
+            </p>
+        </div>
+
+        <form method="get" class="flex flex-wrap items-center gap-3">
+            <div class="flex bg-slate-100 p-1 rounded-xl">
+                <button type="submit" name="RangeType" value="this-week"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg transition-all @(Model.RangeType == "this-week" ? "bg-white text-primary shadow-sm" : "text-slate-600 hover:text-slate-900")">
+                    This Week
+                </button>
+                <button type="submit" name="RangeType" value="last-week"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg transition-all @(Model.RangeType == "last-week" ? "bg-white text-primary shadow-sm" : "text-slate-600 hover:text-slate-900")">
+                    Last Week
+                </button>
+                <button type="button" id="toggleCustomRangeBtn"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg transition-all @(Model.RangeType == "custom" ? "bg-white text-primary shadow-sm" : "text-slate-600 hover:text-slate-900")">
+                    Custom Range
+                </button>
+            </div>
+
+            <div id="customRangeSection" class="@(Model.RangeType == "custom" ? "flex" : "hidden") items-center gap-2">
+                <input type="date" asp-for="CustomStart" class="form-input rounded-lg border-slate-200 text-sm focus:ring-primary py-2" />
+                <span class="text-slate-400">to</span>
+                <input type="date" asp-for="CustomEnd" class="form-input rounded-lg border-slate-200 text-sm focus:ring-primary py-2" />
+                <button type="submit" name="RangeType" value="custom" class="bg-slate-800 text-white p-2 rounded-lg hover:bg-slate-900 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">check</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <form method="post" asp-page-handler="ProcessBulk" id="bulkPayoutForm" class="bg-white rounded-2xl shadow-card border border-slate-100 overflow-hidden">
+        <input type="hidden" name="RangeType" value="@Model.RangeType" />
+        @if (Model.RangeType == "custom")
+        {
+            <input type="hidden" name="CustomStart" value="@Model.CustomStart?.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="CustomEnd" value="@Model.CustomEnd?.ToString("yyyy-MM-dd")" />
+        }
+
+        <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">summarize</span>
+                Seller Payable List (@Model.Payables.Count)
+            </h3>
+
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-slate-500">
+                    Selected: <span id="selectedCount" class="font-bold text-slate-900">0</span>
+                </span>
+                <button id="processSelectedBtn"
+                        type="submit"
+                        class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    <span class="material-symbols-outlined text-[20px]">payments</span>
+                    Process Selected
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 border-b border-slate-100">
+                        <th class="py-4 pl-6 pr-3 text-xs font-bold uppercase tracking-wider text-slate-500 w-[56px]">
+                            <input class="rounded border-slate-300 text-primary focus:ring-primary size-4" type="checkbox" id="selectAll" />
+                        </th>
+                        <th class="py-4 px-4 text-xs font-bold uppercase tracking-wider text-slate-500">Seller</th>
+                        <th class="py-4 px-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Orders</th>
+                        <th class="py-4 px-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Gross</th>
+                        <th class="py-4 px-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Commission</th>
+                        <th class="py-4 px-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Net Payable</th>
+                        <th class="py-4 pl-4 pr-6 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.Payables.Any())
+                    {
+                        foreach (var payout in Model.Payables)
+                        {
+                            <tr class="group hover:bg-slate-50/80 transition-all">
+                                <td class="py-4 pl-6 pr-3 align-middle">
+                                    <input class="rounded border-slate-300 text-primary focus:ring-primary size-4 row-checkbox"
+                                           type="checkbox"
+                                           name="SelectedStoreIds"
+                                           value="@payout.StoreId" />
+                                </td>
+                                <td class="py-4 px-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="size-11 rounded-xl bg-white border border-slate-100 p-1 flex items-center justify-center shadow-sm">
+                                            @if (!string.IsNullOrWhiteSpace(payout.LogoUrl))
+                                            {
+                                                <img src="@payout.LogoUrl" alt="@payout.StoreName" class="size-full object-contain" />
+                                            }
+                                            else
+                                            {
+                                                <span class="material-symbols-outlined text-slate-300 text-2xl">store</span>
+                                            }
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-bold text-slate-900">@payout.StoreName</p>
+                                            <p class="text-[11px] font-mono text-slate-400">ID: @payout.StoreId.ToString()[..8]...</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-4 text-center">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
+                                        @payout.OrderCount
+                                    </span>
+                                </td>
+                                <td class="py-4 px-4 text-right text-sm font-medium text-slate-700">@payout.TotalGrossAmount.ToString("C0", vn)</td>
+                                <td class="py-4 px-4 text-right text-sm font-medium text-red-500">-@payout.TotalCommissionAmount.ToString("C0", vn)</td>
+                                <td class="py-4 px-4 text-right">
+                                    <span class="text-sm font-bold text-emerald-600">@payout.TotalNetAmount.ToString("C0", vn)</span>
+                                </td>
+                                <td class="py-4 pl-4 pr-6 text-right">
+                                    <button type="submit"
+                                            formaction="@Url.Page("/Admin/SellerPayableSummary", "ProcessSingle")"
+                                            name="storeId"
+                                            value="@payout.StoreId"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-900 transition-all">
+                                        <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                                        Process
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="py-16 text-center">
+                                <span class="material-symbols-outlined text-slate-200 text-[64px] block mb-2">event_busy</span>
+                                <p class="text-slate-500 font-medium">No seller payable data found for this period.</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (Model.Payables.Any())
+                {
+                    <tfoot>
+                        <tr class="bg-slate-50/50 font-bold border-t border-slate-100">
+                            <td class="py-4 pl-6 pr-3"></td>
+                            <td class="py-4 px-4 text-slate-900">Grand Total</td>
+                            <td class="py-4 px-4 text-center text-slate-700">@totalOrders</td>
+                            <td class="py-4 px-4 text-right text-slate-700">@totalGross.ToString("C0", vn)</td>
+                            <td class="py-4 px-4 text-right text-red-500">-@totalCommission.ToString("C0", vn)</td>
+                            <td class="py-4 px-4 text-right text-primary">@totalNet.ToString("C0", vn)</td>
+                            <td class="py-4 pl-4 pr-6"></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const customRangeBtn = document.getElementById('toggleCustomRangeBtn');
+            const customRangeSection = document.getElementById('customRangeSection');
+
+            if (customRangeBtn && customRangeSection) {
+                customRangeBtn.addEventListener('click', function () {
+                    customRangeSection.classList.toggle('hidden');
+                    customRangeSection.classList.toggle('flex');
+                });
+            }
+
+            const selectAll = document.getElementById('selectAll');
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+            const selectedCount = document.getElementById('selectedCount');
+            const processSelectedBtn = document.getElementById('processSelectedBtn');
+
+            function refreshSelectedState() {
+                const checked = Array.from(rowCheckboxes).filter(cb => cb.checked).length;
+                if (selectedCount) {
+                    selectedCount.textContent = checked;
+                }
+                if (processSelectedBtn) {
+                    processSelectedBtn.disabled = checked === 0;
+                }
+
+                if (selectAll) {
+                    const allChecked = rowCheckboxes.length > 0 && Array.from(rowCheckboxes).every(cb => cb.checked);
+                    const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+                    selectAll.checked = allChecked;
+                    selectAll.indeterminate = someChecked && !allChecked;
+                }
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    rowCheckboxes.forEach(cb => cb.checked = selectAll.checked);
+                    refreshSelectedState();
+                });
+            }
+
+            rowCheckboxes.forEach(cb => {
+                cb.addEventListener('change', refreshSelectedState);
+            });
+
+            refreshSelectedState();
+        });
+    </script>
+}

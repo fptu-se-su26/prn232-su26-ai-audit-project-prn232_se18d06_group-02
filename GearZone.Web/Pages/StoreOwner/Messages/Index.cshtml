@@ -1,0 +1,30 @@
+@page "/storeowner/messages"
+@model GearZone.Web.Pages.StoreOwner.Messages.IndexModel
+@{
+    ViewData["Title"] = "Customer Messages";
+    ViewData["PageHeader"] = "Customer Messages";
+    ViewData["ActivePage"] = "Messages";
+    ViewData["Breadcrumb"] = new[] { "Messages" };
+    Layout = "_StoreOwnerLayout";
+}
+
+<div class="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-col gap-4">
+    <div class="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <h2 class="text-xl font-bold text-slate-900">Customer Messages</h2>
+        <p class="mt-1 text-sm text-slate-500">Manage all buyer conversations in one place.</p>
+    </div>
+
+    <div class="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <partial name="/Pages/Shared/_ChatInboxLayout.cshtml" model="Model.Inbox" />
+    </div>
+</div>
+
+@section Styles {
+    <partial name="/Pages/Shared/_ChatInboxStyles.cshtml" />
+}
+
+@section Scripts {
+    <partial name="/Pages/Shared/_ChatInboxScripts.cshtml" />
+}
+
+

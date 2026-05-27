@@ -1,0 +1,6 @@
+@model List<GearZone.Application.Features.Catalog.DTOs.CatalogProductDto>
+
+@foreach (var product in Model)
+{
+    @await Html.PartialAsync("_ProductCard", product, new ViewDataDictionary(ViewData))
+}

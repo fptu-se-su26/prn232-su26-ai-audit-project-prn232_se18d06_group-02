@@ -1,0 +1,287 @@
+@page "/Auth/Login"
+@model GearZone.Web.Pages.Public.Auth.LoginModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Welcome to GearZone";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>@ViewData["Title"] - GearZone</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "brand": {
+                            50: '#f0f7ff', 100: '#e0effe', 200: '#bae0fd', 300: '#7cc2fb', 400: '#389df8',
+                            500: '#0e81eb', 600: '#0261c7', 700: '#034d9e', 800: '#074281', 900: '#0c386c',
+                        }
+                    },
+                    fontFamily: {
+                        "sans": ["Plus Jakarta Sans", "sans-serif"],
+                    }
+                },
+            },
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @@layer base {
+            body { 
+                @@apply text-slate-900 antialiased font-sans min-h-screen flex items-center justify-center p-6;
+                background: url('https://media.istockphoto.com/id/2156599809/vi/anh/bay-qua-c%E1%BA%A3nh-quan-c%C3%B4ng-ngh%E1%BB%87-k%E1%BB%B9-thu%E1%BA%ADt-s%E1%BB%91-t%C6%B0%C6%A1ng-lai-m%C3%A0u-xanh-ph%C3%A1t-s%C3%A1ng-ph%C3%A1t-s%C3%A1ng-n%E1%BB%81n-h%E1%BA%A1t-%C4%91%E1%BA%A7y-m%C3%A0u.jpg?s=612x612&w=0&k=20&c=Xc4PG7d0XE3V1Ut8VTZ5UWq8Dm9HJSjifsV-LO-Gms0=') no-repeat center center fixed;
+                background-size: cover;
+            }
+            body::before {
+                content: '';
+                @@apply fixed inset-0 bg-slate-900/60 backdrop-blur-[10px] z-[-1];
+            }
+        }
+
+        .auth-card {
+            width: 1000px;
+            max-width: 95vw;
+            min-height: 650px;
+            @@apply relative bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden;
+        }
+
+        .form-container {
+            @@apply absolute top-0 h-full transition-all duration-700 ease-in-out;
+        }
+
+        .sign-in-container {
+            @@apply left-0 w-1/2 z-[2] opacity-100;
+        }
+
+        .auth-card.right-panel-active .sign-in-container {
+            @@apply translate-x-full opacity-0 pointer-events-none;
+        }
+
+        .sign-up-container {
+            @@apply left-0 w-1/2 z-[1] opacity-0 pointer-events-none;
+        }
+
+        .auth-card.right-panel-active .sign-up-container {
+            @@apply translate-x-full opacity-100 z-[5] pointer-events-auto;
+            animation: show 0.7s;
+        }
+
+        @@keyframes show {
+            0%, 49.99% { opacity: 0; z-index: 1; }
+            50%, 100% { opacity: 1; z-index: 5; }
+        }
+
+        .overlay-container {
+            @@apply absolute top-0 left-1/2 w-1/2 h-full overflow-hidden transition-all duration-700 ease-in-out z-[100];
+        }
+
+        .auth-card.right-panel-active .overlay-container {
+            @@apply -translate-x-full;
+        }
+
+        .overlay {
+            background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+            @@apply relative -left-full h-full w-[200%] translate-x-0 transition-all duration-700 ease-in-out text-white;
+        }
+
+        .auth-card.right-panel-active .overlay {
+            @@apply translate-x-1/2;
+        }
+
+        .overlay-panel {
+            @@apply absolute flex flex-col items-center justify-center px-12 text-center top-0 h-full w-1/2 transition-all duration-700 ease-in-out;
+        }
+
+        .overlay-left { @@apply -translate-x-[20%]; }
+        .auth-card.right-panel-active .overlay-left { @@apply translate-x-0; }
+        .overlay-right { @@apply right-0 translate-x-0; }
+        .auth-card.right-panel-active .overlay-right { @@apply translate-x-[20%]; }
+
+        .input-luxe {
+            @@apply w-full pl-12 pr-5 py-4 bg-slate-50 border-transparent rounded-2xl text-slate-700 transition-all duration-300;
+            @@apply focus:bg-white focus:ring-4 focus:ring-brand-100 focus:border-brand-500;
+        }
+
+        .btn-luxe {
+            @@apply w-full py-4 px-6 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl transition-all duration-300;
+            @@apply shadow-[0_12px_24px_-8px_rgba(14,129,235,0.4)] active:scale-[0.98];
+        }
+
+        .btn-outline-luxe {
+            @@apply w-full py-4 px-6 border-2 border-slate-100 hover:border-brand-50 hover:bg-brand-50 text-slate-600 hover:text-brand-700 font-bold rounded-2xl transition-all duration-300;
+        }
+
+        .glass-switch {
+            @@apply px-10 py-3 rounded-xl border-2 border-white/30 text-white font-bold uppercase tracking-widest text-[10px] transition-all duration-300;
+            @@apply hover:bg-white hover:text-brand-600 hover:border-white;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="auth-card" id="auth-card">
+        
+        <!-- Sign Up Section -->
+        <div class="form-container sign-up-container px-12 py-10 flex flex-col justify-center">
+            <div class="w-full max-w-md mx-auto">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">Create Account</h2>
+                    <p class="text-slate-500 mt-2">Join GearZone and start trading gear today.</p>
+                </div>
+
+                <div asp-validation-summary="ModelOnly" class="text-red-500 text-xs bg-red-50 p-4 rounded-xl border border-red-100 mb-6 font-medium"></div>
+
+                <form method="post" asp-page-handler="Register" class="space-y-4">
+                    <div>
+                         <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">person</span>
+                            <input asp-for="RegisterInput.FullName" class="input-luxe" placeholder="Full Name" />
+                        </div>
+                        <span asp-validation-for="RegisterInput.FullName" class="text-[10px] text-red-500 mt-1 block px-2"></span>
+                    </div>
+                    <div>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">mail</span>
+                            <input asp-for="RegisterInput.Email" class="input-luxe" placeholder="Email Address" />
+                        </div>
+                        <span asp-validation-for="RegisterInput.Email" class="text-[10px] text-red-500 mt-1 block px-2"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <input asp-for="RegisterInput.Password" type="password" class="input-luxe !pl-5" placeholder="Password" />
+                            <span asp-validation-for="RegisterInput.Password" class="text-[10px] text-red-500 mt-1 block px-2"></span>
+                        </div>
+                        <div>
+                            <input asp-for="RegisterInput.ConfirmPassword" type="password" class="input-luxe !pl-5" placeholder="Confirm" />
+                            <span asp-validation-for="RegisterInput.ConfirmPassword" class="text-[10px] text-red-500 mt-1 block px-2"></span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-luxe mt-4">Get Started</button>
+                    
+                    <div class="relative py-4">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-100"></div></div>
+                        <div class="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-400"><span class="bg-white px-4">Social Access</span></div>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="ExternalLogin">
+                    <button type="submit" name="provider" value="Google" class="btn-outline-luxe flex items-center justify-center gap-3">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google" />
+                        Google Account
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sign In Section -->
+        <div class="form-container sign-in-container px-12 py-10 flex flex-col justify-center">
+            <div class="w-full max-w-md mx-auto">
+                <div class="mb-10">
+                    <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">Welcome Back</h2>
+                    <p class="text-slate-500 mt-2">Manage your inventory and sales dashboard.</p>
+                </div>
+
+                <div asp-validation-summary="ModelOnly" class="text-red-500 text-xs bg-red-50 p-4 rounded-xl border border-red-100 mb-6 font-medium"></div>
+
+                <form method="post" asp-page-handler="Login" class="space-y-5">
+                    <div class="group">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 group-focus-within:text-brand-600 transition-colors">Credential ID</label>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-500 transition-colors">alternate_email</span>
+                            <input asp-for="Input.Username" class="input-luxe" placeholder="Email or Username" />
+                        </div>
+                        <span asp-validation-for="Input.Username" class="text-[10px] text-red-500 mt-1 block px-2"></span>
+                    </div>
+
+                    <div class="group">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest group-focus-within:text-brand-600 transition-colors">Access Key</label>
+                            <a href="#" class="text-[10px] font-bold text-brand-600 hover:underline tracking-tight">Forgot?</a>
+                        </div>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-500 transition-colors">lock</span>
+                            <input asp-for="Input.Password" type="password" class="input-luxe" placeholder="Enter Password" />
+                        </div>
+                        <span asp-validation-for="Input.Password" class="text-[10px] text-red-500 mt-1 block px-2"></span>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input asp-for="Input.RememberMe" class="w-5 h-5 rounded-lg border-slate-200 text-brand-600 focus:ring-brand-500 transition-all cursor-pointer" />
+                        <label asp-for="Input.RememberMe" class="ml-3 text-sm font-medium text-slate-500 cursor-pointer select-none">Stay logged in</label>
+                    </div>
+
+                    <button type="submit" class="btn-luxe pt-4">Sign In</button>
+
+                    <div class="relative py-4">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-100"></div></div>
+                        <div class="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-400"><span class="bg-white px-4">Instant Access</span></div>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="ExternalLogin">
+                    <button type="submit" name="provider" value="Google" class="btn-outline-luxe flex items-center justify-center gap-3">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google" />
+                        Google Login
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Overlay -->
+        <div class="overlay-container">
+            <div class="overlay">
+                <div class="overlay-panel overlay-left">
+                    <h1 class="text-4xl font-extrabold mb-4 tracking-tight">Returning?</h1>
+                    <p class="text-blue-50 mb-8 font-medium opacity-90 leading-relaxed">Log in back to your GearZone dashboard <br/>and continue your progress.</p>
+                    <button class="glass-switch" id="signIn">Sign In Instead</button>
+                    
+                    <div class="absolute bottom-12 flex items-center gap-2">
+                        <span class="text-2xl font-black tracking-tighter uppercase">GearZone</span>
+                    </div>
+                </div>
+                <div class="overlay-panel overlay-right">
+                    <h1 class="text-4xl font-extrabold mb-4 tracking-tight">New Hero?</h1>
+                    <p class="text-blue-50 mb-8 font-medium opacity-90 leading-relaxed">Register today and start selling gear <br/>on our premium platform.</p>
+                    <button class="glass-switch" id="signUp">Create Account</button>
+                    
+                    <div class="absolute bottom-12 flex items-center gap-2">
+                        <span class="text-2xl font-black tracking-tighter uppercase">GearZone</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const container = document.getElementById('auth-card');
+        const signUpBtn = document.getElementById('signUp');
+        const signInBtn = document.getElementById('signIn');
+
+        signUpBtn.addEventListener('click', () => container.classList.add('right-panel-active'));
+        signInBtn.addEventListener('click', () => container.classList.remove('right-panel-active'));
+
+        // Handle server-side tab state
+        @{
+            var activeTab = ViewData["ActiveTab"]?.ToString();
+        }
+        @if (activeTab == "signup")
+        {
+            <text>container.classList.add('right-panel-active');</text>
+        }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/toast.js" asp-append-version="true"></script>
+    <partial name="_Toast" />
+</body>
+</html>

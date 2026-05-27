@@ -1,0 +1,404 @@
+@page "/admin/transactions"
+@model GearZone.Web.Pages.Admin.Transactions.IndexModel
+@{
+    ViewData["Title"] = "Platform Transactions";
+    ViewData["PageHeader"] = "Platform Transactions";
+    ViewData["ActivePage"] = "Transactions";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Finance", "Transactions" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6 relative">
+    <!-- KPI Cards Grid -->
+    <div class="flex flex-wrap gap-4">
+        <!-- Card 1: Total Transactions -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex items-start gap-4 flex-1 min-w-[240px]">
+            <div class="size-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Transactions</p>
+                <h3 class="text-2xl font-bold text-slate-900 leading-tight">@(Model.Summary?.TotalTransactions ?? 0)</h3>
+                <p class="text-xs text-slate-500 mt-1">Processed across platform</p>
+            </div>
+        </div>
+
+        <!-- Card 2: Total Revenue In -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex items-start gap-4 flex-1 min-w-[240px]">
+            <div class="size-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-[24px]">arrow_downward</span>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Revenue In</p>
+                <h3 class="text-2xl font-bold text-slate-900 leading-tight">₫@(Model.Summary?.TotalInflow.ToString("N0") ?? "0")</h3>
+                <p class="text-xs text-emerald-600 font-medium mt-1">All incoming payments</p>
+            </div>
+        </div>
+
+        <!-- Card 3: Total Paid Out -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex items-start gap-4 flex-1 min-w-[240px]">
+            <div class="size-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-[24px]">account_balance</span>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Paid Out</p>
+                <h3 class="text-2xl font-bold text-slate-900 leading-tight">₫@(Model.Summary?.TotalOutflow.ToString("N0") ?? "0")</h3>
+                <p class="text-xs text-indigo-600 font-medium mt-1">Disbursed to stores</p>
+            </div>
+        </div>
+
+        <!-- Card 4: Wallet Balance -->
+        <div class="bg-slate-900 p-5 rounded-xl shadow-card border border-slate-800 flex items-start gap-4 flex-1 min-w-[240px] relative overflow-hidden group">
+            <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                <span class="material-symbols-outlined text-[100px] text-white">savings</span>
+            </div>
+            <div class="size-10 rounded-full bg-white/10 text-white flex items-center justify-center shrink-0 z-10">
+                <span class="material-symbols-outlined text-[24px]">savings</span>
+            </div>
+            <div class="z-10">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Platform Balance</p>
+                <h3 class="text-2xl font-bold text-white leading-tight">₫@(Model.Summary?.WalletBalance.ToString("N0") ?? "0")</h3>
+                <p class="text-xs text-emerald-400 font-bold mt-1">Current Active Funds</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Filter Bar -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 p-5">
+        <form method="get" id="filter-form" class="space-y-5">
+            <input type="hidden" asp-for="Query.PageNumber" id="page-number-input" />
+            <input type="hidden" asp-for="Query.SortBy" id="sort-by-input" />
+            <input type="hidden" asp-for="Query.SortDirection" id="sort-direction-input" />
+
+            <div class="flex flex-wrap items-center gap-4">
+                <!-- Primary Search -->
+                <div class="relative flex-1 min-w-[300px] group">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 group-focus-within:text-primary transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">search</span>
+                    </span>
+                    <input type="text" asp-for="Query.Search" class="form-input w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-200 bg-slate-50 focus:bg-white focus:border-primary focus:ring-primary transition-all text-sm h-[42px]" placeholder="Search reference, store, description..." />
+                </div>
+
+                <!-- Fast Actions -->
+                <div class="flex items-center gap-2">
+                    <button type="submit" class="h-[42px] px-6 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-bold shadow-sm shadow-blue-500/20 transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Search
+                    </button>
+                    
+                    <button type="button" onclick="toggleAdvancedFilters()" id="toggle-filters-btn" class="h-[42px] px-4 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">tune</span>
+                        <span class="hidden sm:inline">Advanced</span>
+                        @{
+                            var activeAdvCount = 0;
+                            if (!string.IsNullOrEmpty(Request.Query["StoreName"])) activeAdvCount++;
+                            if (!string.IsNullOrEmpty(Request.Query["BatchCode"])) activeAdvCount++;
+                            if (!string.IsNullOrEmpty(Model.DateRangeShortcut)) activeAdvCount++;
+                        }
+                        @if (activeAdvCount > 0)
+                        {
+                            <span class="size-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center">@activeAdvCount</span>
+                        }
+                    </button>
+
+                    <button type="button" onclick="clearAllFilters()" class="size-[42px] border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg shadow-sm transition-all flex items-center justify-center" title="Reset Filters">
+                        <span class="material-symbols-outlined text-[20px]">restart_alt</span>
+                    </button>
+                </div>
+                
+                <div class="ml-auto">
+                    <button type="button" class="h-[42px] px-4 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Collapsible Advanced Section -->
+            <div id="advanced-filters-section" class="@(activeAdvCount > 0 ? "" : "hidden") pt-5 border-t border-slate-50 space-y-6">
+                <!-- Filter Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Status -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Status</label>
+                        <select asp-for="Query.Status" class="form-select w-full rounded-lg border-slate-200 h-[40px] text-sm">
+                            <option value="">All Statuses</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Failed">Failed</option>
+                        </select>
+                    </div>
+
+                    <!-- Date Selection -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Date Period</label>
+                        <select asp-for="DateRangeShortcut" id="DateRangeShortcut" onchange="toggleCustomDateRange()" class="form-select w-full rounded-lg border-slate-200 h-[40px] text-sm">
+                            <option value="">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">Past 7 Days</option>
+                            <option value="month">Past 30 Days</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+
+                    <!-- Custom Picker -->
+                    <div id="custom-date-container" class="space-y-1.5 @(Model.DateRangeShortcut == "custom" ? "" : "hidden") lg:col-span-2">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Custom Date Range</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                                <span class="material-symbols-outlined text-[18px]">calendar_month</span>
+                            </span>
+                            <input type="text" asp-for="DateRange" id="dateRangePicker" class="form-input w-full pl-10 h-[40px] rounded-lg border-slate-200 text-sm cursor-pointer" placeholder="Select start and end date..." />
+                        </div>
+                    </div>
+
+                    <!-- Store -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Store</label>
+                        <input asp-for="Query.StoreName" type="text" placeholder="Search store..." class="form-input w-full rounded-lg border-slate-200 h-[40px] text-sm" />
+                    </div>
+
+                    <!-- Batch -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Batch Code</label>
+                        <input asp-for="Query.BatchCode" type="text" placeholder="BATCH-..." class="form-input w-full rounded-lg border-slate-200 h-[40px] text-sm" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white px-8 py-2.5 rounded-lg text-sm font-bold shadow-lg transition-all flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">done_all</span>
+                        Apply Advanced Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+        <!-- Table Header -->
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p class="text-[13px] font-medium text-slate-600">
+                Found <span class="font-bold text-slate-900">@Model.Transactions.TotalCount</span> total results | 
+                Net Movement: <span class="@((Model.Summary?.TotalInflow - Model.Summary?.TotalOutflow) >= 0 ? "text-emerald-600" : "text-red-600") font-bold">
+                    ₫@((Model.Summary?.TotalInflow - Model.Summary?.TotalOutflow)?.ToString("N0") ?? "0")
+                </span>
+            </p>
+            
+            <div class="flex items-center gap-4">
+                @{
+                    var currentSortLabel = Model.Query.SortBy switch {
+                        "date" => "Date",
+                        "amount" => "Amount",
+                        "status" => "Status",
+                        _ => "Sort"
+                    };
+                }
+                <button type="button" onclick="toggleSortOrder()" class="text-xs font-bold text-slate-600 hover:text-primary transition-colors flex items-center gap-1.5">
+                    Sort by: @currentSortLabel
+                    <span class="material-symbols-outlined text-[16px]">@(Model.Query.SortDirection == "desc" ? "arrow_downward" : "arrow_upward")</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Table Content -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th class="py-4 px-6 w-12">#</th>
+                        <th class="py-4 px-6">Timestamp</th>
+                        <th class="py-4 px-6">Type</th>
+                        <th class="py-4 px-6">Store / Entity</th>
+                        <th class="py-4 px-6">Reference</th>
+                        <th class="py-4 px-6 text-right">Amount</th>
+                        <th class="py-4 px-6 text-center w-16">Dir</th>
+                        <th class="py-4 px-6 text-right">Status</th>
+                        <th class="py-4 px-6 w-12 text-center"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-[13px]">
+                    @if (Model.Transactions.Items.Any())
+                    {
+                        var index = (Model.Transactions.PageNumber - 1) * Model.Transactions.PageSize + 1;
+                        foreach (var item in Model.Transactions.Items)
+                        {
+                            <tr class="hover:bg-slate-50 transition-colors group">
+                                <td class="py-4 px-6 font-mono text-slate-400">@(index++)</td>
+                                <td class="py-4 px-6 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900">@item.CreatedAt.ToString("MMM dd, yyyy")</div>
+                                    <div class="text-[11px] text-slate-400 mt-0.5">@item.CreatedAt.ToString("HH:mm:ss")</div>
+                                </td>
+                                <td class="py-4 px-6">
+                                    @{
+                                        var typeClass = item.TypeLabel switch {
+                                            "Payment" => "bg-emerald-100 text-emerald-700",
+                                            "Payout" => "bg-indigo-100 text-indigo-700",
+                                            "Refund" => "bg-red-100 text-red-700",
+                                            _ => "bg-slate-100 text-slate-600"
+                                        };
+                                    }
+                                    <span class="px-2 py-1 rounded text-[10px] font-bold uppercase @typeClass">@item.TypeLabel</span>
+                                </td>
+                                <td class="py-4 px-6">
+                                    @if (!string.IsNullOrEmpty(item.StoreName)) {
+                                        <span class="font-medium text-slate-900">@item.StoreName</span>
+                                    } else {
+                                        <span class="italic text-slate-400">System</span>
+                                    }
+                                </td>
+                                <td class="py-4 px-6">
+                                    <span class="font-mono text-primary font-medium">@item.ReferenceCode</span>
+                                    <p class="text-[11px] text-slate-400 truncate max-w-[140px] mt-0.5">@item.Note</p>
+                                </td>
+                                <td class="py-4 px-6 text-right font-bold @(item.Direction == "IN" ? "text-emerald-600" : "text-red-600")">
+                                    @(item.Direction == "IN" ? "+" : "−")₫@item.Amount.ToString("N0")
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    @if (item.Direction == "IN") {
+                                        <span class="material-symbols-outlined text-emerald-500 text-[20px]">south_east</span>
+                                    } else {
+                                        <span class="material-symbols-outlined text-red-500 text-[20px]">north_east</span>
+                                    }
+                                </td>
+                                <td class="py-4 px-6 text-right">
+                                    @{
+                                        var statusColor = item.StatusLabel switch {
+                                            "Completed" or "Paid" => "text-emerald-600",
+                                            "Pending" => "text-amber-500",
+                                            "Failed" => "text-red-600",
+                                            _ => "text-slate-400"
+                                        };
+                                        var dotColor = item.StatusLabel switch {
+                                            "Completed" or "Paid" => "bg-emerald-500",
+                                            "Pending" => "bg-amber-500",
+                                            "Failed" => "bg-red-500",
+                                            _ => "bg-slate-400"
+                                        };
+                                    }
+                                    <span class="inline-flex items-center gap-1.5 font-bold @statusColor">
+                                        <span class="size-1.5 rounded-full @dotColor"></span>
+                                        @item.StatusLabel
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    <button class="p-1 px-2 text-slate-400 hover:text-primary transition-colors hover:bg-slate-100 rounded">
+                                        <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="9" class="py-20 text-center">
+                                <span class="material-symbols-outlined text-[48px] text-slate-200">history</span>
+                                <p class="text-slate-400 mt-2 font-medium">No transactions found for the selected filters.</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+            <p class="text-xs text-slate-500">
+                Page <span class="font-bold">@Model.Transactions.PageNumber</span> of <span class="font-bold">@Model.Transactions.TotalPages</span>
+            </p>
+            
+            <nav class="flex items-center gap-1">
+                @if (Model.Transactions.PageNumber > 1)
+                {
+                    <button type="button" onclick="changePage(@(Model.Transactions.PageNumber - 1))" class="p-1.5 rounded border border-slate-200 hover:bg-white text-slate-500 transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                    </button>
+                }
+
+                @for (var i = Math.Max(1, Model.Transactions.PageNumber - 2); i <= Math.Min(Model.Transactions.TotalPages, Model.Transactions.PageNumber + 2); i++)
+                {
+                    <button type="button" onclick="changePage(@i)" class="size-8 rounded text-xs font-bold transition-colors @(i == Model.Transactions.PageNumber ? "bg-primary text-white" : "border border-slate-200 hover:bg-white text-slate-500")">
+                        @i
+                    </button>
+                }
+
+                @if (Model.Transactions.PageNumber < Model.Transactions.TotalPages)
+                {
+                    <button type="button" onclick="changePage(@(Model.Transactions.PageNumber + 1))" class="p-1.5 rounded border border-slate-200 hover:bg-white text-slate-500 transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                    </button>
+                }
+            </nav>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        function toggleCustomDateRange() {
+            const select = document.getElementById('DateRangeShortcut');
+            const container = document.getElementById('custom-date-container');
+            if (select.value === 'custom') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('dateRangePicker').value = '';
+            }
+        }
+
+        function clearAllFilters() {
+            const form = document.getElementById('filter-form');
+            form.querySelectorAll('input:not([type="hidden"])').forEach(i => i.value = '');
+            form.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+            document.getElementById('dateRangePicker').value = '';
+            toggleCustomDateRange();
+            form.submit();
+        }
+
+        function changePage(page) {
+            document.getElementById('page-number-input').value = page;
+            document.getElementById('filter-form').submit();
+        }
+
+        function toggleSortOrder() {
+            const dirInput = document.getElementById('sort-direction-input');
+            dirInput.value = dirInput.value === 'asc' ? 'desc' : 'asc';
+            document.getElementById('page-number-input').value = 1;
+            document.getElementById('filter-form').submit();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
+            const advancedSection = document.getElementById('advanced-filters-section');
+
+            if (toggleFiltersBtn && advancedSection) {
+                toggleFiltersBtn.addEventListener('click', function() {
+                    advancedSection.classList.toggle('hidden');
+                    if (advancedSection.classList.contains('hidden')) {
+                        this.classList.remove('bg-slate-50', 'border-slate-300', 'text-slate-900');
+                    } else {
+                        this.classList.add('bg-slate-50', 'border-slate-300', 'text-slate-900');
+                    }
+                });
+                
+                // Set initial state
+                if (!advancedSection.classList.contains('hidden')) {
+                    toggleFiltersBtn.classList.add('bg-slate-50', 'border-slate-300', 'text-slate-900');
+                }
+            }
+
+            if (typeof flatpickr !== 'undefined') {
+                flatpickr("#dateRangePicker", {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                    allowInput: true
+                });
+            }
+        });
+    </script>
+}
