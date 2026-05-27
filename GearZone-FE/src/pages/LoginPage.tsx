@@ -16,7 +16,7 @@ const primaryButtonClassName =
   'auth-button-shadow w-full rounded-2xl bg-primary px-6 py-4 text-sm font-bold text-white transition-all duration-300 hover:bg-blue-700 active:scale-[0.98]'
 
 export default function LoginPage() {
-  const { login, refresh } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
 
   const [isRegister, setIsRegister] = useState(false)
@@ -40,8 +40,7 @@ export default function LoginPage() {
 
     try {
       await login(username, password, rememberMe)
-      await refresh()
-      navigate('/')
+      navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {
