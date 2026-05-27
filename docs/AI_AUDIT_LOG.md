@@ -1,4 +1,4 @@
-# AI Audit Log -- Core -- Application Abstractions
+# AI Audit Log
 
 ## 1. Project Information
 
@@ -14,6 +14,11 @@
 | Date | 2026-05-27 |
 | Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
 | Primary Owner | Nguyen Sinh Nhat (DE180430) |
+| Branch | `core/infrastructure-external-services` |
+| Scope | GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout, SMTP email, Goong map API |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Ho Huy Hoang (DE180416) |
 
 ---
 
@@ -36,6 +41,12 @@ Key tasks AI assisted with:
 - What methods should IRepository<T,TKey> expose in Clean Architecture -- should Query() return IQueryable?
 - Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
 - When should I split a service interface -- one IOrderService or separate IAdminOrderService and ISellerOrderService?
+**Goal:** Third-party API integration, webhook security, async HTTP client patterns
+
+Key tasks AI assisted with:
+- How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
+- Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
+- How do I calculate shipping distance using the Goong Directions API in .NET?
 
 ---
 
@@ -49,17 +60,21 @@ Key tasks AI assisted with:
 | Tool | Claude Code |
 | Purpose | Interface contract design |
 | Related Files | GearZone.Application/Abstractions/**/*.cs |
+| Purpose | Third-party API integration |
+| Related Files | GearZone.Infrastructure/External/*.cs, Settings/*.cs |
 | AI Involvement | Significant assistance |
 
 **Prompt used:**
 
 ```
 What methods should IRepository<T,TKey> expose in Clean Architecture -- should Query() return IQueryable?
+How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
 ```
 
 **AI output summary:**
 
 Recommended GetByIdAsync, GetAllAsync, AddAsync, UpdateAsync, DeleteAsync, Query() for IQueryable access; warned about leaking IQueryable across layers.
+PayOS SDK: create payment link, handle webhook callback, verify HMAC-SHA256 signature, update order status.
 
 **What the team used:**
 The core pattern / design / code structure suggested above.
@@ -78,17 +93,20 @@ Tested in the running application before accepting.
 | Tool | Claude Code / GitHub Copilot |
 | Purpose | Follow-up detail implementation |
 | Related Files | GearZone.Application/Abstractions/**/*.cs |
+| Related Files | GearZone.Infrastructure/External/*.cs, Settings/*.cs |
 | AI Involvement | Moderate assistance |
 
 **Prompt used:**
 
 ```
 Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
+Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
 ```
 
 **AI output summary:**
 
 Suggested IPaymentGateway (process/verify) + IPaymentStrategy (calculate) + IPayoutClient (disburse) -- strategy pattern for extensibility.
+Cloudinary .NET SDK: Cloudinary.UploadAsync with RawUploadParams; return SecureUrl as stored image URL.
 
 **What the team used:**
 The algorithmic or architectural pattern described above.
@@ -105,6 +123,10 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 | Interface design |  | X |  |  | AI-suggested patterns, team decided scope |
 | Strategy pattern |  | X |  |  | Applied to payment system |
 | Service boundary decisions | X |  |  |  | Team decision based on user roles |
+| PayOS integration |  |  | X |  | AI code sample, team added error handling |
+| Cloudinary |  | X |  |  | AI pattern adapted |
+| SMTP service |  | X |  |  | AI template, team wrote email templates |
+| Goong API |  | X |  |  | AI HTTP client pattern |
 
 ---
 

@@ -1,4 +1,4 @@
-# AI Prompts Log -- Core -- Application Abstractions
+# AI Prompts Log 
 
 Branch: `core/application-abstractions`
 Scope: GearZone.Application: all interface contracts -- IRepository<T,TKey>, IUnitOfWork, IService*, IExternal*, IAppLogger<T>
@@ -20,6 +20,15 @@ along with a summary of the output and which parts were incorporated.
 Recommended GetByIdAsync, GetAllAsync, AddAsync, UpdateAsync, DeleteAsync, Query() for IQueryable access; warned about leaking IQueryable across layers.
 
 **Used in files:** GearZone.Application/Abstractions/**/*.cs
+**Context:** GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout, SMTP email, Goong map API
+
+**Prompt:**
+> How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
+
+**AI Output Summary:**
+PayOS SDK: create payment link, handle webhook callback, verify HMAC-SHA256 signature, update order status.
+
+**Used in files:** GearZone.Infrastructure/External/*.cs, Settings/*.cs
 
 ---
 ## Prompt 2 -- 2026-05-27
@@ -34,6 +43,15 @@ Recommended GetByIdAsync, GetAllAsync, AddAsync, UpdateAsync, DeleteAsync, Query
 Suggested IPaymentGateway (process/verify) + IPaymentStrategy (calculate) + IPayoutClient (disburse) -- strategy pattern for extensibility.
 
 **Used in files:** GearZone.Application/Abstractions/**/*.cs
+**Context:** GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout, SMTP email, Goong map API
+
+**Prompt:**
+> Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
+
+**AI Output Summary:**
+Cloudinary .NET SDK: Cloudinary.UploadAsync with RawUploadParams; return SecureUrl as stored image URL.
+
+**Used in files:** GearZone.Infrastructure/External/*.cs, Settings/*.cs
 
 ---
 ## Prompt 3 -- 2026-05-27
@@ -48,5 +66,14 @@ Suggested IPaymentGateway (process/verify) + IPaymentStrategy (calculate) + IPay
 Advised splitting by actor role; Admin and Seller have different authorization contexts and different DTOs.
 
 **Used in files:** GearZone.Application/Abstractions/**/*.cs
+**Context:** GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout, SMTP email, Goong map API
+
+**Prompt:**
+> How do I calculate shipping distance using the Goong Directions API in .NET?
+
+**AI Output Summary:**
+Goong REST API: GET /direction with origin/destination lat-lng; parse routes[0].legs[0].distance.value in meters.
+
+**Used in files:** GearZone.Infrastructure/External/*.cs, Settings/*.cs
 
 ---
