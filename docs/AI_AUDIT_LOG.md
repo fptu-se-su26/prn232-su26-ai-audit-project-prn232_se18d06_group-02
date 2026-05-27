@@ -1,4 +1,4 @@
-# AI Audit Log -- Core -- EF Core Configuration and Migrations
+# AI Audit Log 
 
 ## 1. Project Information
 
@@ -14,6 +14,21 @@
 | Date | 2026-05-27 |
 | Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
 | Primary Owner | Phan Tran Cong Vu (DE180494) |
+| Branch | `core/domain-entities` |
+| Scope | GearZone.Domain: Entity<TKey> base class, all aggregate roots and value objects, domain enums |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Dam Nguyen Khang (DE180417) |
+| Branch | `core/application-abstractions` |
+| Scope | GearZone.Application: all interface contracts -- IRepository<T,TKey>, IUnitOfWork, IService*, IExternal*, IAppLogger<T> |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Nguyen Sinh Nhat (DE180430) |
+| Branch | `core/infrastructure-external-services` |
+| Scope | GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout, SMTP email, Goong map API |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Ho Huy Hoang (DE180416) |
 
 ---
 
@@ -36,6 +51,25 @@ Key tasks AI assisted with:
 - How to configure a many-to-many self-referencing relationship in EF Core 8 for store follows?
 - What is the correct EF Core configuration for storing C# enums as strings in SQL Server?
 - How do I seed data through EF migrations safely without duplicating rows on re-run?
+
+**Goal:** Domain model design, aggregate boundary identification, relationship mapping
+
+Key tasks AI assisted with:
+- Design entity relationships for a multi-vendor e-commerce platform where each Order splits into SubOrders per seller.
+- What is the cleanest base Entity class for Clean Architecture with EF Core -- should Id be in the domain or in EF config?
+- Model a Payout system where a PayoutBatch contains multiple PayoutItems linked to SubOrders.
+**Goal:** Interface contract design, strategy pattern application, dependency inversion
+
+Key tasks AI assisted with:
+- What methods should IRepository<T,TKey> expose in Clean Architecture -- should Query() return IQueryable?
+- Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
+- When should I split a service interface -- one IOrderService or separate IAdminOrderService and ISellerOrderService?
+**Goal:** Third-party API integration, webhook security, async HTTP client patterns
+
+Key tasks AI assisted with:
+- How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
+- Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
+- How do I calculate shipping distance using the Goong Directions API in .NET?
 
 ---
 
@@ -78,6 +112,75 @@ Tested in the running application before accepting.
 | Tool | Claude Code / GitHub Copilot |
 | Purpose | Follow-up detail implementation |
 | Related Files | GearZone.Infrastructure/ApplicationDbContext.cs, Configurations/*.cs, Migrations/*.cs, Seed/*.cs |
+
+
+### Session 1
+
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code |
+| Purpose | Domain model design |
+| Related Files | GearZone.Domain/Entities/*.cs, GearZone.Domain/Enums/*.cs |
+| AI Involvement | Significant assistance |
+
+**Prompt used:**
+
+```
+Design entity relationships for a multi-vendor e-commerce platform where each Order splits into SubOrders per seller.
+| Purpose | Interface contract design |
+| Related Files | GearZone.Application/Abstractions/**/*.cs |
+| Purpose | Third-party API integration |
+| Related Files | GearZone.Infrastructure/External/*.cs, Settings/*.cs |
+| AI Involvement | Significant assistance |
+
+**Prompt used:**
+
+```
+What methods should IRepository<T,TKey> expose in Clean Architecture -- should Query() return IQueryable?
+How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
+```
+
+**AI output summary:**
+
+Suggested Order -> SubOrder -> OrderItem hierarchy; PaymentMethod linked to Order; Payment as a separate aggregate.
+Recommended GetByIdAsync, GetAllAsync, AddAsync, UpdateAsync, DeleteAsync, Query() for IQueryable access; warned about leaking IQueryable across layers.
+PayOS SDK: create payment link, handle webhook callback, verify HMAC-SHA256 signature, update order status.
+
+**What the team used:**
+The core pattern / design / code structure suggested above.
+
+**What the team changed:**
+Adapted to project naming conventions and verified correctness against actual requirements.
+Tested in the running application before accepting.
+
+---
+
+### Session 2
+
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code / GitHub Copilot |
+| Purpose | Follow-up detail implementation |
+| Related Files | GearZone.Domain/Entities/*.cs, GearZone.Domain/Enums/*.cs |
+| AI Involvement | Moderate assistance |
+
+**Prompt used:**
+
+```
+What is the cleanest base Entity class for Clean Architecture with EF Core -- should Id be in the domain or in EF config?
+```
+
+**AI output summary:**
+
+Recommended Entity<TKey> with only Id; auditing fields (CreatedAt etc.) should live in EF configuration, not the base class.
+
+**What the team used:**
+The algorithmic or architectural pattern described above.
+
+| Related Files | GearZone.Application/Abstractions/**/*.cs |
+| Related Files | GearZone.Infrastructure/External/*.cs, Settings/*.cs |
 | AI Involvement | Moderate assistance |
 
 **Prompt used:**
@@ -89,6 +192,19 @@ What is the correct EF Core configuration for storing C# enums as strings in SQL
 **AI output summary:**
 
 HasConversion<string>() in IEntityTypeConfiguration with HasColumnType('nvarchar(50)').
+
+**What the team used:**
+The algorithmic or architectural pattern described above.
+
+```
+Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
+Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
+```
+
+**AI output summary:**
+
+Suggested IPaymentGateway (process/verify) + IPaymentStrategy (calculate) + IPayoutClient (disburse) -- strategy pattern for extensibility.
+Cloudinary .NET SDK: Cloudinary.UploadAsync with RawUploadParams; return SecureUrl as stored image URL.
 
 **What the team used:**
 The algorithmic or architectural pattern described above.
@@ -105,6 +221,16 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 | EF entity configuration |  | X |  |  | AI syntax help, team verified logic |
 | Migration generation | X |  |  |  | dotnet ef migrations add (CLI) |
 | Seed data design |  | X |  |  | AI template, team provided real data |
+| Domain modeling |  | X |  |  | AI proposed, team refined boundaries |
+| Enum definition | X |  |  |  | Team-defined from requirements |
+| Aggregate boundaries |  | X |  |  | AI suggestion validated against domain |
+| Interface design |  | X |  |  | AI-suggested patterns, team decided scope |
+| Strategy pattern |  | X |  |  | Applied to payment system |
+| Service boundary decisions | X |  |  |  | Team decision based on user roles |
+| PayOS integration |  |  | X |  | AI code sample, team added error handling |
+| Cloudinary |  | X |  |  | AI pattern adapted |
+| SMTP service |  | X |  |  | AI template, team wrote email templates |
+| Goong API |  | X |  |  | AI HTTP client pattern |
 
 ---
 
@@ -124,6 +250,21 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 - Compared generated code against official Microsoft/library documentation
 - Team code review before merging to develop
 - Tested with realistic data (not just happy path)
+
+---
+
+## 8. Team Contribution
+
+| Member | Student ID | Role | AI Used? |
+|---|---|---|---|
+| Ho Huy Hoang | DE180416 | Leader, Auth & Orders | Yes |
+| Dam Nguyen Khang | DE180417 | Domain & Payments | Yes |
+| Nguyen Sinh Nhat | DE180430 | Abstractions & Catalog | Yes |
+| Phan Tran Cong Vu | DE180494 | Infrastructure & Admin | Yes |
+| Dang Cong Quoc Khanh | DE180880 | Repositories & Frontend | Yes |
+
+---
+
 
 ---
 

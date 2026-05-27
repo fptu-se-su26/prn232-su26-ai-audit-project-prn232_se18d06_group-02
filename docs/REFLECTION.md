@@ -1,14 +1,25 @@
-# Reflection -- Core -- EF Core Configuration and Migrations
+# Reflection 
 
 Branch: `core/infrastructure-ef-config`
 Date: 2026-05-27
 Primary owner: Phan Tran Cong Vu (DE180494)
+
+Branch: `core/domain-entities`
+Date: 2026-05-27
+Primary owner: Dam Nguyen Khang (DE180417)
+
+Branch: `core/application-abstractions`
+Date: 2026-05-27
+Primary owner: Nguyen Sinh Nhat (DE180430)
 
 ---
 
 ## What went well
 
 EF Core configuration is verbose but critical. AI saved significant time on relationship configuration syntax. However, several AI-suggested cascade delete rules had to be changed after causing FK constraint violations during integration testing. Always verify cascade behavior manually.
+AI was most useful for validating aggregate boundary decisions. The Order/SubOrder split was debated; AI provided the pattern used by large e-commerce platforms. The final model was simplified from AI suggestions -- several over-engineered value objects were removed.
+Defining all interfaces before implementations enforced the Dependency Inversion Principle throughout the project. AI helped identify missing interfaces (e.g. IOrderTrackingNotifier for SignalR) that were initially overlooked. Some suggested interfaces were too fine-grained and were merged.
+External service integrations were the most time-consuming part of the infrastructure. AI provided working code samples for each API but webhook signature verification required careful manual testing. The Disabled* stub pattern (suggested by AI) was very useful for local development without real API credentials.
 
 AI accelerated the design and scaffolding phase significantly. The team spent more time on
 business logic validation and testing rather than boilerplate.
