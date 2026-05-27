@@ -1,13 +1,14 @@
-# Reflection -- Core -- External Service Integrations
+# Reflection 
 
-Branch: `core/infrastructure-external-services`
+Branch: `core/application-abstractions`
 Date: 2026-05-27
-Primary owner: Ho Huy Hoang (DE180416)
+Primary owner: Nguyen Sinh Nhat (DE180430)
 
 ---
 
 ## What went well
 
+Defining all interfaces before implementations enforced the Dependency Inversion Principle throughout the project. AI helped identify missing interfaces (e.g. IOrderTrackingNotifier for SignalR) that were initially overlooked. Some suggested interfaces were too fine-grained and were merged.
 External service integrations were the most time-consuming part of the infrastructure. AI provided working code samples for each API but webhook signature verification required careful manual testing. The Disabled* stub pattern (suggested by AI) was very useful for local development without real API credentials.
 
 AI accelerated the design and scaffolding phase significantly. The team spent more time on
