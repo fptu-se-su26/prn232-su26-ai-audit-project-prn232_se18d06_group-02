@@ -1,4 +1,4 @@
-# AI Audit Log
+# AI Audit Log 
 
 ## 1. Project Information
 
@@ -9,16 +9,25 @@
 | Semester | SU26 |
 | Group | Group 2 |
 | Project | GearZone -- Multi-Vendor E-Commerce Platform |
-| Branch | `core/infrastructure-repositories` |
-| Scope | GearZone.Infrastructure/Repositories: generic Repository<T,TKey>, UnitOfWork, all domain-specific repository implementations |
+| Branches | 
+- core/domain-entities  
+- core/application-abstractions  
+- core/infrastructure-repositories  
+- core/infrastructure-ef-config  
+- core/logging-infrastructure  
+- core/infrastructure-external-services |
+| Scope | 
+- Domain: Entities, aggregates, value objects, enums  
+- Application: Interfaces, service contracts, logging abstraction  
+- Infrastructure: Repositories, EF Core config, logging, external APIs |
 | Date | 2026-05-27 |
 | Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
-| Primary Owner | Dang Cong Quoc Khanh (DE180880) |
-| Branch | `core/logging-infrastructure` |
-| Scope | Cross-cutting logging: IAppLogger<T> abstraction, SerilogAppLogger<T>, RequestLoggingMiddleware, AuditTrailLogger |
-| Date | 2026-05-27 |
-| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
-| Primary Owner | Ho Huy Hoang (DE180416) |
+| Primary Owners | 
+- Domain: Dam Nguyen Khang (DE180417)  
+- Abstractions: Nguyen Sinh Nhat (DE180430)  
+- Repositories: Dang Cong Quoc Khanh (DE180880)  
+- EF Config & Infra: Phan Tran Cong Vu (DE180494)  
+- External Services: Ho Huy Hoang (DE180416) |
 
 ---
 
@@ -33,140 +42,189 @@
 
 ---
 
-## 3. AI Usage Goals for This Branch
+## 3. AI Usage Goals
 
-**Goal:** Repository pattern implementation, EF Core query optimization, transaction management
+### Repository & Transactions
+- Generic Repository<T,TKey>
+- UnitOfWork pattern
+- Eager loading with Expression<Func<T, object>>
 
-Key tasks AI assisted with:
-- Implement a generic repository pattern with EF Core that supports eager loading via Expression<Func<T,object>>.
-- How should UnitOfWork be implemented to coordinate multiple repositories in a single DbContext?
-- When should I override the generic repository methods vs adding domain-specific query methods?
-**Goal:** Logging architecture design, middleware implementation, audit trail pattern
+### Logging & Middleware
+- IAppLogger<T> abstraction
+- RequestLoggingMiddleware
+- Audit Trail logging
 
-Key tasks AI assisted with:
-- Design a logger abstraction interface in Clean Architecture that keeps the Application layer free of Serilog dependencies.
-- Implement an ASP.NET Core middleware that logs every HTTP request with method, path, status code, and elapsed time; promote 5xx to error level.
-- How do I implement an audit trail logger that records entity mutations (create/update/delete) with user context in .NET?
+### EF Core Configuration
+- IEntityTypeConfiguration usage
+- Many-to-many relationships
+- Enum as string mapping
+- Migration & seed strategy
+
+### Domain Modeling
+- Aggregate design (Order → SubOrder → OrderItem)
+- Base Entity<TKey>
+- Payout system
+
+### Application Abstractions
+- IRepository, IUnitOfWork design
+- Strategy pattern (payment)
+- Service boundary decisions
+
+### External Services
+- PayOS integration + webhook verification
+- Cloudinary upload
+- SMTP email
+- Goong API
 
 ---
 
 ## 4. AI Usage Sessions
 
-### Session 1
+### Session 1 – EF Core Configuration
 
 | Field | Detail |
 |---|---|
 | Date | 2026-05-27 |
 | Tool | Claude Code |
-| Purpose | Repository pattern implementation |
-| Related Files | GearZone.Infrastructure/Repositories/*.cs |
-| Purpose | Logging architecture design |
-| Related Files | GearZone.Application/Abstractions/Logging/IAppLogger.cs, GearZone.Infrastructure/Logging/SerilogAppLogger.cs, GearZone.Infrastructure/Logging/AuditTrailLogger.cs, GearZone.Web/Middleware/RequestLoggingMiddleware.cs |
-| AI Involvement | Significant assistance |
+| Purpose | EF Core relationships & configuration |
+| Related Files | ApplicationDbContext, Configurations, Migrations |
+| AI Involvement | Significant |
 
-**Prompt used:**
+**Prompts**
 
-```
-Implement a generic repository pattern with EF Core that supports eager loading via Expression<Func<T,object>>.
-Design a logger abstraction interface in Clean Architecture that keeps the Application layer free of Serilog dependencies.
-```
-
-**AI output summary:**
-
-Repository<T,TKey> with IQueryable.Include() loop and ApplyIncludes helper; returns IQueryable from Query().
-IAppLogger<T> with five methods mirroring ILogger<T> levels; inject in Application services instead of ILogger<T>.
-
-**What the team used:**
-The core pattern / design / code structure suggested above.
-
-**What the team changed:**
-Adapted to project naming conventions and verified correctness against actual requirements.
-Tested in the running application before accepting.
+**Summary**
+- Used join entity (StoreFollow) with composite key
+- Applied HasConversion<string>() for enum mapping
 
 ---
 
-### Session 2
+### Session 2 – Repository & UnitOfWork
 
 | Field | Detail |
 |---|---|
 | Date | 2026-05-27 |
-| Tool | Claude Code / GitHub Copilot |
-| Purpose | Follow-up detail implementation |
-| Related Files | GearZone.Infrastructure/Repositories/*.cs |
-| Related Files | GearZone.Application/Abstractions/Logging/IAppLogger.cs, GearZone.Infrastructure/Logging/SerilogAppLogger.cs, GearZone.Infrastructure/Logging/AuditTrailLogger.cs, GearZone.Web/Middleware/RequestLoggingMiddleware.cs |
-| AI Involvement | Moderate assistance |
+| Tool | Claude Code |
+| Purpose | Repository pattern & transaction |
+| Related Files | Repositories/*.cs |
+| AI Involvement | Significant |
 
-**Prompt used:**
+**Prompts**
 
-```
-How should UnitOfWork be implemented to coordinate multiple repositories in a single DbContext?
-Implement an ASP.NET Core middleware that logs every HTTP request with method, path, status code, and elapsed time; promote 5xx to error level.
-```
-
-**AI output summary:**
-
-UnitOfWork holds a single DbContext instance; SaveChangesAsync commits all tracked changes atomically.
-Stopwatch-based RequestLoggingMiddleware; LogLevel selected based on status code range; exception rethrown after logging.
-
-**What the team used:**
-The algorithmic or architectural pattern described above.
-
-**What the team changed:**
-Error handling, edge cases, and integration with the rest of the codebase were added manually.
+**Summary**
+- Repository supports Include() for eager loading
+- UnitOfWork uses single DbContext and SaveChangesAsync
 
 ---
 
-## 5. AI Assistance Summary Table
+### Session 3 – Logging Architecture
 
-| Area | No AI | Some AI | Heavy AI | AI Generated | Notes |
-|---|:---:|:---:|:---:|:---:|---|
-| Generic repository |  |  | X |  | AI template adapted for project |
-| UnitOfWork |  | X |  |  | AI pattern, team wired DI |
-| Domain queries | X |  |  |  | Team-written based on feature needs |
-| Logger abstraction |  | X |  |  | AI pattern, team reviewed interface methods |
-| Request middleware |  |  | X |  | AI implementation, team added status-level logic |
-| Audit trail |  | X |  |  | AI pattern adapted for project |
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code |
+| Purpose | Logging abstraction & middleware |
+| Related Files | Logging/*.cs, Middleware/*.cs |
+| AI Involvement | Significant |
+
+**Prompts**
+
+**Summary**
+- IAppLogger<T> abstraction
+- Middleware logs request/response with elapsed time
+- Log level based on HTTP status (5xx → error)
 
 ---
 
-## 6. AI Errors / Limitations Observed
+### Session 4 – Domain Modeling
 
-| # | Issue | How Detected | Resolution |
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code |
+| Purpose | Domain design |
+| Related Files | Domain/Entities, Enums |
+| AI Involvement | Significant |
+
+**Prompts**
+
+**Summary**
+- Defined aggregate boundaries
+- Entity<TKey> with minimal properties (Id only)
+
+---
+
+### Session 5 – Application & External Services
+
+| Field | Detail |
+|---|---|
+| Date | 2026-05-27 |
+| Tool | Claude Code / Copilot |
+| Purpose | Abstractions & integrations |
+| Related Files | Abstractions, External |
+| AI Involvement | Moderate |
+
+**Prompts**
+
+
+**Summary**
+- IRepository standard methods + Query()
+- Strategy pattern for payment
+- PayOS HMAC verification
+- Cloudinary UploadAsync → SecureUrl
+
+---
+
+## 5. AI Assistance Summary
+
+| Area | No AI | Some AI | Heavy AI | Notes |
+|---|:---:|:---:|:---:|---|
+| Repository |  |  | X | Core from AI |
+| UnitOfWork |  | X |  | Pattern refined |
+| Domain modeling |  | X |  | AI + team |
+| EF configuration |  | X |  | Syntax help |
+| Logging |  | X |  | Abstraction design |
+| Middleware |  |  | X | AI implementation |
+| External APIs |  |  | X | PayOS, Cloudinary |
+| Service design | X |  |  | Team decision |
+
+---
+
+## 6. AI Errors / Limitations
+
+| # | Issue | Detection | Resolution |
 |---|---|---|---|
-| 1 | Occasionally suggested outdated .NET 6 API syntax | Build error | Replaced with .NET 8 equivalents |
-| 2 | Some EF configurations had incorrect cascade rules | FK constraint error at runtime | Manually set DeleteBehavior per relationship |
-| 3 | AI sometimes over-engineered solutions | Code review | Simplified to fit project scope |
+| 1 | Outdated .NET syntax | Build error | Updated to .NET 8 |
+| 2 | Incorrect cascade rules | Runtime error | Fixed DeleteBehavior |
+| 3 | Over-engineering | Code review | Simplified |
 
 ---
 
 ## 7. Verification Methods
 
-- Ran the application end-to-end after implementing AI suggestions
-- Compared generated code against official Microsoft/library documentation
-- Team code review before merging to develop
-- Tested with realistic data (not just happy path)
+- End-to-end testing
+- Compared with official docs
+- Code review before merge
+- Tested with real data
 
 ---
 
 ## 8. Team Contribution
 
-| Member | Student ID | Role | AI Used? |
+| Member | Student ID | Role | AI Used |
 |---|---|---|---|
-| Ho Huy Hoang | DE180416 | Leader, Auth & Orders | Yes |
-| Dam Nguyen Khang | DE180417 | Domain & Payments | Yes |
-| Nguyen Sinh Nhat | DE180430 | Abstractions & Catalog | Yes |
-| Phan Tran Cong Vu | DE180494 | Infrastructure & Admin | Yes |
-| Dang Cong Quoc Khanh | DE180880 | Repositories & Frontend | Yes |
+| Ho Huy Hoang | DE180416 | Leader, External | Yes |
+| Dam Nguyen Khang | DE180417 | Domain | Yes |
+| Nguyen Sinh Nhat | DE180430 | Abstractions | Yes |
+| Phan Tran Cong Vu | DE180494 | Infrastructure | Yes |
+| Dang Cong Quoc Khanh | DE180880 | Repository | Yes |
 
 ---
 
 ## 9. Academic Integrity Commitment
 
-The team commits that:
-- All AI usage has been honestly recorded in this log.
-- No AI output was submitted without review and understanding.
-- Every team member can explain the code in this branch.
-- We are responsible for the correctness of the final product.
+- All AI usage recorded  
+- Code reviewed and understood  
+- Team responsible for final system  
 
 | Representative | Date |
 |---|---|
