@@ -14,6 +14,16 @@
 | Date | 2026-05-27 |
 | Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
 | Primary Owner | Dam Nguyen Khang (DE180417) |
+| Branch | `core/application-abstractions` |
+| Scope | GearZone.Application: all interface contracts -- IRepository<T,TKey>, IUnitOfWork, IService*, IExternal*, IAppLogger<T> |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Nguyen Sinh Nhat (DE180430) |
+| Branch | `core/infrastructure-external-services` |
+| Scope | GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout, SMTP email, Goong map API |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Ho Huy Hoang (DE180416) |
 
 ---
 
@@ -36,10 +46,23 @@ Key tasks AI assisted with:
 - Design entity relationships for a multi-vendor e-commerce platform where each Order splits into SubOrders per seller.
 - What is the cleanest base Entity class for Clean Architecture with EF Core -- should Id be in the domain or in EF config?
 - Model a Payout system where a PayoutBatch contains multiple PayoutItems linked to SubOrders.
+**Goal:** Interface contract design, strategy pattern application, dependency inversion
+
+Key tasks AI assisted with:
+- What methods should IRepository<T,TKey> expose in Clean Architecture -- should Query() return IQueryable?
+- Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
+- When should I split a service interface -- one IOrderService or separate IAdminOrderService and ISellerOrderService?
+**Goal:** Third-party API integration, webhook security, async HTTP client patterns
+
+Key tasks AI assisted with:
+- How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
+- Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
+- How do I calculate shipping distance using the Goong Directions API in .NET?
 
 ---
 
 ## 4. AI Usage Sessions
+
 
 ### Session 1
 
@@ -55,11 +78,24 @@ Key tasks AI assisted with:
 
 ```
 Design entity relationships for a multi-vendor e-commerce platform where each Order splits into SubOrders per seller.
+| Purpose | Interface contract design |
+| Related Files | GearZone.Application/Abstractions/**/*.cs |
+| Purpose | Third-party API integration |
+| Related Files | GearZone.Infrastructure/External/*.cs, Settings/*.cs |
+| AI Involvement | Significant assistance |
+
+**Prompt used:**
+
+```
+What methods should IRepository<T,TKey> expose in Clean Architecture -- should Query() return IQueryable?
+How to integrate PayOS payment gateway in ASP.NET Core with webhook signature verification?
 ```
 
 **AI output summary:**
 
 Suggested Order -> SubOrder -> OrderItem hierarchy; PaymentMethod linked to Order; Payment as a separate aggregate.
+Recommended GetByIdAsync, GetAllAsync, AddAsync, UpdateAsync, DeleteAsync, Query() for IQueryable access; warned about leaking IQueryable across layers.
+PayOS SDK: create payment link, handle webhook callback, verify HMAC-SHA256 signature, update order status.
 
 **What the team used:**
 The core pattern / design / code structure suggested above.
@@ -93,6 +129,25 @@ Recommended Entity<TKey> with only Id; auditing fields (CreatedAt etc.) should l
 **What the team used:**
 The algorithmic or architectural pattern described above.
 
+| Related Files | GearZone.Application/Abstractions/**/*.cs |
+| Related Files | GearZone.Infrastructure/External/*.cs, Settings/*.cs |
+| AI Involvement | Moderate assistance |
+
+**Prompt used:**
+
+```
+Design interface contracts for an e-commerce payment system that supports multiple strategies (PayOS, COD, wallet).
+Implement Cloudinary image upload in C# with automatic public_id generation and error handling.
+```
+
+**AI output summary:**
+
+Suggested IPaymentGateway (process/verify) + IPaymentStrategy (calculate) + IPayoutClient (disburse) -- strategy pattern for extensibility.
+Cloudinary .NET SDK: Cloudinary.UploadAsync with RawUploadParams; return SecureUrl as stored image URL.
+
+**What the team used:**
+The algorithmic or architectural pattern described above.
+
 **What the team changed:**
 Error handling, edge cases, and integration with the rest of the codebase were added manually.
 
@@ -105,6 +160,13 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 | Domain modeling |  | X |  |  | AI proposed, team refined boundaries |
 | Enum definition | X |  |  |  | Team-defined from requirements |
 | Aggregate boundaries |  | X |  |  | AI suggestion validated against domain |
+| Interface design |  | X |  |  | AI-suggested patterns, team decided scope |
+| Strategy pattern |  | X |  |  | Applied to payment system |
+| Service boundary decisions | X |  |  |  | Team decision based on user roles |
+| PayOS integration |  |  | X |  | AI code sample, team added error handling |
+| Cloudinary |  | X |  |  | AI pattern adapted |
+| SMTP service |  | X |  |  | AI template, team wrote email templates |
+| Goong API |  | X |  |  | AI HTTP client pattern |
 
 ---
 
@@ -124,6 +186,21 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 - Compared generated code against official Microsoft/library documentation
 - Team code review before merging to develop
 - Tested with realistic data (not just happy path)
+
+---
+
+## 8. Team Contribution
+
+| Member | Student ID | Role | AI Used? |
+|---|---|---|---|
+| Ho Huy Hoang | DE180416 | Leader, Auth & Orders | Yes |
+| Dam Nguyen Khang | DE180417 | Domain & Payments | Yes |
+| Nguyen Sinh Nhat | DE180430 | Abstractions & Catalog | Yes |
+| Phan Tran Cong Vu | DE180494 | Infrastructure & Admin | Yes |
+| Dang Cong Quoc Khanh | DE180880 | Repositories & Frontend | Yes |
+
+---
+
 
 ---
 
