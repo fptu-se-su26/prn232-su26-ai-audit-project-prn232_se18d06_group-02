@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
-import { useAuth } from '@/contexts/useAuth'
 import { AuthCard } from '@/components/auth/AuthCard'
 import { AuthHeroPanel } from '@/components/auth/AuthHeroPanel'
 import { AuthMessage } from '@/components/auth/AuthMessage'
@@ -10,6 +9,8 @@ import { AuthPanelContainer } from '@/components/auth/AuthPanelContainer'
 import { AuthSectionDivider } from '@/components/auth/AuthSectionDivider'
 import { AuthSocialButton } from '@/components/auth/AuthSocialButton'
 import { AuthTextInput } from '@/components/auth/AuthTextInput'
+import { RegisterForm } from '@/components/auth/RegisterForm'
+import { useAuth } from '@/contexts/useAuth'
 
 const primaryButtonClassName =
   'auth-button-shadow w-full rounded-2xl bg-primary px-6 py-4 text-sm font-bold text-white transition-all duration-300 hover:bg-blue-700 active:scale-[0.98]'
@@ -17,13 +18,20 @@ const primaryButtonClassName =
 export default function LoginPage() {
   const { login, refresh } = useAuth()
   const navigate = useNavigate()
+
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
-  const [success] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -41,18 +49,92 @@ export default function LoginPage() {
     }
   }
 
+  const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+    setLoading(true)
+
+    try {
+      await authApi.register(fullName, email, regPassword, confirmPassword)
+      setSuccess('Registration successful! Please check your email to verify your account.')
+      setFullName('')
+      setEmail('')
+      setRegPassword('')
+      setConfirmPassword('')
+      setIsRegister(false)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const googleLoginReturnUrl = window.location.pathname === '/login' ? '/' : window.location.pathname
+
+  const registerPanelStyle = {
+    zIndex: isRegister ? 5 : 1,
+    opacity: isRegister ? 1 : 0,
+    transform: isRegister ? 'translateX(100%)' : 'translateX(0)',
+    transition: 'all 0.7s ease-in-out',
+    pointerEvents: isRegister ? 'auto' : 'none',
+  } as const
+
+  const loginPanelStyle = {
+    zIndex: isRegister ? 1 : 2,
+    opacity: isRegister ? 0 : 1,
+    transform: isRegister ? 'translateX(100%)' : 'translateX(0)',
+    transition: 'all 0.7s ease-in-out',
+    pointerEvents: isRegister ? 'none' : 'auto',
+  } as const
+
+  const overlayContainerStyle = {
+    transform: isRegister ? 'translateX(-100%)' : 'translateX(0)',
+    transition: 'all 0.7s ease-in-out',
+  } as const
+
+  const overlayStyle = {
+    left: '-100%',
+    transform: isRegister ? 'translateX(50%)' : 'translateX(0)',
+    transition: 'all 0.7s ease-in-out',
+  } as const
+
+  const overlayLeftPanelStyle = {
+    transform: isRegister ? 'translateX(0)' : 'translateX(-20%)',
+    transition: 'all 0.7s ease-in-out',
+  } as const
+
+  const overlayRightPanelStyle = {
+    transform: isRegister ? 'translateX(20%)' : 'translateX(0)',
+    transition: 'all 0.7s ease-in-out',
+  } as const
+
   return (
     <AuthPageShell>
       <AuthCard>
         <AuthPanelContainer
           className="absolute top-0 left-0 flex h-full w-1/2 flex-col justify-center px-12 py-10"
-          style={{
-            zIndex: isRegister ? 1 : 2,
-            opacity: isRegister ? 0 : 1,
-            transform: isRegister ? 'translateX(100%)' : 'translateX(0)',
-            transition: 'all 0.7s ease-in-out',
-            pointerEvents: isRegister ? 'none' : 'auto',
-          }}
+          style={registerPanelStyle}
+        >
+          <RegisterForm
+            loading={loading}
+            error={isRegister ? error : ''}
+            fullName={fullName}
+            email={email}
+            password={regPassword}
+            confirmPassword={confirmPassword}
+            onFullNameChange={setFullName}
+            onEmailChange={setEmail}
+            onPasswordChange={setRegPassword}
+            onConfirmPasswordChange={setConfirmPassword}
+            onSubmit={handleRegister}
+            onGoogleLogin={() => authApi.startGoogleLogin(googleLoginReturnUrl)}
+          />
+        </AuthPanelContainer>
+
+        <AuthPanelContainer
+          className="absolute top-0 left-0 flex h-full w-1/2 flex-col justify-center px-12 py-10"
+          style={loginPanelStyle}
         >
           <div className="mb-10">
             <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Welcome Back</h2>
@@ -111,24 +193,14 @@ export default function LoginPage() {
           </form>
 
           <AuthSectionDivider label="Instant Access" />
-          <AuthSocialButton label="Google Login" onClick={() => authApi.startGoogleLogin()} />
+          <AuthSocialButton
+            label="Google Login"
+            onClick={() => authApi.startGoogleLogin(googleLoginReturnUrl)}
+          />
         </AuthPanelContainer>
 
-        <div
-          className="absolute top-0 left-1/2 z-[100] h-full w-1/2 overflow-hidden"
-          style={{
-            transform: isRegister ? 'translateX(-100%)' : 'translateX(0)',
-            transition: 'all 0.7s ease-in-out',
-          }}
-        >
-          <div
-            className="auth-overlay-gradient relative h-full w-[200%] text-white"
-            style={{
-              left: '-100%',
-              transform: isRegister ? 'translateX(50%)' : 'translateX(0)',
-              transition: 'all 0.7s ease-in-out',
-            }}
-          >
+        <div className="absolute top-0 left-1/2 z-[100] h-full w-1/2 overflow-hidden" style={overlayContainerStyle}>
+          <div className="auth-overlay-gradient relative h-full w-[200%] text-white" style={overlayStyle}>
             <AuthHeroPanel
               title="Returning?"
               description={
@@ -141,10 +213,7 @@ export default function LoginPage() {
               buttonLabel="Sign In Instead"
               onClick={() => setIsRegister(false)}
               className="absolute top-0 left-0 flex h-full w-1/2 flex-col items-center justify-center px-12 text-center"
-              style={{
-                transform: isRegister ? 'translateX(0)' : 'translateX(-20%)',
-                transition: 'all 0.7s ease-in-out',
-              }}
+              style={overlayLeftPanelStyle}
             />
 
             <AuthHeroPanel
@@ -159,10 +228,7 @@ export default function LoginPage() {
               buttonLabel="Create Account"
               onClick={() => setIsRegister(true)}
               className="absolute top-0 right-0 flex h-full w-1/2 flex-col items-center justify-center px-12 text-center"
-              style={{
-                transform: isRegister ? 'translateX(20%)' : 'translateX(0)',
-                transition: 'all 0.7s ease-in-out',
-              }}
+              style={overlayRightPanelStyle}
             />
           </div>
         </div>

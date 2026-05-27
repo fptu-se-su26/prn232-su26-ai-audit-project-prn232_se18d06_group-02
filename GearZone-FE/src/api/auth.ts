@@ -16,6 +16,11 @@ export const authApi = {
       .post('/auth/login', { username, password, rememberMe })
       .then((response) => unwrap<{ userId: string; role: string }>(response)),
 
+  register: (fullName: string, email: string, password: string, confirmPassword: string) =>
+    apiClient
+      .post('/auth/register', { fullName, email, password, confirmPassword })
+      .then((response) => response.data),
+
   logout: () => apiClient.post('/auth/logout'),
 
   me: () => apiClient.get('/auth/me').then((response) => unwrap<UserDto>(response)),
