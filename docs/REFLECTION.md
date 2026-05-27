@@ -1,14 +1,19 @@
-# Reflection -- Core -- Repository Implementations
+# Reflection
 
 Branch: `core/infrastructure-repositories`
 Date: 2026-05-27
 Primary owner: Dang Cong Quoc Khanh (DE180880)
+
+Branch: `core/logging-infrastructure`
+Date: 2026-05-27
+Primary owner: Ho Huy Hoang (DE180416)
 
 ---
 
 ## What went well
 
 The generic repository eliminated about 80% of CRUD boilerplate. AI correctly identified that exposing IQueryable from repositories is pragmatic at this project scale. For larger systems, the Specification pattern would be preferable.
+The IAppLogger<T> abstraction keeps Application services testable without Serilog. The middleware approach for HTTP logging is cleaner than per-controller logging. Audit trail structured logging is directly importable into Seq/Elasticsearch for compliance reporting.
 
 AI accelerated the design and scaffolding phase significantly. The team spent more time on
 business logic validation and testing rather than boilerplate.

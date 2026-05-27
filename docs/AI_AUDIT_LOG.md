@@ -1,4 +1,4 @@
-# AI Audit Log -- Core -- Repository Implementations
+# AI Audit Log
 
 ## 1. Project Information
 
@@ -14,6 +14,11 @@
 | Date | 2026-05-27 |
 | Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
 | Primary Owner | Dang Cong Quoc Khanh (DE180880) |
+| Branch | `core/logging-infrastructure` |
+| Scope | Cross-cutting logging: IAppLogger<T> abstraction, SerilogAppLogger<T>, RequestLoggingMiddleware, AuditTrailLogger |
+| Date | 2026-05-27 |
+| Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
+| Primary Owner | Ho Huy Hoang (DE180416) |
 
 ---
 
@@ -36,6 +41,12 @@ Key tasks AI assisted with:
 - Implement a generic repository pattern with EF Core that supports eager loading via Expression<Func<T,object>>.
 - How should UnitOfWork be implemented to coordinate multiple repositories in a single DbContext?
 - When should I override the generic repository methods vs adding domain-specific query methods?
+**Goal:** Logging architecture design, middleware implementation, audit trail pattern
+
+Key tasks AI assisted with:
+- Design a logger abstraction interface in Clean Architecture that keeps the Application layer free of Serilog dependencies.
+- Implement an ASP.NET Core middleware that logs every HTTP request with method, path, status code, and elapsed time; promote 5xx to error level.
+- How do I implement an audit trail logger that records entity mutations (create/update/delete) with user context in .NET?
 
 ---
 
@@ -49,17 +60,21 @@ Key tasks AI assisted with:
 | Tool | Claude Code |
 | Purpose | Repository pattern implementation |
 | Related Files | GearZone.Infrastructure/Repositories/*.cs |
+| Purpose | Logging architecture design |
+| Related Files | GearZone.Application/Abstractions/Logging/IAppLogger.cs, GearZone.Infrastructure/Logging/SerilogAppLogger.cs, GearZone.Infrastructure/Logging/AuditTrailLogger.cs, GearZone.Web/Middleware/RequestLoggingMiddleware.cs |
 | AI Involvement | Significant assistance |
 
 **Prompt used:**
 
 ```
 Implement a generic repository pattern with EF Core that supports eager loading via Expression<Func<T,object>>.
+Design a logger abstraction interface in Clean Architecture that keeps the Application layer free of Serilog dependencies.
 ```
 
 **AI output summary:**
 
 Repository<T,TKey> with IQueryable.Include() loop and ApplyIncludes helper; returns IQueryable from Query().
+IAppLogger<T> with five methods mirroring ILogger<T> levels; inject in Application services instead of ILogger<T>.
 
 **What the team used:**
 The core pattern / design / code structure suggested above.
@@ -78,17 +93,20 @@ Tested in the running application before accepting.
 | Tool | Claude Code / GitHub Copilot |
 | Purpose | Follow-up detail implementation |
 | Related Files | GearZone.Infrastructure/Repositories/*.cs |
+| Related Files | GearZone.Application/Abstractions/Logging/IAppLogger.cs, GearZone.Infrastructure/Logging/SerilogAppLogger.cs, GearZone.Infrastructure/Logging/AuditTrailLogger.cs, GearZone.Web/Middleware/RequestLoggingMiddleware.cs |
 | AI Involvement | Moderate assistance |
 
 **Prompt used:**
 
 ```
 How should UnitOfWork be implemented to coordinate multiple repositories in a single DbContext?
+Implement an ASP.NET Core middleware that logs every HTTP request with method, path, status code, and elapsed time; promote 5xx to error level.
 ```
 
 **AI output summary:**
 
 UnitOfWork holds a single DbContext instance; SaveChangesAsync commits all tracked changes atomically.
+Stopwatch-based RequestLoggingMiddleware; LogLevel selected based on status code range; exception rethrown after logging.
 
 **What the team used:**
 The algorithmic or architectural pattern described above.
@@ -105,6 +123,9 @@ Error handling, edge cases, and integration with the rest of the codebase were a
 | Generic repository |  |  | X |  | AI template adapted for project |
 | UnitOfWork |  | X |  |  | AI pattern, team wired DI |
 | Domain queries | X |  |  |  | Team-written based on feature needs |
+| Logger abstraction |  | X |  |  | AI pattern, team reviewed interface methods |
+| Request middleware |  |  | X |  | AI implementation, team added status-level logic |
+| Audit trail |  | X |  |  | AI pattern adapted for project |
 
 ---
 
