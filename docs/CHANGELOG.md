@@ -1,4 +1,4 @@
-# Changelog -- Core -- Logging Infrastructure
+# Changelog 
 
 All notable changes on branch `core/logging-infrastructure` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -8,6 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased] -- 2026-05-27
 
 ### Scope
+GearZone.Infrastructure/Repositories: generic Repository<T,TKey>, UnitOfWork, all domain-specific repository implementations
+
+### Added
+- Generic Repository<T,TKey> with EF Core DbSet<T>
+- ApplyIncludes helper for eager loading via Expression<Func<T,object>>[]
+- UnitOfWork wrapping SaveChangesAsync for transaction management
+- 35 domain-specific repositories with custom query methods (e.g. ProductRepository, OrderRepository, CartRepository)
 Cross-cutting logging: IAppLogger<T> abstraction, SerilogAppLogger<T>, RequestLoggingMiddleware, AuditTrailLogger
 
 ### Added
