@@ -25,6 +25,10 @@ export const authApi = {
 
   me: () => apiClient.get('/auth/me').then((response) => unwrap<UserDto>(response)),
 
+  verifyEmail: (userId: string, token: string) => apiClient.get('/auth/verify-email', { params: { userId, token } }),
+
+  resendVerification: (email: string) => apiClient.post('/auth/resend-verification', { email }),
+
   startGoogleLogin: (returnUrl?: string) => {
     window.location.href = `/api/auth/external-login?provider=Google${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`
   },

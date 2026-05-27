@@ -40,7 +40,7 @@ export default function LoginPage() {
 
     try {
       await login(username, password, rememberMe)
-      navigate('/dashboard', { replace: true })
+      navigate('/')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {
@@ -57,10 +57,6 @@ export default function LoginPage() {
     try {
       await authApi.register(fullName, email, regPassword, confirmPassword)
       setSuccess('Registration successful! Please check your email to verify your account.')
-      setFullName('')
-      setEmail('')
-      setRegPassword('')
-      setConfirmPassword('')
       setIsRegister(false)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed.')
@@ -68,8 +64,6 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
-  const googleLoginReturnUrl = window.location.pathname === '/login' ? '/' : window.location.pathname
 
   const registerPanelStyle = {
     zIndex: isRegister ? 5 : 1,
@@ -127,7 +121,7 @@ export default function LoginPage() {
             onPasswordChange={setRegPassword}
             onConfirmPasswordChange={setConfirmPassword}
             onSubmit={handleRegister}
-            onGoogleLogin={() => authApi.startGoogleLogin(googleLoginReturnUrl)}
+            onGoogleLogin={() => authApi.startGoogleLogin()}
           />
         </AuthPanelContainer>
 
@@ -192,10 +186,7 @@ export default function LoginPage() {
           </form>
 
           <AuthSectionDivider label="Instant Access" />
-          <AuthSocialButton
-            label="Google Login"
-            onClick={() => authApi.startGoogleLogin(googleLoginReturnUrl)}
-          />
+          <AuthSocialButton label="Google Login" onClick={() => authApi.startGoogleLogin()} />
         </AuthPanelContainer>
 
         <div className="absolute top-0 left-1/2 z-[100] h-full w-1/2 overflow-hidden" style={overlayContainerStyle}>
