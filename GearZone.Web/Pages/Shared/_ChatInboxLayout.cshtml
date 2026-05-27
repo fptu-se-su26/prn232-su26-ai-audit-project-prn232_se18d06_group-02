@@ -1,0 +1,57 @@
+@using GearZone.Web.Pages.Shared.Models
+@model ChatInboxPageViewModel
+
+<div class="chat-shell @(Model.IsWidgetSurface ? "chat-shell--widget h-full min-h-0" : Model.IsFullCanvasPage ? "chat-shell--seller-canvas h-full min-h-0" : Model.IsAccountCenterSurface ? "chat-shell--account min-h-0" : "chat-shell--page")"
+     data-chat-root
+     data-chat-surface="@(Model.IsWidgetSurface ? "widget" : "page")"
+     data-base-path="@Model.BasePath"
+     data-active-conversation-id="@(Model.ActiveConversationId?.ToString() ?? string.Empty)"
+     data-current-user-id="@Model.CurrentUserId"
+     data-is-seller-view="@(Model.IsSellerView ? "true" : "false")"
+     data-product-slug="@Model.ProductSlug"
+     data-counterpart-scope-key="@Model.CounterpartScopeKey"
+     data-loaded-conversation-page-count="@Model.LoadedConversationPageCount"
+     data-mobile-view="@(Model.IsWidgetSurface && Model.ActiveConversationId.HasValue ? "thread" : "list")"
+     data-empty-title="@Model.EmptyInboxTitle"
+     data-empty-description="@Model.EmptyInboxDescription"
+     data-account-fit-shell="@(Model.IsAccountCenterSurface ? "true" : "false")">
+    <div class="@(Model.IsWidgetSurface ? "grid h-full min-h-0 gap-0 lg:grid-cols-[17.5rem_minmax(0,1fr)]" : Model.IsFullCanvasPage ? "grid h-full min-h-0 gap-0 xl:grid-cols-[17rem_minmax(0,1fr)]" : Model.IsAccountCenterSurface ? "grid h-full min-h-0 gap-0 xl:grid-cols-[17rem_minmax(0,1fr)]" : "grid gap-0 xl:grid-cols-[18.75rem_minmax(0,1fr)]")">
+        <section class="@(Model.IsWidgetSurface || Model.IsFullCanvasPage || Model.IsAccountCenterSurface ? "min-h-0 overflow-hidden border-b border-[#efefef] bg-white lg:border-b-0 lg:border-r" : "overflow-hidden rounded-sm border border-[#e8e8e8] bg-white")" data-chat-list-host>
+            <partial name="/Pages/Shared/_ChatConversationList.cshtml"
+                     model='new ChatConversationListViewModel
+                     {
+                         IsSellerView = Model.IsSellerView,
+                         IsWidgetSurface = Model.IsWidgetSurface,
+                         IsFullCanvasPage = Model.IsFullCanvasPage,
+                         IsAccountCenterSurface = Model.IsAccountCenterSurface,
+                         CurrentUserId = Model.CurrentUserId,
+                         BasePath = Model.BasePath,
+                         Filter = Model.Filter,
+                         SearchTerm = Model.SearchTerm,
+                         CounterpartScopeKey = Model.CounterpartScopeKey,
+                         ActiveConversationId = Model.ActiveConversationId,
+                         TotalUnreadCount = Model.TotalUnreadCount,
+                         LoadedConversationPageCount = Model.LoadedConversationPageCount,
+                         EmptyInboxTitle = Model.EmptyInboxTitle,
+                         EmptyInboxDescription = Model.EmptyInboxDescription,
+                         CounterpartScopeOptions = Model.CounterpartScopeOptions,
+                         Conversations = Model.Conversations
+                     }' />
+        </section>
+
+        <section class="min-h-0" data-chat-pane-host>
+            <partial name="/Pages/Shared/_ChatThreadPane.cshtml"
+                     model='new ChatThreadPaneViewModel
+                     {
+                         IsSellerView = Model.IsSellerView,
+                         IsWidgetSurface = Model.IsWidgetSurface,
+                         IsFullCanvasPage = Model.IsFullCanvasPage,
+                         IsAccountCenterSurface = Model.IsAccountCenterSurface,
+                         CurrentUserId = Model.CurrentUserId,
+                         EmptyTitle = Model.EmptyInboxTitle,
+                         EmptyDescription = Model.EmptyInboxDescription,
+                         Thread = Model.ActiveThread
+                     }' />
+        </section>
+    </div>
+</div>

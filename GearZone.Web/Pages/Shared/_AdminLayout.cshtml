@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>@ViewData["Title"] - GearZone Admin</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1A56DB",
+                        "primary-dark": "#1d4ed8",
+                        "primary-light": "#dbeafe",
+                        "background-light": "#F8FAFC",
+                        "surface-light": "#FFFFFF",
+                        "navy-dark": "0F172A",
+                        "text-heading": "#1E2937",
+                        "text-body": "#374151",
+                        "border-light": "#E2E8F0",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.625rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'card': '0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.04)',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+
+            ::-webkit-scrollbar-thumb:hover {
+                background: #94A3B8;
+            }
+
+        /* Sidebar Transition Logic */
+        .sidebar {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-text {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+            .sidebar.collapsed .sidebar-text,
+            .sidebar.collapsed .sidebar-logo-text {
+                opacity: 0;
+                transform: translateX(-10px);
+                pointer-events: none;
+                display: none;
+            }
+
+            .sidebar.collapsed .sidebar-item {
+                justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .sidebar.collapsed .logo-container {
+                justify-content: center;
+                padding: 0;
+            }
+
+            .sidebar.collapsed .badge-count {
+                display: none;
+            }
+
+        /* Active Link styles */
+        .active-link {
+            background-color: rgba(26, 86, 219, 0.1);
+            color: #1A56DB;
+        }
+
+            .active-link span {
+                color: #1A56DB !important;
+            }
+
+        /* Material Symbols Fill */
+        .filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bg-background-light text-text-body h-screen flex overflow-hidden">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar w-64 bg-surface-light border-r border-border-light flex flex-col shrink-0 shadow-sm z-30">
+        <div class="h-16 flex items-center px-6 border-b border-border-light logo-container">
+            <div class="flex items-center gap-2 text-primary font-bold text-xl">
+                <span class="material-symbols-outlined text-3xl filled text-primary">hexagon</span>
+                <span class="text-text-heading tracking-tight sidebar-logo-text">GearZone Admin</span>
+            </div>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-6 px-3 flex flex-col gap-1">
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "filled" : "")">dashboard</span>
+                <span class="font-medium text-sm sidebar-text">Overview</span>
+            </a>
+
+            <div class="px-3 py-2 mt-1 sidebar-text">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Management</span>
+            </div>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Stores" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/StoreApplications/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Stores" ? "filled" : "")">storefront</span>
+                <span class="font-medium text-sm sidebar-text">Store Applications</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Stores_Management" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/StoreManagement/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Commission" ? "filled" : "")">store</span>
+                <span class="font-medium text-sm sidebar-text">Stores</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Users" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Users/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Users" ? "filled" : "")">group</span>
+                <span class="font-medium text-sm sidebar-text">Users</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Orders" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Orders/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Orders" ? "filled" : "")">shopping_bag</span>
+                <span class="font-medium text-sm sidebar-text">Orders</span>
+            </a>
+
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Products" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Products/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Products" ? "filled" : "")">inventory_2</span>
+                <span class="font-medium text-sm sidebar-text">Product</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Categories" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Categories/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Categories" ? "filled" : "")">category</span>
+                <span class="font-medium text-sm sidebar-text">Categories</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Brands" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Brands/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Brands" ? "filled" : "")">branding_watermark</span>
+                <span class="font-medium text-sm sidebar-text">Brands</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Vouchers" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Vouchers/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Vouchers" ? "filled" : "")">confirmation_number</span>
+                <span class="font-medium text-sm sidebar-text">Vouchers</span>
+            </a>
+
+            <div class="px-3 py-2 mt-1 sidebar-text">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Finance</span>
+            </div>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Transactions" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Transactions/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Transactions" ? "filled" : "")">receipt_long</span>
+                <span class="font-medium text-sm sidebar-text">Transactions</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Wallet" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Wallet/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Wallet" ? "filled" : "")">account_balance_wallet</span>
+                <span class="font-medium text-sm sidebar-text">Wallet</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Payouts" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/Payouts/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Payouts" ? "filled" : "")">payments</span>
+                <span class="font-medium text-sm sidebar-text">Payouts</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/SellerPayableSummary">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "filled" : "")">summarize</span>
+                <span class="font-medium text-sm sidebar-text">Seller Payable</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/PayoutBatches/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "filled" : "")">account_balance_wallet</span>
+                <span class="font-medium text-sm sidebar-text">Payout Batches</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Disputes" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Disputes" ? "filled" : "")">gavel</span>
+                <span class="font-medium text-sm sidebar-text">Disputes</span>
+                <span class="ml-auto bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-bold badge-count">7</span>
+            </a>
+
+            <div class="px-3 py-2 mt-1 sidebar-text">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">System</span>
+            </div>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Revenue" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Revenue" ? "filled" : "")">monitoring</span>
+                <span class="font-medium text-sm sidebar-text">Revenue</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Logs" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Logs" ? "filled" : "")">receipt_long</span>
+                <span class="font-medium text-sm sidebar-text">System Logs</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/Settings/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Settings" ? "filled" : "")">settings</span>
+                <span class="font-medium text-sm sidebar-text">Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="mt-auto border-t border-border-light relative" id="sidebar-profile-dropdown">
+            <button type="button" class="w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors focus:outline-none">
+                <div class="size-9 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xs shadow-soft shrink-0">
+                    AD
+                </div>
+                <div class="flex flex-col items-start min-w-0 sidebar-text">
+                    <span class="text-sm font-bold text-text-heading leading-none truncate w-full text-left">Admin User</span>
+                    <span class="text-[10px] font-medium text-slate-400 mt-1">Administrator</span>
+                </div>
+                <span class="material-symbols-outlined text-slate-400 ml-auto sidebar-text transition-transform duration-200" id="profile-chevron">expand_less</span>
+            </button>
+            <div class="absolute bottom-full left-0 w-full mb-1 px-3 hidden sidebar-text" id="profile-menu">
+                <div class="bg-white border flex flex-col border-border-light rounded-xl shadow-card overflow-hidden">
+                    <a href="/" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors group">
+                        <span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary">home</span>
+                        Go to Home
+                    </a>
+                    <a href="/Public/User/Profile" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors group">
+                        <span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary">person</span>
+                        Account Settings
+                    </a>
+                    <div class="border-t border-border-light my-1"></div>
+                    <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
+                        <span class="material-symbols-outlined text-[20px] group-hover:text-red-700">logout</span>
+                        Log Out
+                    </a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Header -->
+        <header class="h-16 bg-surface-light border-b border-border-light flex items-center justify-between px-6 shrink-0 z-20 shadow-sm">
+            <div class="flex items-center gap-4">
+                <button id="hamburger-btn" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <div class="flex flex-col">
+                    <h1 class="text-text-heading text-lg font-semibold leading-tight">@ViewData["PageHeader"]</h1>
+                    <nav class="flex items-center gap-1.5 text-slate-500 text-xs mt-0.5">
+                        @{
+                            var breadcrumbLinks = new Dictionary<string, string>
+                            {
+                                { "Dashboard", "/admin/dashboard" },
+                                { "User Management", "/admin/users" },
+                                { "Store Management", "/admin/stores" },
+                                { "Store Applications", "/admin/store-applications" },
+                                { "Platform Settings", "/admin/settings" },
+                                { "Product Management", "/admin/products" },
+                                { "Category Management", "/admin/categories" },
+                                { "Brand Management", "/admin/brands" },
+                                { "Seller Payable Summary", "/Admin/SellerPayableSummary" },
+                                { "Payout Batches", "/Admin/PayoutBatches/Index" }
+                            };
+                        }
+                        
+                        <a asp-page="/Admin/Index" class="hover:text-primary">Admin</a>
+                        @if (ViewData["Breadcrumb"] != null)
+                        {
+                            var crumbs = (string[])ViewData["Breadcrumb"];
+                            foreach (var crumb in crumbs)
+                            {
+                                <span class="material-symbols-outlined text-[10px] scale-75">chevron_right</span>
+                                @if (crumb == crumbs.Last())
+                                {
+                                    <span class="text-slate-400 font-medium">@crumb</span>
+                                }
+                                else if (breadcrumbLinks.TryGetValue(crumb, out var url))
+                                {
+                                    <a href="@url" class="hover:text-primary font-medium">@crumb</a>
+                                }
+                                else
+                                {
+                                    <span class="hover:text-primary cursor-default font-medium">@crumb</span>
+                                }
+                            }
+                        }
+                    </nav>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1 bg-slate-50 p-1 rounded-xl">
+                    <button class="p-2 text-slate-500 hover:bg-white hover:text-primary hover:shadow-sm rounded-lg transition-all relative group">
+                        <span class="material-symbols-outlined text-[22px]">notifications</span>
+                        <span class="absolute top-2.5 right-2.5 size-2 bg-red-500 border-2 border-white rounded-full"></span>
+                    </button>
+                    <button class="p-2 text-slate-500 hover:bg-white hover:text-primary hover:shadow-sm rounded-lg transition-all">
+                        <span class="material-symbols-outlined text-[22px]">mail</span>
+                    </button>
+                </div>
+
+                
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-y-auto p-6 scroll-smooth bg-background-light">
+            @if (ViewData["FullWidth"] is bool fw && fw)
+            {
+                <div class="w-full mx-0 flex flex-col gap-6">
+                    @RenderBody()
+                </div>
+            }
+            else
+            {
+                <div class="max-w-7xl mx-auto flex flex-col gap-6">
+                    @RenderBody()
+                </div>
+            }
+        </div>
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/js/toast.js" asp-append-version="true"></script>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+
+        hamburgerBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('admin-sidebar-collapsed', sidebar.classList.contains('collapsed'));
+        });
+
+        // Initialize sidebar state from localStorage
+        if (localStorage.getItem('admin-sidebar-collapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+        }
+
+        // Handle mobile responsiveness
+        if (window.innerWidth < 1024) {
+            sidebar.classList.add('collapsed');
+        }
+
+        const profileDropdown = document.getElementById('sidebar-profile-dropdown');
+        const profileMenu = document.getElementById('profile-menu');
+        const profileChevron = document.getElementById('profile-chevron');
+
+        if (profileDropdown && profileMenu && profileChevron) {
+            profileDropdown.querySelector('button').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                profileMenu.classList.toggle('hidden');
+                if (profileMenu.classList.contains('hidden')) {
+                    profileChevron.style.transform = '';
+                } else {
+                    profileChevron.style.transform = 'rotate(180deg)';
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!profileDropdown.contains(e.target)) {
+                    profileMenu.classList.add('hidden');
+                    profileChevron.style.transform = '';
+                }
+            });
+        }
+    </script>
+
+    <partial name="_Toast" />
+
+    <!-- Generic Confirmation Modal for Admin -->
+    <div id="confirm-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="p-6 text-center">
+                <div id="confirm-modal-icon-container" class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span id="confirm-modal-icon" class="material-symbols-outlined text-3xl">delete</span>
+                </div>
+                <h3 id="confirm-modal-title" class="text-xl font-bold text-gray-900 mb-2">Are you sure?</h3>
+                <p id="confirm-modal-message" class="text-gray-500 mb-6 font-medium text-sm leading-relaxed">Do you really want to perform this action?</p>
+                <div class="flex gap-3">
+                    <button id="btn-confirm-cancel" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="btn-confirm-proceed" class="flex-1 px-4 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Reason Modal (for Reject, Suspend, etc.) -->
+    <div id="reason-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="p-6">
+                <div id="reason-modal-icon-container" class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span id="reason-modal-icon" class="material-symbols-outlined text-3xl">info</span>
+                </div>
+                <h3 id="reason-modal-title" class="text-xl font-bold text-gray-900 mb-2 text-center">Action Required</h3>
+                <p id="reason-modal-message" class="text-gray-500 mb-4 text-center text-sm">Please provide a reason for this action.</p>
+                
+                <div class="mb-6">
+                    <label for="reason-text" class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Reason / Note</label>
+                    <textarea id="reason-text" rows="3" class="w-full rounded-xl border-slate-200 focus:border-primary focus:ring-primary text-sm bg-slate-50 transition-colors placeholder:text-slate-300" placeholder="Type the reason here..."></textarea>
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="btn-reason-cancel" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="btn-reason-proceed" class="flex-1 px-4 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark shadow-lg shadow-primary/20 transition-all">
+                        Confirm Action
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

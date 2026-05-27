@@ -1,0 +1,271 @@
+@page "/admin/store-applications"
+@using GearZone.Domain.Enums
+@model GearZone.Web.Pages.Admin.StoreApplications.IndexModel
+@{
+    ViewData["Title"] = "Store Applications";
+    ViewData["PageHeader"] = "Store Applications";
+    ViewData["ActivePage"] = "Stores";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Store Applications" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">store</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Applications</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.TotalCount</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">pending_actions</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Pending Review</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.PendingCount</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Approved</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.ApprovedCount</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">cancel</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Rejected</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.RejectedCount</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Actions Bar -->
+    <form method="get" class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-start">
+        <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto flex-1 items-start">
+            <!-- Search -->
+            <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <span class="material-symbols-outlined text-[20px]">search</span>
+                </span>
+                <input asp-for="Query.SearchTerm" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary h-[42px]" placeholder="Search Company or Tax Code..." type="text" />
+            </div>
+            <!-- Status Filter -->
+            <div class="w-full sm:w-40">
+                <select asp-for="Query.Status" asp-items="Html.GetEnumSelectList<StoreStatus>()" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm text-slate-900 focus:border-primary focus:ring-primary h-[42px]">
+                    <option value="">All Status</option>
+                </select>
+            </div>
+            <button type="submit"
+                    class="w-full sm:w-auto h-[42px] flex items-center justify-center gap-2
+               bg-primary text-white border border-primary
+               px-4 py-2.5 text-sm rounded-lg font-medium
+               hover:bg-primary-dark transition-all shadow-sm">
+
+                <span class="material-symbols-outlined text-[20px]">
+                    search
+                </span>
+                Search
+            </button>
+            <!-- Date Filter -->
+            <div class="w-full sm:w-80 space-y-2">
+                <select asp-for="DateRangeShortcut" id="dateRangeShortcut" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm focus:ring-primary focus:border-primary h-[42px]" onchange="toggleCustomDateRange()">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+                <div id="customDateRangeContainer" class="relative @(Model.DateRangeShortcut == "custom" ? "" : "hidden")">
+                    <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">
+                        <span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                    </span>
+                    <input type="text" asp-for="DateRange" id="dateRangePicker" class="form-input w-full pl-10 pr-4 py-2 border-slate-200 bg-slate-50 rounded-lg text-sm focus:ring-primary focus:border-primary cursor-pointer transition-all h-[42px]" placeholder="Select Range" />
+                </div>
+            </div>
+        </div>
+        <!-- Export Button -->
+        <button type="button" class="w-full lg:w-auto flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-lg font-medium hover:bg-slate-50 transition-all shadow-sm h-[42px]">
+            <span class="material-symbols-outlined text-[20px]">download</span>
+            <span>Export CSV</span>
+        </button>
+    </form>
+
+    <!-- Data Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden flex flex-col">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 pl-6 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Company Name</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Tax Code</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Business Type</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Rep Name</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Submitted At</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                        <th class="py-4 pl-3 pr-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var application in Model.StoreApplications.Items)
+                    {
+                        <tr class="group hover:bg-slate-50 transition-all cursor-pointer" onclick="if(!event.target.closest('a, button, form, input')) window.location.href='/admin/store-applications/@application.Id'">
+                            <td class="py-4 pl-6 pr-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="size-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">@(new string(application.StoreName.Take(2).ToArray()).ToUpper())</div>
+                                    <span class="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors">@application.StoreName</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-3 text-slate-500 font-mono text-xs uppercase tracking-tight">@application.TaxCode</td>
+                            <td class="py-4 px-3 text-slate-600">@application.BusinessType</td>
+                            <td class="py-4 px-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-medium text-slate-900">@application.OwnerName</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-3 text-slate-500">@application.Phone</td>
+                            <td class="py-4 px-3">
+                                <div class="flex flex-col">
+                                    <span class="text-slate-900">@application.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">@application.CreatedAt.ToString("hh:mm tt")</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-3">
+                                @{
+                                    var statusClass = application.Status switch
+                                    {
+                                        StoreStatus.Pending => "bg-amber-50 text-amber-700 ring-amber-600/20",
+                                        StoreStatus.Approved => "bg-green-50 text-green-700 ring-green-600/20",
+                                        StoreStatus.Rejected => "bg-red-50 text-red-700 ring-red-600/10",
+                                        _ => "bg-slate-50 text-slate-700 ring-slate-600/20"
+                                    };
+                                    var dotClass = application.Status switch
+                                    {
+                                        StoreStatus.Pending => "bg-amber-500",
+                                        StoreStatus.Approved => "bg-green-500",
+                                        StoreStatus.Rejected => "bg-red-500",
+                                        _ => "bg-slate-500"
+                                    };
+                                }
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium @statusClass ring-1 ring-inset">
+                                    <span class="size-1.5 rounded-full @dotClass"></span>
+                                    @application.Status
+                                </span>
+                            </td>
+                            <td class="py-4 pl-3 pr-6 text-right">
+                                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a asp-page="/Admin/StoreApplications/Detail" asp-route-id="@application.Id" class="text-slate-400 hover:text-primary transition-colors p-1" title="View Details">
+                                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.StoreApplications.Items.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-6 text-slate-500">No applications found matching your criteria.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="border-t border-slate-100 px-6 py-4 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-sm text-slate-500">
+                @{
+                    var startItem = (Model.StoreApplications.PageNumber - 1) * Model.StoreApplications.PageSize + 1;
+                    var endItem = Math.Min(Model.StoreApplications.PageNumber * Model.StoreApplications.PageSize, Model.StoreApplications.TotalCount);
+                    if (Model.StoreApplications.TotalCount == 0)
+                    {
+                        startItem = 0;
+                    }
+                }
+                Showing <span class="font-medium text-slate-900">@startItem</span> to 
+                <span class="font-medium text-slate-900">@endItem</span> of 
+                <span class="font-medium text-slate-900">@Model.StoreApplications.TotalCount</span> applications
+            </div>
+            
+            <nav aria-label="Pagination" class="flex items-center gap-1">
+                @if (Model.StoreApplications.PageNumber > 1)
+                {
+                    <a asp-page="./Index" 
+                       asp-route-Query.PageNumber="@(Model.StoreApplications.PageNumber - 1)" 
+                       asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                       asp-route-Query.Status="@Model.Query.Status"
+                       asp-route-DateRangeShortcut="@Model.DateRangeShortcut"
+                       asp-route-DateRange="@Model.DateRange"
+                       class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                    </a>
+                }
+                else
+                {
+                    <button disabled class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 opacity-50 cursor-not-allowed">
+                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                    </button>
+                }
+
+                <div class="flex items-center gap-1 px-1">
+                    <button class="size-9 rounded-lg border border-primary bg-primary text-white text-sm font-bold shadow-sm shadow-primary/20 transition-all">@Model.StoreApplications.PageNumber</button>
+                </div>
+
+                @if (Model.StoreApplications.PageNumber * Model.StoreApplications.PageSize < Model.StoreApplications.TotalCount)
+                {
+                    <a asp-page="./Index" 
+                       asp-route-Query.PageNumber="@(Model.StoreApplications.PageNumber + 1)" 
+                       asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                       asp-route-Query.Status="@Model.Query.Status"
+                       asp-route-DateRangeShortcut="@Model.DateRangeShortcut"
+                       asp-route-DateRange="@Model.DateRange"
+                       class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </a>
+                }
+                else
+                {
+                    <button disabled class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 opacity-50 cursor-not-allowed">
+                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </button>
+                }
+            </nav>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        function toggleCustomDateRange() {
+            const select = document.getElementById('dateRangeShortcut');
+            const container = document.getElementById('customDateRangeContainer');
+            if (select.value === 'custom') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                const picker = document.getElementById('dateRangePicker');
+                if (picker) picker.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("#dateRangePicker", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                allowInput: true
+            });
+        });
+    </script>
+}

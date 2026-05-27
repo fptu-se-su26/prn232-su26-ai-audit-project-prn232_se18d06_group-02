@@ -1,0 +1,139 @@
+@using System
+@using System.Collections.Generic
+@using Microsoft.AspNetCore.WebUtilities
+@using GearZone.Web.Pages.Shared.Models
+@model ChatConversationListViewModel
+@{
+    var hasItems = Model.Conversations.Items.Any();
+    var title = Model.IsSellerView ? "Customer Messages" : "Chat";
+    var searchPlaceholder = Model.IsSellerView ? "Search by buyer name" : "Search by shop name";
+    var defaultScopeLabel = Model.IsSellerView ? "All buyers" : "All shops";
+}
+
+<div class="flex h-full min-h-0 flex-col bg-white"
+     data-chat-conversation-list
+     data-first-conversation-id="@(hasItems ? Model.Conversations.Items[0].ConversationId : Guid.Empty)"
+     data-loaded-conversation-page-count="@Model.LoadedConversationPageCount"
+     data-has-more-conversations="@((Model.Conversations.TotalCount > Model.Conversations.Items.Count).ToString().ToLowerInvariant())">
+    <div class="border-b border-[#efefef] bg-white px-4 py-3">
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="truncate text-[15px] font-semibold text-[#ee4d2d]">@title</p>
+            </div>
+            <div class="shrink-0 text-[13px] font-medium text-[#999]">
+                <span data-chat-unread-badge>@Model.TotalUnreadCount</span>
+            </div>
+        </div>
+
+        <div class="mt-3 grid gap-2">
+            <label class="relative min-w-0">
+                <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#b5b5b5]">search</span>
+                <input type="search"
+                       value="@Model.SearchTerm"
+                       placeholder="@searchPlaceholder"
+                       class="h-9 w-full rounded-md border border-[#e5e5e5] bg-[#fafafa] pl-10 pr-3 text-[13px] text-[#333] outline-none transition focus:border-[#ee4d2d] focus:bg-white focus:ring-0"
+                       data-chat-search-input />
+            </label>
+
+            <div class="grid grid-cols-2 gap-2">
+                <select class="h-9 min-w-0 rounded-md border border-[#e5e5e5] bg-white px-3 text-[13px] text-[#333] outline-none transition focus:border-[#ee4d2d] focus:ring-0"
+                        data-chat-filter-select>
+                    <option value="all" selected="@(Model.Filter == "all" ? "selected" : null)">All</option>
+                    <option value="unread" selected="@(Model.Filter == "unread" ? "selected" : null)">Unread</option>
+                </select>
+
+                <select class="h-9 min-w-0 rounded-md border border-[#e5e5e5] bg-white px-3 text-[13px] text-[#333] outline-none transition focus:border-[#ee4d2d] focus:ring-0"
+                        data-chat-counterpart-select>
+                    <option value="">@defaultScopeLabel</option>
+                    @foreach (var option in Model.CounterpartScopeOptions)
+                    {
+                        <option value="@option.Value" selected="@(Model.CounterpartScopeKey == option.Value ? "selected" : null)">@option.Label</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-scroll flex-1 overflow-y-auto bg-white" data-chat-list-scroll>
+        @if (!hasItems)
+        {
+            <div class="flex h-full min-h-[18rem] flex-col items-center justify-center px-6 py-10 text-center">
+                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-[#fff1ed] text-[#ee4d2d]">
+                    <span class="material-symbols-outlined text-[24px]">chat</span>
+                </div>
+                <h3 class="mt-4 text-base font-semibold text-[#333]">@Model.EmptyInboxTitle</h3>
+                <p class="mt-2 max-w-xs text-[13px] leading-6 text-[#999]">@Model.EmptyInboxDescription</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var conversation in Model.Conversations.Items)
+            {
+                var isActive = conversation.ConversationId == Model.ActiveConversationId;
+                var preview = string.IsNullOrWhiteSpace(conversation.LastMessagePreview)
+                    ? (conversation.HasMessages ? "Open conversation" : "Start chatting")
+                    : conversation.LastMessagePreview;
+                if (!string.IsNullOrWhiteSpace(conversation.LastMessageSenderUserId) && conversation.LastMessageSenderUserId == Model.CurrentUserId)
+                {
+                    preview = $"You: {preview}";
+                }
+
+                var timeLabel = conversation.LastMessageAt.ToLocalTime().Date == DateTime.Now.Date
+                    ? conversation.LastMessageAt.ToLocalTime().ToString("HH:mm")
+                    : conversation.LastMessageAt.ToLocalTime().ToString("dd/MM");
+                var queryParams = new Dictionary<string, string?>
+                {
+                    ["conversationId"] = conversation.ConversationId.ToString()
+                };
+                if (!string.IsNullOrWhiteSpace(Model.Filter) && !string.Equals(Model.Filter, "all", StringComparison.OrdinalIgnoreCase))
+                {
+                    queryParams["filter"] = Model.Filter;
+                }
+                if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
+                {
+                    queryParams["searchTerm"] = Model.SearchTerm;
+                }
+                if (!string.IsNullOrWhiteSpace(Model.CounterpartScopeKey))
+                {
+                    queryParams["counterpartScopeKey"] = Model.CounterpartScopeKey;
+                }
+                var href = QueryHelpers.AddQueryString(Model.BasePath, queryParams);
+
+                <a href="@href"
+                   class="chat-conversation-row flex items-start gap-3 border-b border-[#f5f5f5] px-3 py-2.5 transition @(isActive ? "bg-[#f6f6f6]" : "bg-white hover:bg-[#fafafa]") @((Model.IsFullCanvasPage || Model.IsAccountCenterSurface) ? "chat-conversation-row--compact" : "")"
+                   data-chat-conversation-link
+                   data-conversation-id="@conversation.ConversationId"
+                   data-active="@(isActive ? "true" : "false")">
+                    <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f5f5f5] text-sm font-semibold text-[#555]">
+                        @if (!string.IsNullOrWhiteSpace(conversation.CounterpartAvatarUrl))
+                        {
+                            <img src="@conversation.CounterpartAvatarUrl" alt="@conversation.CounterpartName" class="h-full w-full object-cover" />
+                        }
+                        else
+                        {
+                            @conversation.CounterpartName[0]
+                        }
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start gap-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-[14px] font-medium text-[#333]">@conversation.CounterpartName</p>
+                                <p class="mt-0.5 line-clamp-1 text-[12px] leading-5 @(conversation.UnreadCount > 0 ? "font-medium text-[#555]" : "text-[#888]")">@preview</p>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="text-[12px] leading-5 @(conversation.UnreadCount > 0 ? "text-[#ee4d2d]" : "text-[#999]")">@timeLabel</p>
+                                @if (conversation.UnreadCount > 0)
+                                {
+                                    <span class="mt-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#ee4d2d] px-1 text-[10px] font-semibold text-white">
+                                        @(conversation.UnreadCount > 99 ? "99+" : conversation.UnreadCount.ToString())
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            }
+        }
+    </div>
+</div>

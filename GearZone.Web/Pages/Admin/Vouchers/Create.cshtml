@@ -1,0 +1,585 @@
+﻿@page "/admin/voucher/create"
+@model GearZone.Web.Pages.Admin.Vouchers.CreateModel
+
+@{
+    ViewData["Title"] = "Create Voucher";
+    ViewData["PageHeader"] = "Create Voucher";
+    ViewData["ActivePage"] = "Vouchers";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Marketing", "Vouchers", "Create" };
+    Layout = "_AdminLayout";
+}
+
+@section Styles {
+    <style>
+        .input-standard {
+            height: 42px;
+            border-radius: 8px;
+        }
+
+        /* Serrated edge style adapted from Index */
+        .serrated-edge {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .serrated-left {
+            position: relative;
+            -webkit-mask-image: radial-gradient(circle at 2px 7px, transparent 4px, black 5px);
+            -webkit-mask-size: 100% 14px;
+            mask-image: radial-gradient(circle at 2px 7px, transparent 4px, black 5px);
+            mask-size: 100% 14px;
+        }
+
+        .ticket-dash {
+            background-image: linear-gradient(to bottom, #E2E8F0 60%, rgba(255,255,255,0) 0%);
+            background-position: center;
+            background-size: 1.5px 10px;
+            background-repeat: repeat-y;
+        }
+
+        .sticky-sidebar {
+            position: sticky;
+            top: 1.5rem;
+        }
+
+        /* Updated range input styling */
+        input[type=range] {
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #F1F5F9;
+            background-image: linear-gradient(#1A56DB, #1A56DB);
+            background-repeat: no-repeat;
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        /* Webkit Browsers */
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1A56DB;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 0; /* Align with track */
+        }
+
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1A56DB;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .category-hidden {
+            display: none;
+        }
+    </style>
+}
+
+<form method="post">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Main Form Column -->
+        <div class="lg:col-span-8 space-y-6">
+            <!-- Basic Information -->
+            <section class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-1.5 h-6 bg-primary rounded-full"></div>
+                    <h2 class="text-lg font-bold text-slate-800">Basic Information</h2>
+                </div>
+                
+                <div class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="md:col-span-2">
+                            <label asp-for="Input.Name" class="block text-sm font-bold text-slate-700 mb-1.5">Voucher Name</label>
+                            <input asp-for="Input.Name" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px]" placeholder="e.g. Summer Mega Sale 2024" />
+                            <span asp-validation-for="Input.Name" class="text-xs text-red-500 mt-1"></span>
+                        </div>
+                        
+                        <div>
+                            <label asp-for="Input.Code" class="block text-sm font-bold text-slate-700 mb-1.5">Voucher Code</label>
+                            <div class="relative group">
+                                <input asp-for="Input.Code" id="vCodeInput" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px] uppercase font-mono pr-20" placeholder="SUMMER50" />
+                                <button type="button" onclick="generateCode()" class="absolute right-2 top-1.5 px-2 py-1 text-[10px] font-bold text-primary hover:bg-blue-50 rounded border border-primary/20 transition-all">AUTO</button>
+                            </div>
+                            <span asp-validation-for="Input.Code" class="text-xs text-red-500 mt-1"></span>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold text-slate-700 mb-3">Voucher Type</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <label class="cursor-pointer group relative">
+                                    <input type="radio" asp-for="Input.Type" value="Order" class="sr-only peer" checked id="typeOrderRadio">
+                                    <div class="p-3 border-2 border-slate-100 rounded-xl peer-checked:border-primary peer-checked:bg-blue-50 transition-all group-hover:bg-slate-50 flex items-center gap-3">
+                                        <div class="size-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white transition-colors peer-checked:bg-white peer-checked:text-primary">
+                                            <span class="material-symbols-outlined text-xl">confirmation_number</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-700">Order Discount</p>
+                                            <p class="text-[10px] text-slate-400">Fixed or percentage discount on order total</p>
+                                        </div>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer group relative">
+                                    <input type="radio" asp-for="Input.Type" value="Shipping" class="sr-only peer" id="typeShippingRadio">
+                                    <div class="p-3 border-2 border-slate-100 rounded-xl peer-checked:border-primary peer-checked:bg-blue-50 transition-all group-hover:bg-slate-50 flex items-center gap-3">
+                                        <div class="size-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white transition-colors peer-checked:bg-white peer-checked:text-primary">
+                                            <span class="material-symbols-outlined text-xl">local_shipping</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-700">Shipping Discount</p>
+                                            <p class="text-[10px] text-slate-400">Discount on shipping fees</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="categoryRestrictionDiv">
+                            <label asp-for="Input.CategoryId" class="block text-sm font-bold text-slate-700 mb-1.5">Category Restriction</label>
+                            <select asp-for="Input.CategoryId" class="form-select w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px]" id="vCategorySelect">
+                                <option value="">All Categories</option>
+                                @foreach (var cat in Model.Categories)
+                                {
+                                    <option value="@cat.Id">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label asp-for="Input.Description" class="block text-sm font-bold text-slate-700 mb-1.5">Description (Optional)</label>
+                            <textarea asp-for="Input.Description" rows="3" class="form-textarea w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary" placeholder="Campaign details, terms and conditions..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Voucher Configuration -->
+            <section class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-1.5 h-6 bg-primary rounded-full"></div>
+                    <h2 class="text-lg font-bold text-slate-800">Configuration & Discount</h2>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Discount Type -->
+                        <div class="space-y-3">
+                            <label class="block text-sm font-bold text-slate-700">Discount Logic</label>
+                            <div class="bg-slate-100 p-1 rounded-xl flex h-[42px]">
+                                <button type="button" class="flex-1 rounded-lg text-xs font-bold transition-all bg-white text-primary shadow-sm" id="typePercent">Percentage (%)</button>
+                                <button type="button" class="flex-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-700" id="typeFixed">Fixed Amount (VND)</button>
+                                <input type="hidden" asp-for="Input.DiscountType" id="discountTypeField" />
+                            </div>
+                        </div>
+
+                        <div></div> <!-- empty spacer -->
+
+                        <!-- Values -->
+                        <div class="space-y-4">
+                            <div>
+                                <label asp-for="Input.DiscountValue" id="valueLabel" class="block text-sm font-bold text-slate-700 mb-1.5">Discount Percentage (%)</label>
+                                <div class="relative">
+                                    <input asp-for="Input.DiscountValue" asp-format="{0:0}" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px] pr-10" />
+                                    <span id="valueUnit" class="absolute right-4 top-2.5 text-sm font-bold text-slate-400">%</span>
+                                </div>
+                                <span asp-validation-for="Input.DiscountValue" id="discountValue-error" class="text-xs text-red-500 mt-1"></span>
+                            </div>
+                            <div id="maxDiscountDiv">
+                                <label asp-for="Input.MaxDiscount" class="block text-sm font-bold text-slate-700 mb-1.5">Maximum Discount Cap (VND)</label>
+                                <input asp-for="Input.MaxDiscount" asp-format="{0:0}" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px]" placeholder="Optional" />
+                                <span asp-validation-for="Input.MaxDiscount" class="text-xs text-red-500 mt-1"></span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label asp-for="Input.MinOrderAmount" class="block text-sm font-bold text-slate-700 mb-1.5">Minimum Spend (VND)</label>
+                                <input asp-for="Input.MinOrderAmount" asp-format="{0:0}" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px]" />
+                                <span asp-validation-for="Input.MinOrderAmount" id="minOrderAmount-error" class="text-xs text-red-500 mt-1"></span>
+                            </div>
+                            <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
+                                <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2">Example Calculation</p>
+                                <div class="space-y-1">
+                                    <div class="flex justify-between text-xs text-emerald-800">
+                                        <span>Sample Purchase:</span>
+                                        <span class="font-bold"><span id="samplePurchaseDisplay">100.000</span> VND</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-emerald-800">
+                                        <span>Discount Apply:</span>
+                                        <span class="font-bold"><span id="calcSymbol">-</span><span id="calcValue">10</span><span id="calcUnit">%</span></span>
+                                    </div>
+                                    <div class="h-px bg-emerald-200/50 my-2"></div>
+                                    <div class="flex justify-between text-sm text-emerald-900 font-black">
+                                        <span>Customer Pays:</span>
+                                        <span><span id="calcFinal">90.000</span> VND</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Usage & Validity -->
+            <section class="bg-white p-6 rounded-xl shadow-card border border-slate-100">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-1.5 h-6 bg-primary rounded-full"></div>
+                    <h2 class="text-lg font-bold text-slate-800">Usage & Lifecycle</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-2 gap-4 text-xs font-bold text-slate-400 mb-1 uppercase tracking-widest">
+                            <span>TOTAL LIMIT</span>
+                            <span class="text-right text-slate-900" id="limitDisplay">1000 claims</span>
+                        </div>
+                        <div class="relative flex items-center h-8">
+                             <input type="range" asp-for="Input.UsageLimit" min="10" max="5000" step="10" class="w-full h-2 rounded-lg cursor-pointer z-10" id="limitRange" />
+                        </div>
+                        
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                            <div>
+                                <label asp-for="Input.MaxUsagePerUser" class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Max Usage Per User</label>
+                                <div class="relative">
+                                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-sm">person</span>
+                                    <input asp-for="Input.MaxUsagePerUser" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[38px] pl-10 text-sm" placeholder="e.g. 1" />
+                                </div>
+                                <span asp-validation-for="Input.MaxUsagePerUser" class="text-xs text-red-500 mt-1"></span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 leading-relaxed italic">
+                                * The voucher will automatically expire when the usage limit is reached or the campaign end date passes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label asp-for="Input.StartAt" class="block text-sm font-bold text-slate-700 mb-1.5">Launch Date</label>
+                                <input asp-for="Input.StartAt" type="datetime-local" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px]" />
+                                <span asp-validation-for="Input.StartAt" class="text-xs text-red-500 mt-1"></span>
+                            </div>
+                            <div>
+                                <label asp-for="Input.EndAt" class="block text-sm font-bold text-slate-700 mb-1.5">Expiration Date</label>
+                                <input asp-for="Input.EndAt" type="datetime-local" class="form-input w-full border-slate-200 rounded-lg focus:ring-primary focus:border-primary h-[42px]" />
+                                <span asp-validation-for="Input.EndAt" id="endAt-error" class="text-xs text-red-500 mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Sidebar Actions Column -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="sticky-sidebar space-y-6">
+                <!-- Preview Card -->
+                <div class="bg-slate-900 p-6 rounded-xl shadow-soft relative overflow-hidden group">
+                    <div class="absolute -top-12 -right-12 size-40 bg-white/5 rounded-full blur-3xl"></div>
+                    
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 relative z-10">Real-time Preview</h3>
+                    
+                    <!-- Voucher Item (Matching Index Style) -->
+                    <div class="flex bg-white rounded-xl shadow-xl h-36 border-y border-r border-slate-50 serrated-edge relative z-10 transition-transform hover:scale-[1.02]">
+                        <!-- Left: Ticket Value -->
+                        <div class="w-32 bg-primary flex flex-col items-center justify-center p-4 relative serrated-left shrink-0 rounded-l-xl">
+                            <div class="bg-white size-10 rounded-full shadow-sm flex items-center justify-center mb-2">
+                                <span class="material-symbols-outlined text-primary text-[24px]" id="prevIcon">confirmation_number</span>
+                            </div>
+                            <div class="text-center">
+                                <p class="font-bold text-lg text-white leading-none" id="prevValue">15% OFF</p>
+                                <p class="text-[9px] font-black text-white/70 mt-1 uppercase tracking-widest" id="prevCodeDisplay">VCODE</p>
+                            </div>
+                        </div>
+
+                        <!-- Dash -->
+                        <div class="w-px h-full ticket-dash shrink-0"></div>
+
+                        <!-- Right Info -->
+                        <div class="flex-1 p-4 flex flex-col justify-between min-w-0">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="font-bold text-slate-800 text-sm truncate" id="prevName">My Campaign</h3>
+                                    <span class="bg-emerald-100 text-emerald-700 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0">Active</span>
+                                </div>
+                                <div class="space-y-1 text-[10px] text-slate-500">
+                                    <div class="flex justify-between">
+                                        <span>Min. Spend:</span>
+                                        <span class="font-bold text-slate-700" id="prevMinSpend">0 VND</span>
+                                    </div>
+                                    <div class="flex justify-between" id="prevCategoryRow">
+                                        <span>Category:</span>
+                                        <span class="font-bold text-slate-700" id="prevCategory">All</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-auto">
+                                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-primary h-full w-[2%] rounded-full shadow-sm"></div>
+                                </div>
+                                <div class="flex justify-between text-[8px] mt-1 text-slate-400 font-bold uppercase tracking-tighter">
+                                    <span>0 Usage / <span id="prevLimit">1000</span></span>
+                                    <span>Valid 30 Days</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="text-[10px] text-slate-500 mt-4 text-center italic">This is how customers will see your voucher.</p>
+                </div>
+
+                <!-- Form Completion Status -->
+                <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100">
+                    <h3 class="text-sm font-bold text-slate-800 mb-4">Publish Information</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                            <div>
+                                <p class="text-xs font-bold text-slate-700">Scope</p>
+                                <p class="text-[10px] text-slate-500">Global Platform Voucher</p>
+                            </div>
+                            <span class="material-symbols-outlined text-primary">public</span>
+                        </div>
+
+                        <div class="flex items-center justify-between py-2 px-1">
+                            <div>
+                                <p class="text-xs font-bold text-slate-700">Display in Voucher Center</p>
+                                <p class="text-[10px] text-slate-500">Visible to all users</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" asp-for="Input.IsVisible" class="sr-only peer" checked>
+                                <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 space-y-3">
+                        <button type="submit" class="w-full py-3 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[20px]">send</span>
+                            Launch Voucher
+                        </button>
+                        <button type="button" class="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all">
+                            Save as Draft
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Sync Logic
+        const inputs = {
+            name: document.getElementById('Input_Name'),
+            code: document.getElementById('vCodeInput'),
+            category: document.getElementById('vCategorySelect'),
+            discountValue: document.getElementById('Input_DiscountValue'),
+            minSpend: document.getElementById('Input_MinOrderAmount'),
+            limitRange: document.getElementById('limitRange'),
+            typeRadios: document.getElementsByName('Input.Type'),
+            startAt: document.getElementById('Input_StartAt'),
+            endAt: document.getElementById('Input_EndAt'),
+            maxPerUser: document.getElementById('Input_MaxUsagePerUser')
+        };
+
+        const previews = {
+            name: document.getElementById('prevName'),
+            code: document.getElementById('prevCodeDisplay'),
+            category: document.getElementById('prevCategory'),
+            categoryRow: document.getElementById('prevCategoryRow'),
+            value: document.getElementById('prevValue'),
+            minSpend: document.getElementById('prevMinSpend'),
+            limit: document.getElementById('prevLimit'),
+            icon: document.getElementById('prevIcon')
+        };
+
+        function formatVndInt(value) {
+            return Math.round(value).toLocaleString('vi-VN');
+        }
+
+        function updatePreview() {
+            previews.name.innerText = inputs.name.value || 'My Campaign';
+            previews.code.innerText = inputs.code.value || 'VCODE';
+            previews.category.innerText = inputs.category.options[inputs.category.selectedIndex].text;
+            
+            const minSpendValue = parseFloat(inputs.minSpend.value) || 0;
+            previews.minSpend.innerText = formatVndInt(minSpendValue) + ' VND';
+            previews.limit.innerText = inputs.limitRange.value;
+            
+            // Range track color logic
+            const percentage = ((inputs.limitRange.value - inputs.limitRange.min) / (inputs.limitRange.max - inputs.limitRange.min)) * 100;
+            inputs.limitRange.style.backgroundSize = percentage + '% 100%';
+
+            const discType = document.getElementById('discountTypeField').value;
+            const val = parseFloat(inputs.discountValue.value) || 0;
+            previews.value.innerText = discType === 'Percent' ? val + '% OFF' : formatVndInt(val) + ' VND OFF';
+
+            // Calc example using Minimum Spend
+            const samplePurchase = Math.max(minSpendValue, discType === 'Percent' ? 100000 : val + 10000);
+            document.getElementById('samplePurchaseDisplay').innerText = formatVndInt(samplePurchase);
+            
+            document.getElementById('calcValue').innerText = discType === 'Percent' ? val : formatVndInt(val);
+            if (discType === 'Percent') {
+                document.getElementById('calcSymbol').innerText = '-';
+                document.getElementById('calcUnit').innerText = '%';
+                const discount = (samplePurchase * val / 100);
+                document.getElementById('calcFinal').innerText = formatVndInt(samplePurchase - discount);
+            } else {
+                document.getElementById('calcSymbol').innerText = '-';
+                document.getElementById('calcUnit').innerText = 'VND';
+                const discount = val;
+                document.getElementById('calcFinal').innerText = formatVndInt(Math.max(0, samplePurchase - discount));
+            }
+
+            // Logic Validation
+            const discValueError = document.getElementById('discountValue-error');
+            const minSpendError = document.getElementById('minOrderAmount-error');
+            const endAtError = document.getElementById('endAt-error');
+            
+            // Reset errors
+            discValueError.innerText = '';
+            minSpendError.innerText = '';
+            endAtError.innerText = '';
+
+            if (discType === 'Percent' && val > 100) {
+                discValueError.innerText = 'Percentage must be less than or equal to 100%';
+            } else if (discType === 'Fixed' && minSpendValue <= val) {
+                minSpendError.innerText = 'Minimum spend must be greater than discount amount';
+            }
+
+            const startDate = new Date(inputs.startAt.value);
+            const endDate = new Date(inputs.endAt.value);
+            if (inputs.startAt.value && inputs.endAt.value && endDate <= startDate) {
+                endAtError.innerText = 'Expiration date must be later than launch date';
+            }
+            
+            // Icon & Visibility logic
+            let icon = 'confirmation_number';
+            const selectedType = Array.from(inputs.typeRadios).find(r => r.checked)?.value;
+            
+            if (selectedType === 'Shipping') {
+                icon = 'local_shipping';
+                document.getElementById('categoryRestrictionDiv').classList.add('category-hidden');
+                previews.categoryRow.classList.add('category-hidden');
+            } else {
+                document.getElementById('categoryRestrictionDiv').classList.remove('category-hidden');
+                previews.categoryRow.classList.remove('category-hidden');
+                
+                const categoryText = inputs.category.options[inputs.category.selectedIndex].text.toLowerCase();
+                if (categoryText.includes('keyboard')) icon = 'keyboard';
+                else if (categoryText.includes('mouse') || categoryText.includes('mice')) icon = 'mouse';
+                else if (categoryText.includes('headset') || categoryText.includes('headphone')) icon = 'headset';
+                else if (categoryText.includes('monitor')) icon = 'monitor';
+                else if (categoryText.includes('pc-components') || categoryText.includes('cpu') || categoryText.includes('gpu')) icon = 'memory';
+                else if (categoryText.includes('furniture')) icon = 'chair';
+                else if (categoryText.includes('console') || categoryText.includes('controller')) icon = 'videogame_asset';
+                else if (inputs.category.value) icon = 'category';
+            }
+            previews.icon.innerText = icon;
+
+            document.getElementById('limitDisplay').innerText = inputs.limitRange.value + ' claims';
+        }
+
+        inputs.name.addEventListener('input', updatePreview);
+        inputs.code.addEventListener('input', updatePreview);
+        inputs.category.addEventListener('change', updatePreview);
+        inputs.discountValue.addEventListener('input', updatePreview);
+        inputs.minSpend.addEventListener('input', updatePreview);
+        inputs.limitRange.addEventListener('input', updatePreview);
+        inputs.startAt.addEventListener('input', updatePreview);
+        inputs.endAt.addEventListener('input', updatePreview);
+        inputs.maxPerUser.addEventListener('input', updatePreview);
+
+        // Type Button Logic
+        document.getElementById('typePercent').addEventListener('click', function() {
+            setDiscType('Percent');
+        });
+        document.getElementById('typeFixed').addEventListener('click', function() {
+            setDiscType('Fixed');
+        });
+
+        function setDiscType(type) {
+            const btnP = document.getElementById('typePercent');
+            const btnF = document.getElementById('typeFixed');
+            const field = document.getElementById('discountTypeField');
+            
+            field.value = type;
+            if (type === 'Percent') {
+                btnP.className = 'flex-1 rounded-lg text-xs font-bold transition-all bg-white text-primary shadow-sm';
+                btnF.className = 'flex-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-700';
+                document.getElementById('valueLabel').innerText = 'Discount Percentage (%)';
+                document.getElementById('valueUnit').innerText = '%';
+                document.getElementById('maxDiscountDiv').style.display = 'block';
+                if (inputs.discountValue.value === '10000') inputs.discountValue.value = '10';
+            } else {
+                btnF.className = 'flex-1 rounded-lg text-xs font-bold transition-all bg-white text-primary shadow-sm';
+                btnP.className = 'flex-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-700';
+                document.getElementById('valueLabel').innerText = 'Discount Amount (VND)';
+                document.getElementById('valueUnit').innerText = 'VND';
+                document.getElementById('maxDiscountDiv').style.display = 'none';
+                // Use integer for 10000 to avoid .00
+                if (inputs.discountValue.value === '10' || inputs.discountValue.value === '') inputs.discountValue.value = '10000';
+            }
+            updatePreview();
+        }
+
+        // Voucher Category Icon sync
+        inputs.typeRadios.forEach(r => {
+            r.addEventListener('change', updatePreview);
+        });
+
+        function generateCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 8; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            inputs.code.value = result;
+            updatePreview();
+        }
+
+        // Form Validation on Submit
+        document.querySelector('form').addEventListener('submit', function(e) {
+            updatePreview();
+            
+            let errorList = [];
+            const discType = document.getElementById('discountTypeField').value;
+            const val = parseFloat(inputs.discountValue.value) || 0;
+            const minSpendValue = parseFloat(inputs.minSpend.value) || 0;
+            const startDate = new Date(inputs.startAt.value);
+            const endDate = new Date(inputs.endAt.value);
+
+            if (discType === 'Percent' && val > 100) {
+                errorList.push('Discount percentage must be less than or equal to 100%');
+            } else if (discType === 'Fixed' && minSpendValue <= val) {
+                errorList.push('Minimum spend must be greater than discount amount');
+            }
+
+            if (inputs.startAt.value && inputs.endAt.value && endDate <= startDate) {
+                errorList.push('Expiration date must be later than launch date');
+            }
+
+            if (errorList.length > 0) {
+                e.preventDefault();
+                // Show each error as a toast
+                errorList.forEach(err => window.toast.error(err));
+            }
+        });
+
+        // Init
+        setDiscType('Percent');
+        updatePreview();
+    </script>
+}
+

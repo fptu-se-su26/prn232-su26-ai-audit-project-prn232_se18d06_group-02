@@ -1,0 +1,1046 @@
+@page
+@model GearZone.Web.Pages.Public.User.ProfileModel
+@using GearZone.Domain.Enums
+@using GearZone.Web.Pages.Shared.Models
+@{
+    ViewData["Title"] = "My Profile - GearZone";
+    string GetOrderStatusText(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Awaiting Payment",
+        OrderStatus.Approved => "Approved",
+        OrderStatus.Paid => "Paid",
+        OrderStatus.Processing => "Processing",
+        OrderStatus.Delivered => "Delivered",
+        OrderStatus.Cancelled => "Cancelled",
+        OrderStatus.Refunded => "Refunded",
+        OrderStatus.Rejected => "Rejected",
+        _ => status.ToString()
+    };
+
+    string GetOrderStatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "bg-amber-50 text-amber-700 border border-amber-200",
+        OrderStatus.Approved => "bg-sky-50 text-sky-700 border border-sky-200",
+        OrderStatus.Paid => "bg-indigo-50 text-indigo-700 border border-indigo-200",
+        OrderStatus.Processing => "bg-blue-50 text-blue-700 border border-blue-200",
+        OrderStatus.Delivered => "bg-emerald-50 text-emerald-700 border border-emerald-200",
+        OrderStatus.Cancelled => "bg-rose-50 text-rose-700 border border-rose-200",
+        OrderStatus.Refunded => "bg-orange-50 text-orange-700 border border-orange-200",
+        OrderStatus.Rejected => "bg-red-50 text-red-700 border border-red-200",
+        _ => "bg-gray-50 text-gray-700 border border-gray-200"
+    };
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex flex-col lg:flex-row gap-8" data-profile-layout-shell>
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-72 flex-shrink-0">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-profile-sidebar-card>
+                <!-- User Header -->
+                <div class="p-6 text-center border-b border-gray-50 bg-gray-50/50">
+                    <div class="relative inline-block mb-3">
+                        <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary text-3xl font-bold border-4 border-white shadow-sm overflow-hidden">
+                            @if (!string.IsNullOrEmpty(Model.CurrentUser?.AvatarUrl))
+                            {
+                                <img src="@Model.CurrentUser.AvatarUrl" alt="Avatar" class="w-full h-full object-cover">
+                            }
+                            else
+                            {
+                                <span class="material-symbols-outlined text-4xl">person</span>
+                            }
+                        </div>
+                        <button class="absolute bottom-0 right-0 p-1.5 bg-white rounded-full shadow-sm border border-gray-100 text-gray-500 hover:text-primary transition-colors">
+                            <span class="material-symbols-outlined text-sm">photo_camera</span>
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900">@(Model.CurrentUser?.FullName ?? Model.CurrentUser?.UserName)</h3>
+                    <div class="flex items-center justify-center gap-1.5 mt-1">
+                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-600 border border-orange-100">
+                            <span class="material-symbols-outlined text-[14px] mr-1">star</span>
+                            Gold Member
+                        </span>
+                    </div>
+
+                    <div class="mt-4 px-4">
+                        @if (Model.UserStore == null)
+                        {
+                            <a asp-page="/Public/User/RegisterSeller" class="w-full py-2 bg-orange-50 text-orange-600 font-bold rounded-lg hover:bg-orange-100 transition-all border border-orange-200 flex items-center justify-center gap-2 text-sm">
+                                <span class="material-symbols-outlined text-[18px]">storefront</span>
+                                Register as Seller
+                            </a>
+                        }
+                        else if (Model.UserStore.Status == StoreStatus.Pending)
+                        {
+                            <div class="space-y-2">
+                                <div class="w-full py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-200 flex items-center justify-center gap-2 text-sm" title="Your application is currently being reviewed.">
+                                    <span class="material-symbols-outlined text-[18px]">hourglass_empty</span>
+                                    App Pending
+                                </div>
+                                <a href="/Public/User/RegisterSeller?reapply=true"
+                                   class="w-full py-2 bg-orange-50 text-orange-600 font-bold rounded-lg hover:bg-orange-100 transition-all border border-orange-200 flex items-center justify-center gap-2 text-sm">
+                                    <span class="material-symbols-outlined text-[18px]">edit_square</span>
+                                    Edit & Resubmit
+                                </a>
+                            </div>
+                        }
+                        else if (Model.UserStore.Status == StoreStatus.Approved)
+                        {
+                            <a href="/StoreOwner/Dashboard" class="w-full py-2 bg-green-50 text-green-600 font-bold rounded-lg hover:bg-green-100 transition-all border border-green-200 flex items-center justify-center gap-2 text-sm">
+                                <span class="material-symbols-outlined text-[18px]">store</span>
+                                Go to Store
+                            </a>
+                        }
+                        else if (Model.UserStore.Status == StoreStatus.Rejected)
+                        {
+                            <div class="space-y-2">
+                                <div class="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-200 flex items-center justify-center gap-2 text-sm cursor-help" title="Reason: @Model.UserStore.RejectReason">
+                                    <span class="material-symbols-outlined text-[18px]">cancel</span>
+                                    App Rejected
+                                </div>
+                                <a href="/Public/User/RegisterSeller?reapply=true"
+                                   class="w-full py-2 bg-orange-50 text-orange-600 font-bold rounded-lg hover:bg-orange-100 transition-all border border-orange-200 flex items-center justify-center gap-2 text-sm">
+                                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                                    Resubmit Store Application
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="p-3 space-y-1">
+                    <a asp-page="/Public/User/Profile" asp-route-tab="account" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm @(Model.ActiveTab == "account" ? "font-bold text-primary bg-primary/5 border-l-4 border-primary" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-primary") rounded-xl transition-all">
+                        <span class="material-symbols-outlined text-[20px] @(Model.ActiveTab == "account" ? "filled" : "")">person</span>
+                        My Account
+                    </a>
+                    <a asp-page="/Public/User/Profile" asp-route-tab="orders" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm @(Model.ActiveTab == "orders" ? "font-bold text-primary bg-primary/5 border-l-4 border-primary" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-primary") rounded-xl transition-all">
+                        <span class="material-symbols-outlined text-[20px] @(Model.ActiveTab == "orders" ? "filled" : "")">shopping_bag</span>
+                        Orders
+                    </a>
+                    <a asp-page="/Public/User/Profile" asp-route-tab="messages"
+                       class="flex items-center gap-3 px-4 py-3 text-sm @(Model.ActiveTab == "messages" ? "font-bold text-primary bg-primary/5 border-l-4 border-primary" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-primary") rounded-xl transition-all">
+                        <span class="material-symbols-outlined text-[20px] @(Model.ActiveTab == "messages" ? "filled" : "")">chat</span>
+                        Messages
+                    </a>
+                    <a asp-page="/Public/User/Profile" asp-route-tab="addresses" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm @(Model.ActiveTab == "addresses" ? "font-bold text-primary bg-primary/5 border-l-4 border-primary" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-primary") rounded-xl transition-all">
+                        <span class="material-symbols-outlined text-[20px] @(Model.ActiveTab == "addresses" ? "filled" : "")">location_on</span>
+                        Addresses
+                    </a>
+                    <a asp-page="/Public/User/Profile" asp-route-tab="reviews" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm @(Model.ActiveTab == "reviews" ? "font-bold text-primary bg-primary/5 border-l-4 border-primary" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-primary") rounded-xl transition-all">
+                        <span class="material-symbols-outlined text-[20px] @(Model.ActiveTab == "reviews" ? "filled" : "")">star</span>
+                        Reviews
+                    </a>
+                    <a asp-page="/Public/User/Profile" asp-route-tab="password" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm @(Model.ActiveTab == "password" ? "font-bold text-primary bg-primary/5 border-l-4 border-primary" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-primary") rounded-xl transition-all">
+                        <span class="material-symbols-outlined text-[20px] @(Model.ActiveTab == "password" ? "filled" : "")">lock</span>
+                        Password
+                    </a>
+                    <div class="pt-3 mt-3 border-t border-gray-50">
+                        <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-all">
+                            <span class="material-symbols-outlined text-[20px]">logout</span>
+                            Logout
+                        </a>
+                    </div>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="min-w-0 flex-1 space-y-6">
+            @if (TempData["SuccessMessage"] is string successMessage)
+            {
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700">
+                    @successMessage
+                </div>
+            }
+
+            @if (TempData["ErrorMessage"] is string errorMessage)
+            {
+                <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
+                    @errorMessage
+                </div>
+            }
+
+            @if (Model.UserStore?.Status == StoreStatus.Pending || Model.UserStore?.Status == StoreStatus.Rejected)
+            {
+                <div class="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="space-y-1">
+                            <p class="text-sm font-bold text-orange-700">
+                                @(Model.UserStore?.Status == StoreStatus.Pending
+                                    ? "Your store application is pending review. You can reopen it to edit and resubmit."
+                                    : "Your store application was rejected.")
+                            </p>
+                            @if (!string.IsNullOrWhiteSpace(Model.UserStore.RejectReason))
+                            {
+                                <p class="text-xs text-orange-700/90">Reason: @Model.UserStore.RejectReason</p>
+                            }
+                        </div>
+                        <a href="/Public/User/RegisterSeller?reapply=true"
+                           class="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-bold text-orange-700 hover:bg-orange-100 transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">refresh</span>
+                            @(Model.UserStore?.Status == StoreStatus.Pending ? "Edit & Resubmit" : "Resubmit Application")
+                        </a>
+                    </div>
+                </div>
+            }
+
+            @if (Model.ActiveTab == "account")
+            {
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">My Account</h1>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                        <form class="space-y-6 max-w-2xl">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700">Full Name</label>
+                                    <input type="text" value="@Model.CurrentUser?.FullName" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700">Email Address</label>
+                                    <input type="email" value="@Model.CurrentUser?.Email" disabled class="block w-full px-4 py-3 border border-gray-100 bg-gray-50 text-gray-500 rounded-xl cursor-not-allowed" />
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700">Phone Number</label>
+                                    <input type="tel" value="@Model.CurrentUser?.PhoneNumber" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-semibold text-gray-700">Username</label>
+                                    <input type="text" value="@Model.CurrentUser?.UserName" disabled class="block w-full px-4 py-3 border border-gray-100 bg-gray-50 text-gray-500 rounded-xl cursor-not-allowed" />
+                                </div>
+                            <div class="pt-4">
+                                <button type="submit" class="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+            else if (Model.ActiveTab == "orders")
+            {
+                <div class="space-y-5">
+                    <div class="flex justify-end">
+                        <form method="get" class="relative w-full sm:w-96">
+                            <input type="hidden" name="tab" value="orders" />
+                            <input type="hidden" name="orderStatus" value="@Model.OrderStatus" />
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="material-symbols-outlined text-gray-400">search</span>
+                            </div>
+                            <input type="text"
+                                   name="searchTerm"
+                                   value="@Model.SearchTerm"
+                                   placeholder="Search by order code or product name"
+                                   class="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-sm transition-all bg-white" />
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 flex overflow-x-auto hide-scrollbar">
+                        <a asp-page="/Public/User/Profile" asp-route-tab="orders" asp-route-orderStatus="all"
+                           class="flex-shrink-0 px-5 py-3 text-sm font-semibold rounded-xl transition-colors @(Model.OrderStatus == "all" ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50")">
+                            All Orders
+                            <span class="ml-2 @(Model.OrderStatus == "all" ? "text-white/80" : "text-gray-400")">@Model.OrderStatusSummary.All</span>
+                        </a>
+                        <a asp-page="/Public/User/Profile" asp-route-tab="orders" asp-route-orderStatus="processing"
+                           class="flex-shrink-0 px-5 py-3 text-sm font-semibold rounded-xl transition-colors @(Model.OrderStatus == "processing" ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50")">
+                            Processing
+                            <span class="ml-2 @(Model.OrderStatus == "processing" ? "text-white/80" : "text-gray-400")">@Model.OrderStatusSummary.Processing</span>
+                        </a>
+                        <a asp-page="/Public/User/Profile" asp-route-tab="orders" asp-route-orderStatus="delivered"
+                           class="flex-shrink-0 px-5 py-3 text-sm font-semibold rounded-xl transition-colors @(Model.OrderStatus == "delivered" ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50")">
+                            Delivered
+                            <span class="ml-2 @(Model.OrderStatus == "delivered" ? "text-white/80" : "text-gray-400")">@Model.OrderStatusSummary.Delivered</span>
+                        </a>
+                        <a asp-page="/Public/User/Profile" asp-route-tab="orders" asp-route-orderStatus="to_review"
+                           class="flex-shrink-0 px-5 py-3 text-sm font-semibold rounded-xl transition-colors @(Model.OrderStatus == "to_review" ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50")">
+                            To Review
+                            <span class="ml-2 @(Model.OrderStatus == "to_review" ? "text-white/80" : "text-gray-400")">@Model.OrderStatusSummary.ToReview</span>
+                        </a>
+                        <a asp-page="/Public/User/Profile" asp-route-tab="orders" asp-route-orderStatus="cancelled"
+                           class="flex-shrink-0 px-5 py-3 text-sm font-semibold rounded-xl transition-colors @(Model.OrderStatus == "cancelled" ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50")">
+                            Cancelled
+                            <span class="ml-2 @(Model.OrderStatus == "cancelled" ? "text-white/80" : "text-gray-400")">@Model.OrderStatusSummary.Cancelled</span>
+                        </a>
+                    </div>
+
+                    @if (Model.Orders.Items.Any())
+                    {
+                        <div class="space-y-4">
+                            @foreach (var order in Model.Orders.Items)
+                            {
+                                <article class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <div class="px-6 py-4 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3 text-sm">
+                                        <div class="flex items-center gap-4 flex-wrap">
+                                            <a href="/store/@order.StoreSlug" class="flex items-center gap-2 font-bold text-gray-900 hover:text-primary transition-colors">
+                                                <span class="material-symbols-outlined text-primary text-[20px]">store</span>
+                                                @order.StoreName
+                                            </a>
+                                            <span class="text-gray-300 hidden sm:inline">|</span>
+                                            <span class="text-gray-500">Order #@order.OrderCode</span>
+                                        </div>
+                                        <div class="flex items-center gap-3 flex-wrap">
+                                            <span class="text-gray-500">@order.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</span>
+                                            <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold @GetOrderStatusBadgeClass(order.Status)">
+                                                @GetOrderStatusText(order.Status)
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-6 space-y-4">
+                                        @foreach (var item in order.Items)
+                                        {
+                                            <div class="flex flex-col md:flex-row gap-4 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
+                                                <a href="/product/@item.ProductSlug" class="w-20 h-20 rounded-xl bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                                                    <img src="@(string.IsNullOrWhiteSpace(item.ProductImageUrl) ? "/images/placeholder.png" : item.ProductImageUrl)"
+                                                         alt="@item.ProductName"
+                                                         class="w-full h-full object-contain p-2" />
+                                                </a>
+                                                <div class="flex-1 min-w-0">
+                                                    <a href="/product/@item.ProductSlug" class="font-bold text-gray-900 hover:text-primary line-clamp-2">@item.ProductName</a>
+                                                    <p class="text-sm text-gray-500 mt-1">Variant: @item.VariantName</p>
+                                                    <p class="text-sm font-medium mt-1">Quantity: x@item.Quantity</p>
+
+                                                    @if (item.CanReview || item.CanEditReview)
+                                                    {
+                                                        <div class="mt-3 flex flex-wrap items-center gap-3">
+                                                            <a asp-page="/Public/User/WriteReview"
+                                                               asp-route-orderItemId="@item.OrderItemId"
+                                                               class="review-action-link">
+                                                                <span class="material-symbols-outlined text-[18px]">rate_review</span>
+                                                                @(item.CanEditReview ? "Edit Review" : "Review Product")
+                                                            </a>
+                                                            @if (item.ReviewDeadline.HasValue)
+                                                            {
+                                                                <span class="text-xs text-gray-400">Available until @item.ReviewDeadline.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    else if (order.Status == OrderStatus.Delivered && item.ReviewId.HasValue)
+                                                    {
+                                                        <div class="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600 border border-emerald-200">
+                                                            <span class="material-symbols-outlined text-[16px]">task_alt</span>
+                                                            Reviewed
+                                                        </div>
+                                                    }
+                                                </div>
+                                                <div class="text-right md:min-w-[140px]">
+                                                    <p class="font-bold text-gray-900">@item.UnitPrice.ToString("N0") VND</p>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="px-6 py-4 bg-gray-50/40 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
+                                        <div class="space-y-1">
+                                            <p class="text-sm text-gray-500">
+                                                Subtotal:
+                                                <span class="text-lg font-bold text-primary ml-1">@order.Subtotal.ToString("N0") VND</span>
+                                            </p>
+                                            @if (order.DeliveredAt.HasValue)
+                                            {
+                                                <p class="text-xs text-gray-400">Delivered @order.DeliveredAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")</p>
+                                            }
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <a asp-page="/Public/User/Orders/Track"
+                                               asp-route-subOrderId="@order.SubOrderId"
+                                               class="px-5 py-2 text-sm font-bold text-primary bg-primary/10 border border-primary/20 rounded-lg hover:bg-primary/15 transition-colors">
+                                                Track Order
+                                            </a>
+                                            <a asp-page="/Public/User/Profile"
+                                               asp-route-tab="messages"
+                                               asp-route-storeSlug="@order.StoreSlug"
+                                               class="px-5 py-2 text-sm font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
+                                                Chat Shop
+                                            </a>
+                                            <a href="/store/@order.StoreSlug" class="px-5 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                                Visit Store
+                                            </a>
+                                            @if (order.HasAnyReviewableItem || order.HasAnyEditableReview)
+                                            {
+                                                <a asp-page="/Public/User/Profile"
+                                                   asp-route-tab="orders"
+                                                   asp-route-orderStatus="to_review"
+                                                   class="review-primary-button">
+                                                    Review Queue
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+
+                        @if (Model.Orders.TotalPages > 1)
+                        {
+                            <div class="flex justify-center mt-8">
+                                <nav class="flex items-center gap-2 flex-wrap">
+                                    @for (var pageNumber = 1; pageNumber <= Model.Orders.TotalPages; pageNumber++)
+                                    {
+                                        <a asp-page="/Public/User/Profile"
+                                           asp-route-tab="orders"
+                                           asp-route-orderStatus="@Model.OrderStatus"
+                                           asp-route-searchTerm="@Model.SearchTerm"
+                                           asp-route-orderPage="@pageNumber"
+                                           class="w-10 h-10 flex items-center justify-center rounded-lg border text-sm font-semibold transition-colors @(pageNumber == Model.Orders.PageNumber ? "bg-primary border-primary text-white" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50")">
+                                            @pageNumber
+                                        </a>
+                                    }
+                                </nav>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        var emptyOrderMessage = Model.OrderStatus == "to_review"
+                            ? "No delivered items are waiting for review right now."
+                            : "No orders matched this view yet.";
+
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center justify-center text-center py-20">
+                            <div class="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 mb-6">
+                                <span class="material-symbols-outlined text-5xl">inventory_2</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900">Nothing to show here</h3>
+                            <p class="text-gray-500 mt-2 max-w-md mx-auto">@emptyOrderMessage</p>
+                            <a href="/Index" class="mt-8 px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all">Continue Shopping</a>
+                        </div>
+                    }
+                </div>
+            }
+            else if (Model.ActiveTab == "addresses")
+            {
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">Delivery Addresses</h1>
+                            <p class="text-sm text-gray-500 mt-1">Manage your shipping locations for a faster checkout experience.</p>
+                        </div>
+                        <button onclick="openAddressModal()" class="flex-shrink-0 px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[20px]">add_location_alt</span>
+                            Add New Address
+                        </button>
+                    </div>
+                    
+                    @if (!Model.UserAddresses.Any())
+                    {
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center justify-center text-center py-20">
+                            <div class="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 mb-6">
+                                <span class="material-symbols-outlined text-5xl">location_on</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900">No addresses saved</h3>
+                            <p class="text-gray-500 mt-2 max-w-md mx-auto">Add your shipping addresses to speed up the checkout process.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="space-y-4">
+                            @foreach (var addr in Model.UserAddresses)
+                            {
+                                <div class="address-card group bg-white rounded-2xl shadow-sm border @(addr.IsDefault ? "border-primary/30 ring-1 ring-primary/10" : "border-gray-100") p-5 transition-all hover:shadow-md hover:border-primary/20 flex flex-col sm:flex-row gap-5">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-12 h-12 rounded-xl @(addr.IsDefault ? "bg-primary/10 text-primary" : "bg-gray-50 text-gray-400") flex items-center justify-center transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                                            <span class="material-symbols-outlined text-[28px]">
+                                                @(addr.AddressType == AddressType.Home ? "home" : addr.AddressType == AddressType.Office ? "business" : "location_on")
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex-grow min-w-0">
+                                        <div class="flex flex-wrap items-center gap-3 mb-2">
+                                            <h4 class="font-bold text-gray-900 text-lg">@addr.FullName</h4>
+                                            <div class="h-1 w-1 rounded-full bg-gray-300 hidden sm:block"></div>
+                                            <p class="text-sm font-semibold text-gray-500">@addr.PhoneNumber</p>
+                                            
+                                            <div class="flex gap-2">
+                                                @if (addr.IsDefault)
+                                                {
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-primary/10 text-primary border border-primary/20">
+                                                        Default
+                                                    </span>
+                                                }
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-gray-50 text-gray-500 border border-gray-100">
+                                                    @addr.AddressType
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-start gap-2 text-gray-600">
+                                            <span class="material-symbols-outlined text-[18px] text-gray-400 mt-0.5">place</span>
+                                            <p class="text-[15px] leading-relaxed line-clamp-2">
+                                                @addr.AddressLine
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 flex-shrink-0 pt-4 sm:pt-0 sm:pl-4 border-t sm:border-t-0 sm:border-l border-gray-50">
+                                        <div class="flex items-center gap-2">
+                                            <button onclick="editAddress('@addr.Id')" 
+                                                    class="p-2 rounded-lg text-gray-400 hover:text-primary hover:bg-primary/10 transition-all tooltip" title="Edit Address">
+                                                <span class="material-symbols-outlined text-[20px]">edit</span>
+                                            </button>
+                                            
+                                            <form method="post" asp-page-handler="DeleteAddress" onsubmit="return confirm('Are you sure you want to delete this address?')">
+                                                <input type="hidden" name="addressId" value="@addr.Id" />
+                                                <button type="submit" class="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all tooltip" title="Delete">
+                                                    <span class="material-symbols-outlined text-[20px]">delete</span>
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                        @if (!addr.IsDefault)
+                                        {
+                                            <form method="post" asp-page-handler="SetDefaultAddress">
+                                                <input type="hidden" name="addressId" value="@addr.Id" />
+                                                <button type="submit" class="text-[12px] font-bold text-gray-400 hover:text-primary transition-colors border border-gray-100 px-3 py-1.5 rounded-lg hover:border-primary/20">
+                                                    Set default
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Address Modal -->
+                <div id="addressModal" class="fixed inset-0 z-[100] hidden overflow-y-auto">
+                    <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <div class="fixed inset-0 bg-gray-500/75 transition-opacity" onclick="closeAddressModal()"></div>
+                        
+                        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
+                            <form method="post" asp-page-handler="AddUpdateAddress">
+                                <input type="hidden" asp-for="EditingAddressId" id="modalEditingId" />
+                                <input type="hidden" asp-for="AddressInput.Latitude" id="modalLat" />
+                                <input type="hidden" asp-for="AddressInput.Longitude" id="modalLng" />
+
+                                <div class="bg-white px-6 py-6 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 class="text-xl font-bold text-gray-900" id="modalTitle">Add New Address</h3>
+                                    <button type="button" onclick="closeAddressModal()" class="text-gray-400 hover:text-gray-500">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+
+                                <div class="bg-white px-8 py-6 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div class="space-y-2">
+                                            <label class="text-sm font-semibold text-gray-700">Contact Name *</label>
+                                            <div class="relative group">
+                                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none group-focus-within:text-primary text-gray-400 transition-colors">
+                                                    <span class="material-symbols-outlined text-[20px]">person</span>
+                                                </div>
+                                                <input type="text" asp-for="AddressInput.FullName" id="modalFullName" required 
+                                                       placeholder="Recipient name"
+                                                       class="block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all shadow-sm group-hover:border-gray-300" />
+                                            </div>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-sm font-semibold text-gray-700">Phone Number *</label>
+                                            <div class="relative group">
+                                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none group-focus-within:text-primary text-gray-400 transition-colors">
+                                                    <span class="material-symbols-outlined text-[20px]">phone</span>
+                                                </div>
+                                                <input type="tel" asp-for="AddressInput.PhoneNumber" id="modalPhone" required 
+                                                       placeholder="Recipient phone"
+                                                       class="block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all shadow-sm group-hover:border-gray-300" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-2 relative">
+                                        <label class="text-sm font-semibold text-gray-700">Full Address *</label>
+                                        <div class="relative group">
+                                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none group-focus-within:text-primary text-gray-400 transition-colors">
+                                                <span class="material-symbols-outlined text-[20px]">location_on</span>
+                                            </div>
+                                            <input type="text" asp-for="AddressInput.AddressLine" id="modalAddressLine" required autocomplete="off"
+                                                   placeholder="Search your address..."
+                                                   class="block w-full pl-11 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all shadow-sm group-hover:border-gray-300" />
+                                            <div id="modalAutocompleteResults" class="absolute z-50 left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 hidden max-h-60 overflow-y-auto"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div class="space-y-2">
+                                            <label class="text-sm font-semibold text-gray-700 text-gray-500">Ward / Commune</label>
+                                            <input type="text" asp-for="AddressInput.Ward" id="modalWard" readonly class="block w-full px-4 py-2.5 border border-gray-100 bg-gray-50 rounded-xl text-gray-600 text-sm font-medium" />
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-sm font-semibold text-gray-700 text-gray-500">District</label>
+                                            <input type="text" asp-for="AddressInput.District" id="modalDistrict" readonly class="block w-full px-4 py-2.5 border border-gray-100 bg-gray-50 rounded-xl text-gray-600 text-sm font-medium" />
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-sm font-semibold text-gray-700 text-gray-500">Province / City *</label>
+                                            <input type="text" asp-for="AddressInput.Province" id="modalProvince" readonly required class="block w-full px-4 py-2.5 border border-gray-100 bg-gray-50 rounded-xl text-gray-600 text-sm font-medium" />
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-primary text-[18px]">map</span>
+                                            Pinned Location
+                                        </label>
+                                        <div id="map" class="w-full h-[320px] bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden shadow-inner"></div>
+                                        <p class="text-[11px] text-gray-400 flex items-center gap-1.5 mt-2 italic">
+                                            <span class="material-symbols-outlined text-[14px]">info</span>
+                                            Drag the map or choose a suggestion to pin the exact location.
+                                        </p>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                                        <div class="space-y-2">
+                                            <label class="text-sm font-semibold text-gray-700">Address Type</label>
+                                            <input type="hidden" asp-for="AddressInput.AddressType" id="modalType" />
+                                            <div class="flex gap-3">
+                                                @foreach (AddressType type in Enum.GetValues(typeof(AddressType)))
+                                                {
+                                                    <button type="button" 
+                                                            onclick="setAddressType('@type')"
+                                                            id="typeBtn_@type"
+                                                            class="flex-1 py-3 px-4 border-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 type-selector-btn">
+                                                        <span class="material-symbols-outlined text-[20px]">
+                                                            @(type == AddressType.Home ? "home" : type == AddressType.Office ? "business" : "location_on")
+                                                        </span>
+                                                        @type
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3 h-full pt-8">
+                                            <input type="checkbox" asp-for="AddressInput.IsDefault" id="modalIsDefault" class="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary" />
+                                            <label class="text-sm font-semibold text-gray-700 cursor-pointer" for="modalIsDefault">Set as default address</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-50 px-8 py-5 border-t border-gray-100 flex flex-col sm:flex-row-reverse gap-3 rounded-b-2xl">
+                                    <button type="submit" class="w-full sm:w-auto px-8 py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20">Save Address</button>
+                                    <button type="button" onclick="closeAddressModal()" class="w-full sm:w-auto px-8 py-3 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (Model.ActiveTab == "reviews")
+            {
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <p class="text-sm font-semibold uppercase tracking-[0.22em] text-primary">Review Center</p>
+                            <h1 class="text-2xl font-bold text-gray-900 mt-2">My Reviews</h1>
+                            <p class="text-sm text-gray-500 mt-2">See your verified reviews, seller replies, and edit eligible reviews before the 7-day window closes.</p>
+                        </div>
+                        <a asp-page="/Public/User/Profile"
+                           asp-route-tab="orders"
+                           asp-route-orderStatus="to_review"
+                           class="review-action-link">
+                            <span class="material-symbols-outlined text-[18px]">rate_review</span>
+                            Pending Reviews (@Model.OrderStatusSummary.ToReview)
+                        </a>
+                    </div>
+
+                    @if (Model.Reviews.Items.Any())
+                    {
+                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            @foreach (var review in Model.Reviews.Items)
+                            {
+                                <article class="review-surface-card overflow-hidden rounded-[26px] border border-slate-100">
+                                    <div class="flex gap-4 border-b border-slate-100 p-5">
+                                        <a href="/product/@review.ProductSlug" class="h-24 w-24 flex-shrink-0 overflow-hidden rounded-3xl border border-slate-100 bg-slate-50">
+                                            <img src="@(string.IsNullOrWhiteSpace(review.ProductImageUrl) ? "/images/placeholder.png" : review.ProductImageUrl)"
+                                                 alt="@review.ProductName"
+                                                 class="w-full h-full object-contain p-2" />
+                                        </a>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="review-label">@review.StoreName</p>
+                                            <a href="/product/@review.ProductSlug" class="mt-2 block line-clamp-2 text-lg font-black tracking-[-0.03em] text-gray-900 hover:text-primary">@review.ProductName</a>
+                                            <p class="mt-2 text-sm text-gray-500">Variant: @review.VariantName</p>
+                                            <div class="mt-3 flex items-center gap-2">
+                                                <partial name="/Pages/Shared/_ReviewStars.cshtml"
+                                                         model='new ReviewStarsViewModel
+                                                         {
+                                                             Rating = review.Rating,
+                                                             SizePx = 16,
+                                                             AriaLabel = $"{review.Rating} out of 5 stars"
+                                                         }' />
+                                                <span class="text-sm font-semibold text-gray-700">@review.Rating/5</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-5 space-y-4">
+                                        <div class="flex items-center justify-between gap-3 text-sm">
+                                            <div class="text-gray-500">
+                                                Reviewed @review.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                                            </div>
+                                            @if (review.UpdatedAt.HasValue)
+                                            {
+                                                <span class="text-xs font-semibold text-gray-400">Updated @review.UpdatedAt.Value.ToLocalTime().ToString("dd MMM yyyy")</span>
+                                            }
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(review.Comment))
+                                        {
+                                            <p class="text-sm leading-6 text-gray-600">@review.Comment</p>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-sm italic text-gray-400">You left a star rating without a written comment.</p>
+                                        }
+
+                                        <div class="review-summary-shell rounded-[22px] px-4 py-3 text-sm">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <span class="font-semibold text-gray-600">Delivered</span>
+                                                <span class="font-semibold text-gray-900">@review.DeliveredAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                                            </div>
+                                            <div class="mt-2 flex items-center justify-between gap-3">
+                                                <span class="font-semibold text-gray-600">Edit window</span>
+                                                <span class="@(review.CanEdit ? "text-orange-600" : "text-gray-400") font-semibold">
+                                                    @review.ReviewDeadline.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(review.SellerReplyContent))
+                                        {
+                                            <div class="review-reply-card rounded-[22px] p-4">
+                                                <div class="flex items-center gap-2 text-orange-700">
+                                                    <span class="material-symbols-outlined text-[18px]">campaign</span>
+                                                    <p class="text-sm font-bold">Seller reply</p>
+                                                </div>
+                                                <p class="mt-2 text-sm leading-6 text-gray-700">@review.SellerReplyContent</p>
+                                                @if (review.SellerReplyAt.HasValue)
+                                                {
+                                                    <p class="mt-2 text-xs text-gray-400">Replied @review.SellerReplyAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")</p>
+                                                }
+                                            </div>
+                                        }
+
+                                        <div class="flex flex-wrap items-center gap-3 pt-1">
+                                            <a href="/product/@review.ProductSlug" class="review-ghost-button">
+                                                <span class="material-symbols-outlined text-[18px]">visibility</span>
+                                                View Product
+                                            </a>
+                                            @if (review.CanEdit)
+                                            {
+                                                <a asp-page="/Public/User/WriteReview"
+                                                   asp-route-orderItemId="@review.OrderItemId"
+                                                   class="review-primary-button">
+                                                    <span class="material-symbols-outlined text-[18px]">edit_square</span>
+                                                    Edit Review
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+
+                        @if (Model.Reviews.TotalPages > 1)
+                        {
+                            <div class="flex justify-center mt-8">
+                                <nav class="flex items-center gap-2 flex-wrap">
+                                    @for (var pageNumber = 1; pageNumber <= Model.Reviews.TotalPages; pageNumber++)
+                                    {
+                                        <a asp-page="/Public/User/Profile"
+                                           asp-route-tab="reviews"
+                                           asp-route-reviewPage="@pageNumber"
+                                           class="review-page-link @(pageNumber == Model.Reviews.PageNumber ? "is-active" : string.Empty)">
+                                            @pageNumber
+                                        </a>
+                                    }
+                                </nav>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center justify-center text-center py-20">
+                            <div class="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 mb-6">
+                                <span class="material-symbols-outlined text-5xl">rate_review</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900">No reviews yet</h3>
+                            <p class="text-gray-500 mt-2 max-w-md mx-auto">Your verified reviews will appear here after you rate delivered products. Start with the items waiting in your review queue.</p>
+                            <a asp-page="/Public/User/Profile"
+                               asp-route-tab="orders"
+                               asp-route-orderStatus="to_review"
+                               class="review-primary-button mt-8">
+                                Review Delivered Items
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+            else if (Model.ActiveTab == "messages")
+            {
+                <div class="min-w-0" data-profile-messages-host>
+                    <partial name="/Pages/Shared/_ChatInboxLayout.cshtml" model="Model.MessagesInbox" />
+                </div>
+            }
+            else if (Model.ActiveTab == "password")
+            {
+                <div class="space-y-6">
+                    <h1 class="text-2xl font-bold text-gray-900">Change Password</h1>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                        <form class="space-y-6 max-w-md">
+                            <div class="space-y-2">
+                                <label class="text-sm font-semibold text-gray-700">Current Password</label>
+                                <input type="password" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-semibold text-gray-700">New Password</label>
+                                <input type="password" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-semibold text-gray-700">Confirm New Password</label>
+                                <input type="password" class="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all" />
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-primary/20">Update Password</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <partial name="/Pages/Shared/_ReviewUiStyles.cshtml" />
+    @if (Model.ActiveTab == "messages")
+    {
+        <partial name="/Pages/Shared/_ChatInboxStyles.cshtml" />
+    }
+    @if (Model.ActiveTab == "addresses")
+    {
+        <link href="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js/dist/goong-js.css" rel="stylesheet" />
+        <style>
+            .goongjs-ctrl-logo, .goongjs-ctrl-attrib { display: none !important; }
+            .type-selector-btn { border-color: #f3f4f6; color: #6b7280; background: #fff; }
+            .type-selector-btn:hover { border-color: #e5e7eb; color: #4b5563; }
+            .type-selector-btn.active { border-color: #1A56DB; color: #1A56DB; bg: #eff6ff; }
+            .type-selector-btn.active span { font-variation-settings: 'FILL' 1; }
+            
+            .address-card {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .address-card:hover {
+                transform: translateY(-2px);
+            }
+        </style>
+    }
+}
+
+@section Scripts {
+    @if (Model.ActiveTab == "messages")
+    {
+        <partial name="/Pages/Shared/_ChatInboxScripts.cshtml" />
+    }
+    @if (Model.ActiveTab == "addresses")
+    {
+        <script src="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js/dist/goong-js.js"></script>
+        <script>
+            let map, marker, autocompleteTimeout;
+            const GOONG_MAP_KEY = '@Model.GoongMapKey';
+
+            function openAddressModal() {
+                document.getElementById('addressModal').classList.remove('hidden');
+                document.getElementById('modalTitle').innerText = 'Add New Address';
+                document.getElementById('modalEditingId').value = '';
+                // Reset form
+                document.getElementById('modalFullName').value = '@(Model.CurrentUser?.FullName)';
+                document.getElementById('modalPhone').value = '@(Model.CurrentUser?.PhoneNumber)';
+                document.getElementById('modalAddressLine').value = '';
+                document.getElementById('modalWard').value = '';
+                document.getElementById('modalDistrict').value = '';
+                document.getElementById('modalProvince').value = '';
+                document.getElementById('modalLat').value = '10.762622'; // Default HCM
+                document.getElementById('modalLng').value = '106.660172';
+                document.getElementById('modalIsDefault').checked = false;
+                setAddressType('Home');
+
+                setTimeout(() => {
+                    initMap(106.660172, 10.762622);
+                }, 400);
+            }
+
+            function closeAddressModal() {
+                document.getElementById('addressModal').classList.add('hidden');
+            }
+
+            async function editAddress(id) {
+                try {
+                    const response = await fetch(`?handler=AddressJson&addressId=${id}`);
+                    if (!response.ok) throw new Error('Failed to fetch address details');
+                    const data = await response.json();
+
+                    document.getElementById('addressModal').classList.remove('hidden');
+                    document.getElementById('modalTitle').innerText = 'Edit Address';
+                    document.getElementById('modalEditingId').value = data.id;
+                    document.getElementById('modalFullName').value = data.fullName;
+                    document.getElementById('modalPhone').value = data.phoneNumber;
+                    document.getElementById('modalAddressLine').value = data.addressLine;
+                    document.getElementById('modalWard').value = data.ward || '';
+                    document.getElementById('modalDistrict').value = data.district || '';
+                    document.getElementById('modalProvince').value = data.province || '';
+                    document.getElementById('modalLat').value = data.latitude;
+                    document.getElementById('modalLng').value = data.longitude;
+                    document.getElementById('modalIsDefault').checked = data.isDefault;
+                    setAddressType(data.addressType);
+
+                    setTimeout(() => {
+                        initMap(data.longitude, data.latitude);
+                    }, 400);
+                } catch (error) {
+                    console.error(error);
+                    alert('Could not load address details.');
+                }
+            }
+
+            function initMap(lng = 106.660172, lat = 10.762622) {
+                if (!map) {
+                    goongjs.accessToken = GOONG_MAP_KEY;
+                    map = new goongjs.Map({
+                        container: 'map',
+                        style: 'https://tiles.goong.io/assets/goong_map_web.json',
+                        center: [lng, lat],
+                        zoom: 15
+                    });
+
+                    marker = new goongjs.Marker({ draggable: true })
+                        .setLngLat([lng, lat])
+                        .addTo(map);
+
+                    marker.on('dragend', onDragEnd);
+
+                    map.on('click', (e) => {
+                        const { lng, lat } = e.lngLat;
+                        marker.setLngLat([lng, lat]);
+                        updateCoords(lat, lng);
+                        reverseGeocode(lat, lng);
+                    });
+
+                    map.on('load', () => {
+                        console.log('Map loaded');
+                        map.resize();
+                    });
+                } else {
+                    map.jumpTo({ center: [lng, lat], zoom: 15 });
+                    marker.setLngLat([lng, lat]);
+                    setTimeout(() => map.resize(), 100);
+                }
+            }
+
+            function updateCoords(lat, lng) {
+                document.getElementById('modalLat').value = lat;
+                document.getElementById('modalLng').value = lng;
+                // Optional: trigger reverse geocode when clicking map too?
+                // reverseGeocode(lat, lng); 
+            }
+
+            const typeMapping = { 0: 'Home', 1: 'Office', 2: 'Other' };
+            function setAddressType(type) {
+                const typeStr = typeMapping[type] || type;
+                document.getElementById('modalType').value = typeStr;
+                document.querySelectorAll('.type-selector-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.getElementById('typeBtn_' + typeStr).classList.add('active');
+            }
+
+            async function onDragEnd() {
+                const lngLat = marker.getLngLat();
+                updateCoords(lngLat.lat, lngLat.lng);
+                reverseGeocode(lngLat.lat, lngLat.lng);
+            }
+
+            async function reverseGeocode(lat, lng) {
+                try {
+                    const response = await fetch(`/api/maps/reverse-geocode?lat=${lat}&lng=${lng}`);
+                    const data = await response.json();
+                    if (data && data.fullAddress) {
+                        document.getElementById('modalAddressLine').value = data.fullAddress;
+                        document.getElementById('modalWard').value = data.ward || '';
+                        document.getElementById('modalDistrict').value = data.district || '';
+                        document.getElementById('modalProvince').value = data.province || '';
+                    }
+                } catch (error) {
+                    console.error('Reverse geocoding error:', error);
+                }
+            }
+
+            const modalAddressInput = document.getElementById('modalAddressLine');
+            const modalAutocompleteResults = document.getElementById('modalAutocompleteResults');
+
+            modalAddressInput.addEventListener('input', (e) => {
+                clearTimeout(autocompleteTimeout);
+                const query = e.target.value.trim();
+
+                if (query.length < 2) {
+                    modalAutocompleteResults.classList.add('hidden');
+                    return;
+                }
+
+                autocompleteTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/api/maps/autocomplete?input=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+
+                        if (data && data.predictions && data.predictions.length > 0) {
+                            modalAutocompleteResults.innerHTML = data.predictions.map(p => `
+                                <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
+                                     onclick='selectModalSuggestion(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                                    <div class="flex items-center gap-3">
+                                        <span class="material-symbols-outlined text-gray-400 text-[20px]">location_on</span>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold text-gray-900 truncate">${p.structured_formatting.main_text}</p>
+                                            <p class="text-xs text-gray-500 truncate">${p.structured_formatting.secondary_text}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                            modalAutocompleteResults.classList.remove('hidden');
+                        } else {
+                            modalAutocompleteResults.classList.add('hidden');
+                        }
+                    } catch (error) {
+                        console.error('Autocomplete error:', error);
+                    }
+                }, 300);
+            });
+
+            async function selectModalSuggestion(prediction) {
+                modalAutocompleteResults.classList.add('hidden');
+                modalAddressInput.value = prediction.description;
+
+                try {
+                    const response = await fetch(`/api/maps/place-detail?placeId=${prediction.place_id}`);
+                    const data = await response.json();
+
+                    if (data) {
+                        document.getElementById('modalLat').value = data.lat;
+                        document.getElementById('modalLng').value = data.lng;
+                        document.getElementById('modalWard').value = data.ward || '';
+                        document.getElementById('modalDistrict').value = data.district || '';
+                        document.getElementById('modalProvince').value = data.province || '';
+
+                        initMap(data.lng, data.lat);
+                    }
+                } catch (error) {
+                    console.error('Place detail error:', error);
+                }
+            }
+
+            // Close results on outside click
+            document.addEventListener('click', (e) => {
+                if (!modalAddressInput.contains(e.target) && !modalAutocompleteResults.contains(e.target)) {
+                    modalAutocompleteResults.classList.add('hidden');
+                }
+            });
+        </script>
+    }
+}

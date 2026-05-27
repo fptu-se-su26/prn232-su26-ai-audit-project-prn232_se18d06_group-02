@@ -1,0 +1,848 @@
+@page "/products/{slug?}"
+@model GearZone.Web.Pages.Public.Catalog.BrowseModel
+@{
+    ViewData["Title"] = "Browse Products";
+}
+
+@section Styles {
+    <style>
+        .dual-slider-input {
+            -webkit-appearance: none;
+            appearance: none;
+            pointer-events: none;
+        }
+        .dual-slider-input::-webkit-slider-thumb {
+            pointer-events: all;
+            width: 24px;
+            height: 24px;
+            -webkit-appearance: none;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .dual-slider-input::-moz-range-thumb {
+            pointer-events: all;
+            width: 24px;
+            height: 24px;
+            border: none;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+}
+
+<!-- Main Content Layout -->
+<main class="flex-1 flex justify-center py-6 px-4 md:px-10">
+    <div class="w-full max-w-[1440px] flex flex-col gap-6">
+        <!-- Breadcrumbs & Title -->
+        <div class="flex flex-col gap-2">
+            <nav class="flex items-center gap-2 text-sm text-text-secondary">
+                <a class="hover:text-primary transition-colors" href="/">Home</a>
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                @if (!string.IsNullOrEmpty(Model.Search))
+                {
+                    <a class="hover:text-primary transition-colors" href="/products">All Products</a>
+                    <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                    <span class="text-text-main dark:text-white font-medium">Search: @Model.Search</span>
+                }
+                else
+                {
+                    <span class="text-text-main dark:text-white font-medium capitalize">@(string.IsNullOrEmpty(Model.Filter.CategorySlug) ? "All Products" : Model.Filter.CategorySlug.Replace("-", " "))</span>
+                }
+            </nav>
+            <div class="flex flex-wrap items-baseline justify-between gap-4">
+                <h1 class="text-3xl font-bold tracking-tight text-text-main dark:text-white">
+                    @if (!string.IsNullOrEmpty(Model.Search))
+                    {
+                        <span>Results for "@Model.Search"</span>
+                    }
+                    else
+                    {
+                        <span class="capitalize">@(string.IsNullOrEmpty(Model.Filter.CategorySlug) ? "All Products" : Model.Filter.CategorySlug.Replace("-", " "))</span>
+                    }
+                    <span class="text-lg font-normal text-text-secondary ml-2" id="total-count-text">(@Model.Products.TotalCount products)</span>
+                </h1>
+            </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Left Sidebar Filters -->
+            <aside class="w-full lg:w-[260px] flex-shrink-0 lg:sticky lg:top-24 lg:self-start lg:h-[calc(100vh-7rem)] transition-all duration-300">
+                <form id="filter-form" class="bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-5 h-full overflow-y-auto hide-scrollbar">
+                    <input type="hidden" name="page" id="page-number-input" value="1" />
+                    <input type="hidden" name="sort" id="sort-by-input" value="@Model.Sort" />
+                    <input type="hidden" name="viewMode" id="viewMode-input" value="@Model.Filter.ViewMode" />
+                    <input type="hidden" name="search" value="@Model.Search" />
+
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="font-bold text-lg">Filter by</h3>
+                        <button type="button" id="reset-filters-btn" class="text-xs font-medium text-text-secondary hover:text-primary">Reset</button>
+                    </div>
+
+                    <!-- Brand Filter -->
+                    @if (Model.Sidebar.Brands.Any())
+                    {
+                        <div class="mb-3">
+                            <button type="button" data-filter-toggle class="flex items-center justify-between w-full mb-2 group">
+                                <span class="font-semibold text-sm">Brand</span>
+                                <span class="material-symbols-outlined text-[20px] text-text-secondary group-hover:text-primary transition-transform duration-200">expand_less</span>
+                            </button>
+                            <div data-filter-body class="space-y-2.5 px-1 transition-all duration-300" style="overflow: visible;">
+                                @foreach (var brand in Model.Sidebar.Brands)
+                                {
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <input type="checkbox" name="brand" value="@brand.Slug" class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/20 filter-checkbox" 
+                                               @(Model.Filter.BrandSlugs?.Contains(brand.Slug) == true ? "checked" : "") />
+                                        <span class="text-sm text-text-secondary group-hover:text-text-main dark:group-hover:text-white transition-colors">@brand.Name</span>
+                                        <span class="ml-auto text-xs text-text-secondary">@brand.ProductCount</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                        <div class="w-full h-px bg-border-light dark:bg-border-dark mb-3"></div>
+                    }
+
+                    <!-- Price Range -->
+                    <div class="mb-3">
+                        <button type="button" data-filter-toggle class="flex items-center justify-between w-full mb-2 group">
+                            <span class="font-semibold text-sm">Price (VND)</span>
+                            <span class="material-symbols-outlined text-[20px] text-text-secondary group-hover:text-primary transition-transform duration-200">expand_less</span>
+                        </button>
+                        <div data-filter-body class="transition-all duration-300" style="overflow: visible;">
+                        
+                        <!-- Dual Range Slider -->
+                        <div class="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-8 mt-2 mx-3">
+                            <div id="price-slider-track" class="absolute h-full bg-primary rounded-full z-10" style="left: 0%; right: 0%;"></div>
+                            <input type="range" id="price-min-range" min="0" max="100000000" step="500000" value="@(Model.Filter.MinPrice ?? 0)" 
+                                   class="absolute w-full h-full opacity-0 z-30 bg-transparent dual-slider-input m-0 cursor-pointer" />
+                            <input type="range" id="price-max-range" min="0" max="100000000" step="500000" value="@(Model.Filter.MaxPrice ?? 100000000)" 
+                                   class="absolute w-full h-full opacity-0 z-30 bg-transparent dual-slider-input m-0 cursor-pointer" />
+                            
+                            <!-- Custom Thumb Visuals -->
+                            <div id="thumb-min" class="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 border-primary rounded-full shadow-md z-20 pointer-events-none -ml-2.5"></div>
+                            <div id="thumb-max" class="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 border-primary rounded-full shadow-md z-20 pointer-events-none -ml-2.5"></div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex flex-col gap-1 w-full text-center">
+                                <span class="text-[10px] text-text-secondary font-medium">Min</span>
+                                <input type="hidden" name="minPrice" id="min-price-hidden" value="@Model.MinPrice" />
+                                <div id="min-price-display" class="bg-background-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-1 py-1.5 text-[11px] font-bold w-full truncate">
+                                    @(Model.Filter.MinPrice?.ToString("N0") ?? "0")
+                                </div>
+                            </div>
+                            <span class="text-text-secondary mt-4 font-bold">-</span>
+                            <div class="flex flex-col gap-1 w-full text-center">
+                                <span class="text-[10px] text-text-secondary font-medium">Max</span>
+                                <input type="hidden" name="maxPrice" id="max-price-hidden" value="@Model.MaxPrice" />
+                                <div id="max-price-display" class="bg-background-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded px-1 py-1.5 text-[11px] font-bold w-full truncate">
+                                    @(Model.Filter.MaxPrice?.ToString("N0") ?? "100M+")
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="w-full h-px bg-border-light dark:bg-border-dark mb-3"></div>
+
+                    <!-- Dynamic Attributes -->
+                    @foreach (var attr in Model.Sidebar.Attributes)
+                    {
+                        <div class="mb-3">
+                            <button type="button" data-filter-toggle class="flex items-center justify-between w-full mb-2 group">
+                                <span class="font-semibold text-sm">@attr.Name</span>
+                                <span class="material-symbols-outlined text-[20px] text-text-secondary group-hover:text-primary transition-transform duration-200">expand_less</span>
+                            </button>
+                            <div data-filter-body class="flex flex-wrap gap-2 overflow-hidden transition-all duration-300">
+                                @foreach (var val in attr.Values)
+                                {
+                                    bool isChecked = Model.Filter.Attributes != null 
+                                                     && Model.Filter.Attributes.ContainsKey(attr.Name) 
+                                                     && Model.Filter.Attributes[attr.Name].Contains(val.Value);
+
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" name="@attr.Name" value="@val.Value" class="peer sr-only filter-checkbox" @(isChecked ? "checked" : "") />
+                                        <div class="px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-xs font-medium text-text-secondary peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:border-primary transition-all">
+                                            @val.Value
+                                        </div>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                        <div class="w-full h-px bg-border-light dark:bg-border-dark mb-3"></div>
+                    }
+
+                    <!-- Availability Toggle -->
+                    <div class="flex items-center justify-between py-2">
+                        <span class="font-semibold text-sm">In Stock Only</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="inStock" value="true" class="sr-only peer filter-checkbox" @(Model.Filter.InStockOnly == true ? "checked" : "") />
+                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+
+                </form>
+            </aside>
+
+            <!-- Product Grid Area -->
+            <div class="flex-1 flex flex-col gap-6">
+                <!-- Sorting & View Options -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-surface-dark p-2 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
+                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 px-2 sort-container">
+                        <span class="text-sm font-medium text-text-secondary whitespace-nowrap mr-2">Sort by:</span>
+                        
+                        <button type="button" data-sort="popular" class="sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors @(string.IsNullOrEmpty(Model.Sort) || Model.Sort == "popular" ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-background-light dark:hover:bg-gray-800")">Popular</button>
+                        
+                        <button type="button" data-sort="newest" class="sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors @(Model.Sort == "newest" ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-background-light dark:hover:bg-gray-800")">Newest</button>
+                        
+                        <button type="button" data-sort="price_asc" class="sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors @(Model.Sort == "price_asc" ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-background-light dark:hover:bg-gray-800")">Price: Low-High</button>
+                        
+                        <button type="button" data-sort="price_desc" class="sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors @(Model.Sort == "price_desc" ? "bg-primary/10 text-primary" : "text-text-secondary hover:bg-background-light dark:hover:bg-gray-800")">Price: High-Low</button>
+                    </div>
+                    
+                    <div class="flex items-center gap-1 border-l border-border-light dark:border-border-dark pl-2 sm:pl-4">
+                        <button type="button" data-view="grid" class="view-btn p-1.5 rounded transition-all @(Model.Filter.ViewMode == "grid" ? "text-primary bg-primary/10" : "text-text-secondary hover:bg-background-light dark:hover:bg-gray-800")" title="Grid View">
+                            <span class="material-symbols-outlined text-[20px]">grid_view</span>
+                        </button>
+                        <button type="button" data-view="list" class="view-btn p-1.5 rounded transition-all @(Model.Filter.ViewMode == "list" ? "text-primary bg-primary/10" : "text-text-secondary hover:bg-background-light dark:hover:bg-gray-800")" title="List View">
+                            <span class="material-symbols-outlined text-[20px]">view_list</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Products Grid -->
+                <div id="product-grid" class="@(Model.Filter.ViewMode == "list" ? "flex flex-col gap-4" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6")">
+                    @await Html.PartialAsync("_ProductGridPartial", Model.Products.Items, new ViewDataDictionary(ViewData) { { "ViewMode", Model.Filter.ViewMode } })
+                </div>
+
+                <!-- Infinite Scroll Loading Indicator -->
+                <div id="loading-indicator" class="hidden mt-8 flex justify-center py-4">
+                    <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                        <span class="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                    </div>
+                </div>
+                
+                <div id="no-more-products" data-total-pages="@Model.Products.TotalPages" class="@(Model.Products.PageNumber >= Model.Products.TotalPages ? "block" : "hidden") text-center text-text-secondary mt-8 py-4">
+                    You've reached the end of the list.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Compare Bar (Premium Upgrade) -->
+    <div id="compare-bar" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) transform translate-y-40 opacity-0 pointer-events-none scale-95">
+        <div class="relative group">
+            <div class="absolute inset-0 bg-primary/20 rounded-3xl blur-2xl group-hover:bg-primary/30 transition-all duration-500"></div>
+            
+            <div class="relative bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-white/20 dark:border-slate-800/50 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex items-center p-3 sm:p-4 gap-4 sm:gap-8 min-w-[300px] sm:min-w-[450px]">
+                <div class="flex items-center gap-4 pl-2">
+                    <div class="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/30 rotate-3">
+                        <span class="material-symbols-outlined text-[24px]">compare_arrows</span>
+                    </div>
+                    <div class="hidden sm:flex flex-col">
+                        <span class="text-[10px] font-black text-primary uppercase tracking-[0.2em] leading-none mb-1">Vault</span>
+                        <span id="compare-count" class="text-sm font-bold text-slate-900 dark:text-white whitespace-nowrap">0/4 Selected</span>
+                    </div>
+                </div>
+
+                <div id="compare-items-container" class="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-smooth px-2 border-x border-slate-200/50 dark:border-slate-700/50 max-w-[120px] sm:max-w-[280px]">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-300">
+                         <span class="material-symbols-outlined text-[18px]">add</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-4 pr-1">
+                    <button id="clear-compare-btn" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-all" title="Clear All">
+                        <span class="material-symbols-outlined text-[20px]">delete_sweep</span>
+                    </button>
+                    <button id="compare-now-btn" class="relative group/btn overflow-hidden bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-30 disabled:pointer-events-none disabled:shadow-none" disabled>
+                        <span class="relative z-10 flex items-center gap-2">
+                            Compare
+                            <span class="material-symbols-outlined text-[18px]">bolt</span>
+                        </span>
+                        <div class="absolute inset-0 bg-gradient-to-r from-primary to-indigo-600 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let currentPage = @Model.Products.PageNumber;
+            let totalPages = @Model.Products.TotalPages;
+            let isLoading = false;
+            
+            const form = document.getElementById('filter-form');
+            const grid = document.getElementById('product-grid');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const noMoreProducts = document.getElementById('no-more-products');
+
+            // Handle sorting clicks
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Update active styling
+                    document.querySelectorAll('.sort-btn').forEach(b => {
+                        b.className = "sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors text-text-secondary hover:bg-background-light dark:hover:bg-gray-800";
+                    });
+                    this.className = "sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors bg-primary/10 text-primary";
+                    
+                    // Update input and submit
+                    document.getElementById('sort-by-input').value = this.dataset.sort;
+                    applyFilters();
+                });
+            });
+
+            // Handle view toggle
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const view = this.dataset.view;
+                    localStorage.setItem('catalogViewMode', view);
+                    document.getElementById('viewMode-input').value = view;
+                    
+                    // Update UI buttons
+                    document.querySelectorAll('.view-btn').forEach(b => {
+                        b.classList.remove('text-primary', 'bg-primary/10');
+                        b.classList.add('text-text-secondary');
+                    });
+                    this.classList.add('text-primary', 'bg-primary/10');
+                    this.classList.remove('text-text-secondary');
+
+                    // Immediate UI switch for better UX container
+                    if (view === 'list') {
+                        grid.className = "flex flex-col gap-4";
+                    } else {
+                        grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6";
+                    }
+                    
+                    applyFilters(); // Trigger AJAX so server replaces grid with newly rendered list/grid items
+                });
+            });
+            
+            // Restore View Mode on load
+            const savedView = localStorage.getItem('catalogViewMode');
+            if (savedView && savedView !== document.getElementById('viewMode-input').value) {
+                // Initial load: the server defaults to 'grid' or query params. 
+                // If local storage is different and we haven't synced yet, we hit the toggle.
+                document.querySelector(`.view-btn[data-view="${savedView}"]`)?.click();
+            }
+
+            // Handle checkbox changes for auto-submission
+            document.querySelectorAll('.filter-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    applyFilters();
+                });
+            });
+
+            // Intercept Layout Category Links for AJAX filtering
+            document.querySelectorAll('.category-nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // Check if we are already on the Browse page path (now starts with /products)
+                    if (window.location.pathname.toLowerCase().startsWith('/products')) {
+                        e.preventDefault();
+                        
+                        const slug = this.dataset.categorySlug;
+                        const newPath = slug ? `/products/${slug}` : `/products`;
+                        
+                        // Push new URL without query history first, we will apply filters which will replaceState/pushState
+                        window.history.pushState({path: newPath}, '', newPath);
+
+                        // Update Active Styling in Layout Nav
+                        document.querySelectorAll('.category-nav-link').forEach(navLink => {
+                            navLink.classList.remove('text-primary', 'border-b-2', 'border-primary', 'font-bold', 'bg-gray-50');
+                            
+                            if (navLink.classList.contains('block')) {
+                                // Subcategory link
+                                navLink.classList.add('text-gray-700');
+                            } else {
+                                // Top level link
+                                navLink.classList.add('text-text-secondary', 'border-b-2', 'border-transparent');
+                            }
+                        });
+
+                        // Currently active link logic
+                        this.classList.remove('text-text-secondary', 'border-transparent', 'text-gray-700');
+                        if (this.classList.contains('block')) {
+                           this.classList.add('text-primary', 'font-bold', 'bg-gray-50');
+                           // Make parent active too
+                           var parentLink = this.closest('.group')?.querySelector('a:not(.block)');
+                           if (parentLink) {
+                               parentLink.classList.remove('text-text-secondary', 'border-transparent');
+                               parentLink.classList.add('text-primary', 'border-primary', 'border-b-2');
+                           }
+                        } else {
+                           this.classList.add('text-primary', 'border-b-2', 'border-primary');
+                        }
+
+                        // We delay applyFilters slightly to ensure DOM inputs are ready, 
+                        // but immediately update title / breadcrumb text
+                        const titleText = slug ? slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : "All Products";
+                        document.querySelector('h1').childNodes[0].nodeValue = titleText + " ";
+                        document.querySelector('nav .text-text-main').textContent = titleText;
+
+                        // Clear checkboxes when switching categories
+                        document.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = false);
+
+                        applyFilters();
+                    }
+                });
+            });
+
+            function initPriceSlider() {
+                const minRange = document.getElementById('price-min-range');
+                const maxRange = document.getElementById('price-max-range');
+                const minDisplay = document.getElementById('min-price-display');
+                const maxDisplay = document.getElementById('max-price-display');
+                const minHidden = document.getElementById('min-price-hidden');
+                const maxHidden = document.getElementById('max-price-hidden');
+                const track = document.getElementById('price-slider-track');
+                const thumbMin = document.getElementById('thumb-min');
+                const thumbMax = document.getElementById('thumb-max');
+                
+                if (!minRange || !maxRange) return;
+
+                const gap = 5000000; // 5M gap between handles
+
+                function updateSlider() {
+                    const minVal = parseInt(minRange.value);
+                    const maxVal = parseInt(maxRange.value);
+                    const maxTotal = parseInt(minRange.max);
+
+                    const minPercent = (minVal / maxTotal) * 100;
+                    const maxPercent = (maxVal / maxTotal) * 100;
+
+                    track.style.left = minPercent + '%';
+                    track.style.right = (100 - maxPercent) + '%';
+                    thumbMin.style.left = minPercent + '%';
+                    thumbMax.style.left = maxPercent + '%';
+
+                    minDisplay.innerText = minVal.toLocaleString('vi-VN') + ' VND';
+                    maxDisplay.innerText = maxVal === maxTotal ? '100M+ VND' : maxVal.toLocaleString('vi-VN') + ' VND';
+                    
+                    minHidden.value = minVal;
+                    maxHidden.value = maxVal === maxTotal ? "" : maxVal;
+                }
+
+                updateSlider();
+                let priceTimeout;
+
+                minRange.addEventListener('input', () => {
+                    const minVal = parseInt(minRange.value);
+                    const maxVal = parseInt(maxRange.value);
+                    if (maxVal - minVal <= gap) {
+                        minRange.value = maxVal - gap;
+                    }
+                    minRange.style.zIndex = 31;
+                    maxRange.style.zIndex = 30;
+                    updateSlider();
+                });
+                minRange.addEventListener('change', () => {
+                    clearTimeout(priceTimeout);
+                    priceTimeout = setTimeout(applyFilters, 500);
+                });
+
+                maxRange.addEventListener('input', () => {
+                    const minVal = parseInt(minRange.value);
+                    const maxVal = parseInt(maxRange.value);
+                    if (maxVal - minVal <= gap) {
+                        maxRange.value = minVal + gap;
+                    }
+                    maxRange.style.zIndex = 31;
+                    minRange.style.zIndex = 30;
+                    updateSlider();
+                });
+                maxRange.addEventListener('change', () => {
+                    clearTimeout(priceTimeout);
+                    priceTimeout = setTimeout(applyFilters, 500);
+                });
+
+                // Clear old reset listeners by cloning
+                const resetBtn = document.getElementById('reset-filters-btn');
+                if (resetBtn) {
+                    const newResetBtn = resetBtn.cloneNode(true);
+                    resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
+                    newResetBtn.addEventListener('click', function() {
+                        document.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = false);
+                        minRange.value = 0;
+                        maxRange.value = maxTotal;
+                        updateSlider();
+                        
+                        document.getElementById('sort-by-input').value = 'popular';
+                        document.querySelectorAll('.sort-btn').forEach(b => {
+                            b.className = b.dataset.sort === 'popular' 
+                                ? "sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors bg-primary/10 text-primary"
+                                : "sort-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors text-text-secondary hover:bg-background-light dark:hover:bg-gray-800";
+                        });
+                        applyFilters();
+                    });
+                }
+            }
+
+            initPriceSlider();
+
+            // -- Filter expand / collapse -------------------------------------
+            function initFilterToggles() {
+                document.querySelectorAll('[data-filter-toggle]').forEach(btn => {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+
+                    const body = newBtn.nextElementSibling;
+                    if (!body || !body.hasAttribute('data-filter-body')) return;
+
+                    const icon = newBtn.querySelector('.material-symbols-outlined');
+                    let collapsed = false;
+
+                    // Save original overflow so we can restore it on expand
+                    const originalOverflow = body.style.overflow || getComputedStyle(body).overflow;
+
+                    // Initialize as expanded naturally
+                    body.style.maxHeight = 'none';
+                    body.style.opacity = '1';
+
+                    newBtn.addEventListener('click', () => {
+                        collapsed = !collapsed;
+                        if (collapsed) {
+                            // Set exact height before animating to 0
+                            body.style.maxHeight = body.scrollHeight + 'px';
+                            // Force reflow
+                            void body.offsetHeight;
+                            // Must set overflow:hidden BEFORE shrinking so content clips
+                            body.style.overflow = 'hidden';
+                            body.style.maxHeight = '0px';
+                            body.style.opacity   = '0';
+                            if (icon) icon.style.transform = 'rotate(180deg)';
+                        } else {
+                            body.style.maxHeight = body.scrollHeight + 'px';
+                            body.style.opacity   = '1';
+                            if (icon) icon.style.transform = 'rotate(0deg)';
+                            // Restore original overflow and natural height after transition ends
+                            body.addEventListener('transitionend', () => {
+                                if (!collapsed) {
+                                    body.style.overflow = originalOverflow;
+                                    body.style.maxHeight = 'none';
+                                }
+                            }, { once: true });
+                        }
+                    });
+                });
+            }
+
+            initFilterToggles();
+
+            function applyFilters() {
+                // Reset to page 1 for new filters
+                currentPage = 1;
+                document.getElementById('page-number-input').value = 1;
+                noMoreProducts.classList.add('hidden');
+                
+                const formData = new FormData(form);
+                
+                // Build clean query string manually from formData
+                const urlParams = new URLSearchParams();
+                for (const [key, value] of formData.entries()) {
+                    if (value && value !== "" && value !== "0" && !(key === 'page' && value === '1') && !(key === 'sort' && value === 'popular')) {
+                        // For maxPrice, we might have empty value if it's 100M+
+                        if (key === 'maxPrice' && !value) continue;
+                        urlParams.append(key, value);
+                    }
+                }
+                const queryString = urlParams.toString();
+                
+                // Update URL without reloading
+                const newUrl = window.location.pathname + (queryString ? '?' + queryString : '');
+                window.history.pushState({path: newUrl}, '', newUrl);
+
+                // Fetch new data (Products and Sidebar)
+                grid.style.opacity = '0.5';
+                
+                // For category switching we also need to update the sidebar.
+                // We will fetch the full page via XHR and extract the grid and sidebar.
+                fetch(newUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(response => response.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        
+                        // Update grid
+                        const newGrid = doc.getElementById('product-grid');
+                        if (newGrid) {
+                            grid.innerHTML = newGrid.innerHTML;
+                            updateCompareBar();
+                        }
+
+                        // Extract TotalPages from doc via data attribute
+                        const newNoMore = doc.getElementById('no-more-products');
+                        if (newNoMore) {
+                            const newTotalPages = parseInt(newNoMore.dataset.totalPages);
+                            if (!isNaN(newTotalPages)) {
+                                totalPages = newTotalPages;
+                            }
+                            // replace the element completely to keep state correct
+                            const oldNoMore = document.getElementById('no-more-products');
+                            if (oldNoMore) {
+                                oldNoMore.parentNode.replaceChild(newNoMore, oldNoMore);
+                            }
+                        }
+
+                        setupObserver();
+
+                        // Update sidebar
+                        const newSidebar = doc.getElementById('filter-form');
+                        if (newSidebar) {
+                            const currentSidebar = document.getElementById('filter-form');
+                            // Replace innerHTML to keep event listeners on the form itself, 
+                            // BUT we need to rebind listeners to new checkboxes!
+                            currentSidebar.innerHTML = newSidebar.innerHTML;
+                            rebindSidebarEvents();
+                        }
+
+                        // Update total count
+                        const newCount = doc.getElementById('total-count-text');
+                        if (newCount) {
+                            document.getElementById('total-count-text').textContent = newCount.textContent;
+                        }
+
+                        grid.style.opacity = '1';
+                    })
+                    .catch(err => {
+                        console.error("Filter error", err);
+                        grid.style.opacity = '1';
+                    });
+            }
+
+            function rebindSidebarEvents() {
+                 document.querySelectorAll('.filter-checkbox').forEach(cb => {
+                    cb.addEventListener('change', function() {
+                        applyFilters();
+                    });
+                });
+                
+                initPriceSlider();
+                initFilterToggles();
+            }
+
+            // Infinite Scroll setup
+            const loadMoreData = () => {
+                if (isLoading || currentPage >= totalPages) return;
+                
+                isLoading = true;
+                currentPage++;
+                document.getElementById('page-number-input').value = currentPage;
+                loadingIndicator.classList.remove('hidden');
+
+                const formData = new FormData(form);
+                
+                // Build clean query string
+                const urlParams = new URLSearchParams();
+                for (const [key, value] of formData.entries()) {
+                    if (value && value !== "") {
+                        if (key === 'maxPrice' && !value) continue;
+                        urlParams.append(key, value);
+                    }
+                }
+                const queryString = urlParams.toString();
+
+                fetch(window.location.pathname + '?handler=LoadMore&' + queryString)
+                    .then(response => response.text())
+                    .then(html => {
+                        loadingIndicator.classList.add('hidden');
+                        if (html.trim() === '') {
+                            totalPages = currentPage; // Done
+                            noMoreProducts.classList.remove('hidden');
+                        } else {
+                            grid.insertAdjacentHTML('beforeend', html);
+                            updateCompareBar();
+                        }
+                        isLoading = false;
+                    })
+                    .catch(err => {
+                        console.error('Pagination error', err);
+                        loadingIndicator.classList.add('hidden');
+                        isLoading = false;
+                        currentPage--; // Revert
+                    });
+            };
+
+            // Intersection Observer for Infinite Scroll
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMoreData();
+                }
+            }, { rootMargin: '200px' });
+
+            function setupObserver() {
+                // Remove old sentinel if exists
+                const oldSentinel = document.getElementById('scroll-sentinel');
+                if (oldSentinel) {
+                    observer.unobserve(oldSentinel);
+                    oldSentinel.remove();
+                }
+
+                const noMoreEl = document.getElementById('no-more-products');
+                if (noMoreEl && currentPage < totalPages) {
+                    const sentinel = document.createElement('div');
+                    sentinel.id = 'scroll-sentinel';
+                    sentinel.style.height = '1px';
+                    noMoreEl.parentNode.insertBefore(sentinel, noMoreEl);
+                    observer.observe(sentinel);
+                }
+            }
+            
+            setupObserver();
+            // Product comparison logic
+            let selectedProducts = normalizeCompareList(JSON.parse(localStorage.getItem('gearzone_compare_list') || '[]'));
+            const compareBar = document.getElementById('compare-bar');
+            const compareContainer = document.getElementById('compare-items-container');
+            const compareCount = document.getElementById('compare-count');
+            const compareNowBtn = document.getElementById('compare-now-btn');
+            const clearCompareBtn = document.getElementById('clear-compare-btn');
+
+            function normalizeCompareList(items) {
+                if (!Array.isArray(items) || items.length === 0) {
+                    return [];
+                }
+
+                const uniqueItems = [];
+                const seenIds = new Set();
+                const lockedCategoryId = String(items[0].categoryId || '');
+
+                items.forEach(item => {
+                    if (!item || !item.id || seenIds.has(item.id) || String(item.categoryId || '') !== lockedCategoryId) {
+                        return;
+                    }
+
+                    seenIds.add(item.id);
+                    uniqueItems.push({
+                        id: item.id,
+                        name: item.name,
+                        image: item.image,
+                        categoryId: String(item.categoryId || '')
+                    });
+                });
+
+                return uniqueItems.slice(0, 4);
+            }
+
+            function canUseCategory(categoryId) {
+                if (selectedProducts.length === 0) {
+                    return true;
+                }
+
+                const currentCategoryId = String(categoryId || '');
+                const compareCategoryId = String(selectedProducts[0].categoryId || '');
+                if (currentCategoryId === compareCategoryId) {
+                    return true;
+                }
+
+                if (confirm('Comparison only works for products in the same category. Clear the current comparison list and start a new one?')) {
+                    selectedProducts = [];
+                    return true;
+                }
+
+                return false;
+            }
+
+            function updateCompareBar() {
+                selectedProducts = normalizeCompareList(selectedProducts);
+
+                document.querySelectorAll('.compare-checkbox').forEach(cb => {
+                    cb.checked = selectedProducts.some(p => p.id === cb.dataset.productId);
+                });
+
+                if (selectedProducts.length > 0) {
+                    compareBar.classList.remove('translate-y-40', 'opacity-0', 'pointer-events-none', 'scale-95');
+                    compareBar.classList.add('translate-y-0', 'opacity-100', 'scale-100');
+                } else {
+                    compareBar.classList.add('translate-y-40', 'opacity-0', 'pointer-events-none', 'scale-95');
+                    compareBar.classList.remove('translate-y-0', 'opacity-100', 'scale-100');
+                }
+
+                compareCount.innerText = `${selectedProducts.length}/4 selected`;
+                compareNowBtn.disabled = selectedProducts.length < 2;
+
+                compareContainer.innerHTML = selectedProducts.map(p => `
+                    <div class="relative group/item flex-shrink-0 animate-in zoom-in-75 duration-300">
+                        <div class="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl p-1.5 border border-slate-200 dark:border-slate-700 shadow-sm group-hover/item:shadow-md transition-all">
+                            <img src="${p.image}" class="w-full h-full rounded-xl object-contain" title="${p.name}">
+                        </div>
+                        <button class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg shadow-red-500/30 opacity-100 sm:opacity-0 group-hover/item:opacity-100 group-hover/item:scale-110 transition-all remove-compare-item" data-id="${p.id}">
+                            <span class="material-symbols-outlined text-[14px] font-bold">close</span>
+                        </button>
+                    </div>
+                `).join('');
+
+                for (let i = selectedProducts.length; i < 4; i++) {
+                    compareContainer.innerHTML += `
+                        <div class="flex-shrink-0 w-14 h-14 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800/50 flex items-center justify-center text-slate-200 dark:text-slate-800 transition-colors">
+                             <span class="material-symbols-outlined text-[18px]">add</span>
+                        </div>
+                    `;
+                }
+
+                localStorage.setItem('gearzone_compare_list', JSON.stringify(selectedProducts));
+
+                document.querySelectorAll('.remove-compare-item').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        selectedProducts = selectedProducts.filter(p => p.id !== this.dataset.id);
+                        updateCompareBar();
+                    });
+                });
+            }
+
+            updateCompareBar();
+
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('compare-checkbox')) {
+                    const cb = e.target;
+                    const categoryId = cb.dataset.categoryId;
+
+                    if (cb.checked) {
+                        if (!canUseCategory(categoryId)) {
+                            cb.checked = false;
+                            updateCompareBar();
+                            return;
+                        }
+
+                        if (selectedProducts.length >= 4) {
+                            cb.checked = false;
+                            window.showToast?.('warning', 'You can compare up to 4 products at a time.');
+                            return;
+                        }
+
+                        if (!selectedProducts.some(p => p.id === cb.dataset.productId)) {
+                            selectedProducts.push({
+                                id: cb.dataset.productId,
+                                name: cb.dataset.productName,
+                                image: cb.dataset.productImage,
+                                categoryId: String(categoryId || '')
+                            });
+                        }
+                    } else {
+                        selectedProducts = selectedProducts.filter(p => p.id !== cb.dataset.productId);
+                    }
+
+                    updateCompareBar();
+                }
+            });
+
+            clearCompareBtn.addEventListener('click', () => {
+                selectedProducts = [];
+                updateCompareBar();
+            });
+
+            compareNowBtn.addEventListener('click', () => {
+                if (selectedProducts.length < 2) {
+                    return;
+                }
+
+                const ids = selectedProducts.map(p => p.id).join(',');
+                const categoryId = selectedProducts[0].categoryId;
+                window.location.href = `/compare?categoryId=${categoryId}&ids=${ids}`;
+            });
+        });
+    </script>
+}
+
+

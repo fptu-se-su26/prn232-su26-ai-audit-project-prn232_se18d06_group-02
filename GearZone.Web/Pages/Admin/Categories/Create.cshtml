@@ -1,0 +1,570 @@
+@page "/admin/categories/create"
+@model GearZone.Web.Pages.Admin.Categories.CreateModel
+@{
+    ViewData["Title"] = "Add New Category";
+    ViewData["PageHeader"] = "Add New Category";
+    ViewData["ActivePage"] = "Categories";
+    ViewData["Breadcrumb"] = new string[] { "Category Management", "Add New" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col lg:flex-row gap-6 items-start">
+
+    <!-- LEFT COLUMN: Main Form + Attributes -->
+    <div class="flex-1 w-full flex flex-col gap-6">
+
+        <!-- Basic Information Card -->
+        <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+            <div class="h-1 bg-gradient-to-r from-primary to-primary-dark"></div>
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                <div class="p-2 bg-primary/10 rounded-lg">
+                    <span class="material-symbols-outlined text-primary text-[20px]">category</span>
+                </div>
+                <div>
+                    <h2 class="text-base font-semibold text-slate-800">Basic Information</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Fill in the core details for the new category.</p>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="create-category-form" method="post" asp-page-handler="Create" class="space-y-5">
+                    <div asp-validation-summary="ModelOnly" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm hidden [&:not(:empty)]:block"></div>
+
+                    <!-- Hidden field for attributes JSON -->
+                    <input type="hidden" name="AttributesJson" id="AttributesJsonInput" />
+                    <!-- Hidden field for IsActive -->
+                    <input type="hidden" name="Input.IsActive" id="IsActiveHidden" value="true" />
+
+                    <!-- Name -->
+                    <div class="space-y-1.5">
+                        <label asp-for="Input.Name" class="block text-sm font-semibold text-slate-700">
+                            Category Name <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative group">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                <span class="material-symbols-outlined text-xl">category</span>
+                            </span>
+                            <input asp-for="Input.Name" id="category-name-input" placeholder="e.g. Graphics Card (GPU)"
+                                   class="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none" />
+                        </div>
+                        <span asp-validation-for="Input.Name" class="text-xs text-red-500"></span>
+                        <p class="text-xs text-slate-400">This is how the category will appear on the storefront.</p>
+                    </div>
+
+                    <!-- Slug -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <label asp-for="Input.Slug" class="block text-sm font-semibold text-slate-700">
+                                Slug <span class="text-red-500">*</span>
+                            </label>
+                            <button type="button" id="auto-slug-btn" class="text-xs font-medium text-primary hover:text-primary-dark transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">auto_fix</span> Auto-generate
+                            </button>
+                        </div>
+                        <div class="relative group">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                <span class="material-symbols-outlined text-xl">link</span>
+                            </span>
+                            <input asp-for="Input.Slug" id="category-slug-input" placeholder="e.g. card-do-hoa-gpu"
+                                   class="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm font-mono focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none" />
+                        </div>
+                        <span asp-validation-for="Input.Slug" class="text-xs text-red-500"></span>
+                        <div class="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                            <span class="material-symbols-outlined text-slate-400 text-[16px]">link</span>
+                            <span class="text-xs text-slate-500 font-mono">gearzone.vn/category/<span id="slug-preview" class="font-semibold text-slate-700">...</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Parent Category -->
+                    <div class="space-y-1.5">
+                        <label asp-for="Input.ParentId" class="block text-sm font-semibold text-slate-700">Parent Category</label>
+                        <div class="relative group">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors z-10">
+                                <span class="material-symbols-outlined text-xl">account_tree</span>
+                            </span>
+                            <select asp-for="Input.ParentId" id="parent-category-select"
+                                    class="appearance-none w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-10 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none cursor-pointer">
+                                <option value="">None (Root Category)</option>
+                                @if (Model.AllCategories != null)
+                                {
+                                    foreach (var cat in Model.AllCategories)
+                                    {
+                                        <option value="@cat.Id">@cat.Name</option>
+                                    }
+                                }
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                                <span class="material-symbols-outlined text-[20px]">expand_more</span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Category Attributes Card -->
+        <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+            <div class="h-1 bg-gradient-to-r from-primary/60 to-primary"></div>
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-primary/10 rounded-lg">
+                        <span class="material-symbols-outlined text-primary text-[20px]">tune</span>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-800">Category Attributes</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Define filters and specs for products in this category.</p>
+                    </div>
+                </div>
+                <button type="button" id="add-attribute-btn"
+                        class="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-semibold transition-all shadow-sm shadow-primary/30">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    Add Attribute
+                </button>
+            </div>
+
+            <!-- Attributes List -->
+            <div id="attributes-container" class="divide-y divide-slate-100">
+                <div id="empty-attributes-state" class="flex flex-col items-center justify-center py-14 text-slate-400">
+                    <div class="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-3xl text-primary/40">tune</span>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-600">No attributes yet</p>
+                    <p class="text-xs mt-1 text-slate-400">Click "Add Attribute" to define category-specific filters.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Status & Actions -->
+    <div class="w-full lg:w-80 flex flex-col gap-6 lg:sticky lg:top-0">
+
+        <!-- Status Card -->
+        <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+            <div class="h-1 bg-gradient-to-r from-green-400 to-emerald-500"></div>
+            <div class="p-5">
+                <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-slate-400">visibility</span>
+                    Status &amp; Visibility
+                </h2>
+                <div class="space-y-2.5">
+                    <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all has-[:checked]:border-green-300 has-[:checked]:bg-green-50/70 border-slate-200 hover:border-slate-300">
+                        <input type="radio" name="statusRadio" value="active" checked
+                               class="h-4 w-4 text-green-500 focus:ring-green-400 border-slate-300 cursor-pointer"
+                               onchange="document.getElementById('IsActiveHidden').value='true'" />
+                        <span class="flex items-center gap-2.5">
+                            <span class="w-2 h-2 rounded-full bg-green-500 ring-2 ring-green-500/30"></span>
+                            <span class="text-sm font-semibold text-slate-800">Active</span>
+                        </span>
+                        <span class="ml-auto text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 font-medium">Visible</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all has-[:checked]:border-slate-300 has-[:checked]:bg-slate-50 border-slate-200 hover:border-slate-300">
+                        <input type="radio" name="statusRadio" value="inactive"
+                               class="h-4 w-4 text-slate-400 focus:ring-slate-300 border-slate-300 cursor-pointer"
+                               onchange="document.getElementById('IsActiveHidden').value='false'" />
+                        <span class="flex items-center gap-2.5">
+                            <span class="w-2 h-2 rounded-full bg-slate-400 ring-2 ring-slate-400/30"></span>
+                            <span class="text-sm font-semibold text-slate-800">Inactive</span>
+                        </span>
+                        <span class="ml-auto text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 font-medium">Hidden</span>
+                    </label>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Category Path</p>
+                    <div class="flex flex-wrap items-center gap-1 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                        <span class="material-symbols-outlined text-[14px] text-slate-400">home</span>
+                        <span class="material-symbols-outlined text-[12px] text-slate-300">chevron_right</span>
+                        <span id="path-parent-segment" class="hidden text-xs text-slate-600 font-medium"></span>
+                        <span id="path-arrow-segment" class="material-symbols-outlined text-[12px] text-slate-300 hidden">chevron_right</span>
+                        <span id="path-name-segment" class="font-bold text-primary text-xs">[New Category]</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info -->
+        <div class="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/15 p-5">
+            <h3 class="text-sm font-bold text-primary mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">lightbulb</span> Quick Tips
+            </h3>
+            <ul class="space-y-3 text-sm text-slate-600">
+                <li class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                        <span class="material-symbols-outlined text-[12px] text-primary">tune</span>
+                    </span>
+                    <span>Attributes define product filters like "Color", "RAM", or "GPU".</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                        <span class="material-symbols-outlined text-[12px] text-primary">link_off</span>
+                    </span>
+                    <span>Changing the slug later may break existing product links.</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col gap-2.5">
+            <button type="button" id="submit-all-btn"
+                    class="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-3.5 rounded-xl font-bold shadow-lg shadow-primary/30 transition-all hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
+                <span class="material-symbols-outlined text-[20px]">save</span>
+                Create Category
+            </button>
+            <a asp-page="/Admin/Categories/Index"
+               class="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 px-5 py-3 rounded-xl font-semibold border border-slate-200 hover:border-slate-300 transition-all text-sm">
+                <span class="material-symbols-outlined text-[18px]">arrow_back</span> Go Back
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Attribute Row Template (hidden) -->
+<template id="attribute-row-template">
+    <div class="attribute-row" data-expanded="false">
+        <!-- Collapsed header -->
+        <div class="attribute-header flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/80 transition-colors cursor-pointer group/row">
+            <span class="drag-handle text-slate-300 group-hover/row:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
+                <span class="material-symbols-outlined text-[20px]">drag_indicator</span>
+            </span>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="attr-name-display text-sm font-bold text-slate-800">New Attribute</span>
+                    <span class="attr-type-display text-[11px] text-primary/80 bg-primary/10 px-2 py-0.5 rounded-full font-semibold">Checkbox</span>
+                    <span class="attr-options-count text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full font-medium hidden">0 options</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+                <span class="attr-filterable-badge inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-100">
+                    <span class="material-symbols-outlined text-[12px]">check_circle</span> Filterable
+                </span>
+                <button type="button" class="toggle-attr-btn p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors ml-1">
+                    <span class="material-symbols-outlined text-[20px] transform transition-transform">expand_more</span>
+                </button>
+                <button type="button" class="delete-attr-btn p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">delete</span>
+                </button>
+            </div>
+        </div>
+        <!-- Expanded editor -->
+        <div class="attr-editor hidden bg-gradient-to-b from-slate-50/80 to-white border-t border-primary/10 px-5 py-5 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Attribute Name <span class="text-red-400">*</span></label>
+                    <input type="text" class="attr-name-input w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all placeholder:text-slate-300" placeholder="e.g. GPU Architecture" />
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Input Type</label>
+                    <div class="relative">
+                        <select class="attr-type-input appearance-none w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-8 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all cursor-pointer">
+                            <option value="Checkbox">Checkbox</option>
+                            <option value="Radio">Radio</option>
+                            <option value="Select">Select</option>
+                            <option value="Text">Text</option>
+                            <option value="NumberRange">Number Range</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                            <span class="material-symbols-outlined text-[18px]">expand_more</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filterable toggle -->
+            <label class="inline-flex items-center gap-3 cursor-pointer bg-white rounded-xl border border-slate-200 px-4 py-3 hover:border-primary/30 transition-colors">
+                <div class="relative">
+                    <input type="checkbox" class="attr-filterable-input sr-only peer" checked />
+                    <div class="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-sm"></div>
+                </div>
+                <span class="text-sm font-semibold text-slate-700">Use as storefront filter</span>
+                <span class="ml-auto text-xs text-slate-400">Enables product filtering on this attribute</span>
+            </label>
+
+            <!-- Options manager -->
+            <div class="options-section space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[14px]">list</span>
+                        Options <span class="options-count text-primary font-extrabold"></span>
+                    </label>
+                    <span class="text-xs text-slate-400 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[13px]">drag_indicator</span> Drag to reorder
+                    </span>
+                </div>
+                <div class="options-list flex flex-wrap gap-2 min-h-[40px] p-2 rounded-xl bg-white border border-dashed border-slate-200">
+                    <!-- options populated dynamically -->
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" class="new-option-input flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all placeholder:text-slate-300" placeholder="Type option value and press Enter..." />
+                    <button type="button" class="add-option-btn flex items-center gap-1 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-bold transition-all shadow-sm shadow-primary/20">
+                        <span class="material-symbols-outlined text-[16px]">add</span> Add
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            // Show validation errors as toasts
+            @if (!ModelState.IsValid)
+            {
+                foreach (var modelState in ModelState.Values)
+                {
+                    foreach (var error in modelState.Errors)
+                    {
+                        <text>window.showToast?.('error', "@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(error.ErrorMessage))");</text>
+                    }
+                }
+            }
+        });
+
+        // ── Slug helpers ──────────────────────────────────────────────────────────
+        function toSlug(t) {
+            return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\u0111\u0110]/g, 'd').replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        }
+        const nameInput = document.getElementById('category-name-input');
+        const slugInput = document.getElementById('category-slug-input');
+        const slugPreview = document.getElementById('slug-preview');
+        const pathNameSegment = document.getElementById('path-name-segment');
+        const pathParentSegment = document.getElementById('path-parent-segment');
+        const pathArrowSegment = document.getElementById('path-arrow-segment');
+        const parentSelect = document.getElementById('parent-category-select');
+
+        nameInput.addEventListener('input', function () {
+            const slug = toSlug(this.value);
+            slugInput.value = slug;
+            slugPreview.textContent = slug || '...';
+            pathNameSegment.textContent = this.value || '[New Category]';
+        });
+        slugInput.addEventListener('input', function () { slugPreview.textContent = this.value || '...'; });
+        document.getElementById('auto-slug-btn').addEventListener('click', function () {
+            const slug = toSlug(nameInput.value);
+            slugInput.value = slug;
+            slugPreview.textContent = slug || '...';
+        });
+        parentSelect.addEventListener('change', function () {
+            const hasParent = this.value !== '';
+            if (hasParent) {
+                pathParentSegment.textContent = this.options[this.selectedIndex].text;
+                pathParentSegment.classList.remove('hidden');
+                pathArrowSegment.classList.remove('hidden');
+            } else {
+                pathParentSegment.classList.add('hidden');
+                pathArrowSegment.classList.add('hidden');
+            }
+        });
+
+        // ── Attribute Manager ─────────────────────────────────────────────────────
+        const attrContainer = document.getElementById('attributes-container');
+        const emptyState = document.getElementById('empty-attributes-state');
+        const template = document.getElementById('attribute-row-template');
+        let attrCount = 0;
+
+        function updateEmptyState() {
+            const rows = attrContainer.querySelectorAll('.attribute-row');
+            emptyState.style.display = rows.length === 0 ? 'flex' : 'none';
+        }
+
+        function createOptionChip(value, list) {
+            const chip = document.createElement('div');
+            chip.className = 'option-chip inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full bg-primary/8 border border-primary/20 text-xs text-primary font-semibold shadow-sm cursor-grab active:cursor-grabbing select-none';
+            chip.setAttribute('draggable', 'true');
+            chip.dataset.value = value;
+            chip.innerHTML = `<span class="material-symbols-outlined text-[11px] text-primary/40">drag_indicator</span>
+                              <span class="option-value">${value}</span>
+                              <button type="button" class="remove-option-btn ml-0.5 p-0.5 rounded-full text-primary/30 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                  <span class="material-symbols-outlined text-[14px]">close</span>
+                              </button>`;
+            chip.querySelector('.remove-option-btn').addEventListener('click', () => {
+                chip.remove();
+                updateAttrHeaderCounts(list.closest('.attribute-row'));
+            });
+            // Drag-and-drop for options
+            setupOptionDrag(chip, list);
+            return chip;
+        }
+
+        function setupOptionDrag(chip, list) {
+            chip.addEventListener('dragstart', e => { chip.classList.add('opacity-50'); e.dataTransfer.effectAllowed = 'move'; });
+            chip.addEventListener('dragend', () => chip.classList.remove('opacity-50'));
+            list.addEventListener('dragover', e => {
+                e.preventDefault();
+                const dragging = list.querySelector('.opacity-50');
+                if (!dragging) return;
+                const siblings = [...list.querySelectorAll('.option-chip:not(.opacity-50)')];
+                const next = siblings.find(s => {
+                    const r = s.getBoundingClientRect();
+                    return e.clientX < r.left + r.width / 2;
+                });
+                list.insertBefore(dragging, next || null);
+            });
+        }
+
+        function updateAttrHeaderCounts(row) {
+            const nameVal = row.querySelector('.attr-name-input').value.trim();
+            const typeVal = row.querySelector('.attr-type-input').value;
+            const filterable = row.querySelector('.attr-filterable-input').checked;
+            const optionCount = row.querySelectorAll('.option-chip').length;
+
+            row.querySelector('.attr-name-display').textContent = nameVal || 'New Attribute';
+            row.querySelector('.attr-type-display').textContent = typeVal;
+            const badge = row.querySelector('.attr-filterable-badge');
+            badge.className = filterable
+                ? 'attr-filterable-badge inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-100'
+                : 'attr-filterable-badge inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200';
+            badge.innerHTML = filterable
+                ? '<span class="material-symbols-outlined text-[12px]">check_circle</span> Filterable'
+                : '<span class="material-symbols-outlined text-[12px]">remove_circle</span> No Filter';
+
+            const countBadge = row.querySelector('.attr-options-count');
+            if (optionCount > 0) {
+                countBadge.textContent = optionCount + ' option' + (optionCount > 1 ? 's' : '');
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+        }
+
+        function addAttributeRow(initialData = null) {
+            const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('.attribute-row');
+            attrCount++;
+
+            // Wire up toggle
+            row.querySelector('.attribute-header').addEventListener('click', function (e) {
+                if (e.target.closest('.delete-attr-btn') || e.target.closest('.toggle-attr-btn')) return;
+                toggleEditor(row);
+            });
+            row.querySelector('.toggle-attr-btn').addEventListener('click', () => toggleEditor(row));
+
+            // Delete
+            row.querySelector('.delete-attr-btn').addEventListener('click', () => {
+                row.remove();
+                updateEmptyState();
+            });
+
+            // Name / type / filterable -> update header
+            row.querySelector('.attr-name-input').addEventListener('input', () => updateAttrHeaderCounts(row));
+            row.querySelector('.attr-type-input').addEventListener('change', () => updateAttrHeaderCounts(row));
+            row.querySelector('.attr-filterable-input').addEventListener('change', () => updateAttrHeaderCounts(row));
+
+            // Options
+            const optionsList = row.querySelector('.options-list');
+            const newOptionInput = row.querySelector('.new-option-input');
+            const addOptionBtn = row.querySelector('.add-option-btn');
+
+            function addOption(value) {
+                const v = value.trim();
+                if (!v) return;
+                const chip = createOptionChip(v, optionsList);
+                optionsList.appendChild(chip);
+                updateAttrHeaderCounts(row);
+            }
+
+            addOptionBtn.addEventListener('click', () => {
+                addOption(newOptionInput.value);
+                newOptionInput.value = '';
+                newOptionInput.focus();
+            });
+            newOptionInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); addOption(newOptionInput.value); newOptionInput.value = ''; }
+            });
+
+            // Pre-fill if editing existing
+            if (initialData) {
+                row.querySelector('.attr-name-input').value = initialData.name || '';
+                row.querySelector('.attr-type-input').value = initialData.filterType || 'Checkbox';
+                row.querySelector('.attr-filterable-input').checked = initialData.isFilterable !== false;
+                (initialData.options || []).forEach(o => {
+                    const chip = createOptionChip(o.value, optionsList);
+                    optionsList.appendChild(chip);
+                });
+            }
+
+            // Expand by default for new rows
+            if (!initialData) {
+                setTimeout(() => toggleEditor(row, true), 50);
+            }
+
+            attrContainer.appendChild(clone);
+            updateAttrHeaderCounts(row);
+            updateEmptyState();
+        }
+
+        function toggleEditor(row, forceOpen = null) {
+            const editor = row.querySelector('.attr-editor');
+            const icon = row.querySelector('.toggle-attr-btn .material-symbols-outlined');
+            const isOpen = !editor.classList.contains('hidden');
+            const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
+            if (shouldOpen) {
+                editor.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                editor.classList.add('hidden');
+                icon.style.transform = '';
+            }
+        }
+
+        document.getElementById('add-attribute-btn').addEventListener('click', () => addAttributeRow());
+
+        // ── Row drag-to-reorder ───────────────────────────────────────────────────
+        let draggingRow = null;
+        attrContainer.addEventListener('dragstart', e => {
+            const row = e.target.closest('.attribute-row');
+            if (!row) return;
+            draggingRow = row;
+            row.classList.add('opacity-50');
+        });
+        attrContainer.addEventListener('dragend', () => {
+            if (draggingRow) draggingRow.classList.remove('opacity-50');
+            draggingRow = null;
+        });
+        attrContainer.addEventListener('dragover', e => {
+            e.preventDefault();
+            if (!draggingRow) return;
+            const rows = [...attrContainer.querySelectorAll('.attribute-row:not(.opacity-50)')];
+            const next = rows.find(r => {
+                const rect = r.getBoundingClientRect();
+                return e.clientY < rect.top + rect.height / 2;
+            });
+            attrContainer.insertBefore(draggingRow, next || emptyState);
+        });
+
+        // ── Collect and Submit ────────────────────────────────────────────────────
+        function collectAttributes() {
+            const rows = attrContainer.querySelectorAll('.attribute-row');
+            const attrs = [];
+            rows.forEach(row => {
+                const name = row.querySelector('.attr-name-input').value.trim();
+                if (!name) return;
+                const options = [...row.querySelectorAll('.option-chip')].map((chip, i) => ({
+                    id: 0,
+                    value: chip.dataset.value,
+                    displayOrder: i
+                }));
+                attrs.push({
+                    id: 0,
+                    categoryId: 0,
+                    name,
+                    filterType: row.querySelector('.attr-type-input').value,
+                    isFilterable: row.querySelector('.attr-filterable-input').checked,
+                    displayOrder: 0,
+                    options
+                });
+            });
+            return attrs;
+        }
+
+        document.getElementById('submit-all-btn').addEventListener('click', function () {
+            const attrs = collectAttributes();
+            document.getElementById('AttributesJsonInput').value = JSON.stringify(attrs);
+            document.getElementById('create-category-form').requestSubmit();
+        });
+
+        updateEmptyState();
+    </script>
+}

@@ -1,0 +1,295 @@
+@page "/admin/settings"
+@model GearZone.Web.Pages.Admin.Settings.IndexModel
+@{
+    ViewData["Title"] = "Platform Settings";
+    ViewData["PageHeader"] = "Platform Settings";
+    ViewData["ActivePage"] = "Settings";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Platform Settings" };
+    Layout = "_AdminLayout";
+}
+
+@section Styles {
+    <style>
+        /* Custom toggle switch styling if not already in layout */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #2563EB;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #2563EB;
+        }
+    </style>
+}
+
+<form method="post" class="flex flex-col gap-8 pb-20">
+    <!-- Page Description & Quick Actions -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <p class="text-slate-500 text-sm">Manage global marketplace configurations, payment policies, and security settings.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button type="button" class="px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm">
+                Reset to Default
+            </button>
+            <button type="submit" class="px-4 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">save</span>
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Card 1: Payment Configuration -->
+        <div class="bg-white rounded-xl shadow-card border border-border-light p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-blue-50 rounded-lg text-primary">
+                    <span class="material-symbols-outlined">payments</span>
+                </div>
+                <h3 class="text-lg font-bold text-text-heading">Payment Configuration</h3>
+            </div>
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-500 mb-1.5 block">Commission Rate (Decimal 0.05 = 5%)</span>
+                        <div class="relative">
+                            <input class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary pl-4 pr-10 py-2.5 text-sm" type="number" step="0.01" name="SettingsData[Payment_CommissionRate]" value="@Model.SettingsData.GetValueOrDefault("Payment_CommissionRate")" />
+                        </div>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-500 mb-1.5 block">Minimum Payout (VND)</span>
+                        <div class="relative">
+                            <input class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary pl-4 pr-12 py-2.5 text-sm" type="number" name="SettingsData[Payment_MinimumPayout]" value="@Model.SettingsData.GetValueOrDefault("Payment_MinimumPayout")" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 font-medium text-sm">VND</span>
+                        </div>
+                    </label>
+                </div>
+                <!-- Webhook Secret -->
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-500 mb-1.5 block">Webhook Signature Secret</span>
+                    <div class="relative">
+                        <input class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary pl-4 pr-10 py-2.5 text-sm" type="text" name="SettingsData[Payment_WebhookSecret]" value="@Model.SettingsData.GetValueOrDefault("Payment_WebhookSecret")" />
+                    </div>
+                </label>
+                <div class="h-px bg-slate-100"></div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">Online Payments</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Allow credit cards & e-wallets</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Payment_OnlinePayments]" value="true" @(Model.SettingsData.GetValueOrDefault("Payment_OnlinePayments") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">Cash on Delivery (COD)</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Allow payment upon receipt</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Payment_CashOnDelivery]" value="true" @(Model.SettingsData.GetValueOrDefault("Payment_CashOnDelivery") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Store Configuration -->
+        <div class="bg-white rounded-xl shadow-card border border-border-light p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-purple-50 rounded-lg text-purple-600">
+                    <span class="material-symbols-outlined">storefront</span>
+                </div>
+                <h3 class="text-lg font-bold text-text-heading">Store Configuration</h3>
+            </div>
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">New Store Approval</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Manually approve new vendors</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Store_NewStoreApproval]" value="true" @(Model.SettingsData.GetValueOrDefault("Store_NewStoreApproval") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">Individual Sellers</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Allow non-business entities to sell</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Store_IndividualSellers]" value="true" @(Model.SettingsData.GetValueOrDefault("Store_IndividualSellers") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-500 mb-1.5 block">Default Store Status</span>
+                    <select name="SettingsData[Store_DefaultStatus]" class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary py-2.5 text-sm">
+                        <option value="Active" selected="@(Model.SettingsData.GetValueOrDefault("Store_DefaultStatus") == "Active")">Active</option>
+                        <option value="Pending" selected="@(Model.SettingsData.GetValueOrDefault("Store_DefaultStatus") == "Pending")">Pending</option>
+                        <option value="Inactive" selected="@(Model.SettingsData.GetValueOrDefault("Store_DefaultStatus") == "Inactive")">Inactive</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 3: Order Configuration -->
+        <div class="bg-white rounded-xl shadow-card border border-border-light p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-orange-50 rounded-lg text-orange-600">
+                    <span class="material-symbols-outlined">shopping_cart</span>
+                </div>
+                <h3 class="text-lg font-bold text-text-heading">Order Configuration</h3>
+            </div>
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-500 mb-1.5 block">Auto Complete (Days)</span>
+                        <div class="relative">
+                            <input class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary pl-4 pr-12 py-2.5 text-sm" type="number" name="SettingsData[Order_AutoCompleteDays]" value="@Model.SettingsData.GetValueOrDefault("Order_AutoCompleteDays")" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 font-medium text-sm">Days</span>
+                        </div>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-500 mb-1.5 block">Auto Cancel (Minutes)</span>
+                        <div class="relative">
+                            <input class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary pl-4 pr-10 py-2.5 text-sm" type="number" name="SettingsData[Order_AutoCancelMinutes]" value="@Model.SettingsData.GetValueOrDefault("Order_AutoCancelMinutes")" />
+                            <span class="absolute right-3 top-2.5 text-slate-400 font-medium text-sm">Min</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">Buyer Cancellation</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Allow buyers to cancel pending orders</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Order_BuyerCancellation]" value="true" @(Model.SettingsData.GetValueOrDefault("Order_BuyerCancellation") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Payout & Finance -->
+        <div class="bg-white rounded-xl shadow-card border border-border-light p-6">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-green-50 rounded-lg text-green-600">
+                    <span class="material-symbols-outlined">account_balance_wallet</span>
+                </div>
+                <h3 class="text-lg font-bold text-text-heading">Payout & Finance</h3>
+            </div>
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">Manual Withdraw Request</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Vendors must request payouts manually</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Finance_ManualWithdraw]" value="true" @(Model.SettingsData.GetValueOrDefault("Finance_ManualWithdraw") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-text-heading">Hold Funds until Complete</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Release funds only after order completion</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input name="SettingsData[Finance_HoldFunds]" value="true" @(Model.SettingsData.GetValueOrDefault("Finance_HoldFunds") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-500 mb-1.5 block">Payout Delay (Days)</span>
+                    <div class="relative">
+                        <input class="w-full rounded-lg border-border-light bg-slate-50 text-text-heading focus:ring-primary focus:border-primary pl-4 pr-12 py-2.5 text-sm" type="number" name="SettingsData[Finance_PayoutDelayDays]" value="@Model.SettingsData.GetValueOrDefault("Finance_PayoutDelayDays")" />
+                        <span class="absolute right-3 top-2.5 text-slate-400 font-medium text-sm">Days</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Card 5: Security & Compliance -->
+        <div class="bg-white rounded-xl shadow-card border border-border-light p-6 lg:col-span-2">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-red-50 rounded-lg text-red-600">
+                    <span class="material-symbols-outlined">shield</span>
+                </div>
+                <h3 class="text-lg font-bold text-text-heading">Security & Compliance</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="flex items-start justify-between">
+                    <div class="flex flex-col">
+                        <p class="text-sm font-semibold text-text-heading mb-1">KYC Verification Required</p>
+                        <p class="text-xs text-slate-500 leading-relaxed max-w-xs">
+                            Require sellers to upload identification documents before they can start selling.
+                        </p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
+                        <input name="SettingsData[Security_KYCRequired]" value="true" @(Model.SettingsData.GetValueOrDefault("Security_KYCRequired") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+                <div class="flex items-start justify-between">
+                    <div class="flex flex-col">
+                        <p class="text-sm font-semibold text-text-heading mb-1">Tax Code Verification</p>
+                        <p class="text-xs text-slate-500 leading-relaxed max-w-xs">
+                            Mandatory tax code input for business sellers during registration.
+                        </p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
+                        <input name="SettingsData[Security_TaxCodeVerification]" value="true" @(Model.SettingsData.GetValueOrDefault("Security_TaxCodeVerification") == "true" ? "checked" : "") class="sr-only peer" type="checkbox" />
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sticky Footer -->
+    <div class="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-slate-200 px-6 py-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 transition-all duration-300" id="sticky-settings-footer">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2 text-slate-500 text-sm">
+                <span class="material-symbols-outlined text-[18px]">sync</span>
+                <span>Last updated: <span class="font-medium text-text-heading">@Model.LastSynced</span></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button type="submit" class="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-bold shadow-sm transition-colors transform active:scale-95">
+                    Save All Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        const stickyFooter = document.getElementById('sticky-settings-footer');
+        const adminSidebar = document.getElementById('sidebar');
+
+        // Initial check
+        if (adminSidebar && adminSidebar.classList.contains('collapsed')) {
+            stickyFooter.style.left = '80px';
+        }
+
+        // Observe sidebar changes
+        if (adminSidebar) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class') {
+                        if (adminSidebar.classList.contains('collapsed')) {
+                            stickyFooter.style.left = '80px';
+                        } else {
+                            stickyFooter.style.left = '256px'; // 64 * 4
+                        }
+                    }
+                });
+            });
+
+            observer.observe(adminSidebar, { attributes: true });
+        }
+    </script>
+}

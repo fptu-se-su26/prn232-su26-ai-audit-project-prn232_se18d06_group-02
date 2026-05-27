@@ -1,0 +1,1411 @@
+@page
+@using GearZone.Domain.Enums
+@model GearZone.Web.Pages.Checkout.IndexModel
+@{
+    ViewData["Title"] = "Checkout - GearZone";
+    var storeGroups = Model.SelectedItems.GroupBy(ci => ci.Variant.Product.Store).ToList();
+}
+
+@* ─── VOUCHER TICKET STYLES ───────────────────────────────── *@
+<style>
+    .voucher-ticket {
+        display: flex;
+        border-radius: 12px;
+        overflow: hidden;
+        background: white;
+        border: 1px solid rgba(226, 232, 240, 1);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: 110px;
+    }
+    .dark .voucher-ticket {
+        background: #1e293b;
+        border-color: rgba(51, 65, 85, 1);
+    }
+    .voucher-ticket.eligible:hover {
+        border-color: var(--primary-color, #2563eb);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .voucher-ticket-left {
+        width: 100px;
+        background: var(--primary-color, #2563eb);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem;
+        position: relative;
+        flex-shrink: 0;
+    }
+    /* Perforated edge effect */
+    .voucher-ticket-left::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        background-image: radial-gradient(circle, white 2px, transparent 2px);
+        background-size: 8px 8px;
+        background-position: -4px 4px;
+        background-repeat: repeat-y;
+        opacity: 0.9;
+    }
+    .dark .voucher-ticket-left::before {
+        background-image: radial-gradient(circle, #1e293b 2px, transparent 2px);
+    }
+    .voucher-badge {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .voucher-badge-active {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .dark .voucher-badge-active {
+        background: rgba(22, 101, 52, 0.2);
+        color: #4ade80;
+    }
+    .voucher-badge-ineligible {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+</style>
+
+@* ─── NORMAL CHECKOUT FORM ──────────────────────────────────── *@
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            Checkout
+            <span class="text-lg font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full cart-total-count">
+                (@Model.SelectedItems.Count items)
+            </span>
+        </h1>
+    </div>
+
+@if (!ModelState.IsValid)
+{
+    <div class="bg-red-50 text-red-600 p-4 rounded-xl shadow-sm border border-red-200 mb-6">
+        <div asp-validation-summary="All" class="text-sm"></div>
+    </div>
+}
+
+<form method="post" id="checkout-form">
+    @foreach (var id in (Model.CheckoutRequest.CartItemIds.Any() ? Model.CheckoutRequest.CartItemIds : Model.SelectedCartItemIds))
+    {
+        <input type="hidden" name="CheckoutRequest.CartItemIds" value="@id" />
+    }
+    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.EmailAddress" />
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- Left Column: Shipping Info & Payment -->
+        <div class="lg:col-span-8 space-y-6">
+            <!-- Delivery Address -->
+            <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 relative z-10">
+                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 flex justify-between items-center">
+                    <div class="flex gap-3 items-center">
+                        <span class="material-symbols-outlined text-primary text-xl">location_on</span>
+                        <h2 class="text-lg font-bold text-slate-900 dark:text-white">Shipping Information</h2>
+                    </div>
+                    <button type="button" onclick="openNewAddressModal()" class="text-primary hover:text-blue-700 font-medium text-sm flex items-center gap-1 transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        Add New Address
+                    </button>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Hidden inputs for form submission -->
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.FullName" id="shipping-fullname-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.PhoneNumber" id="shipping-phone-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.Address" id="shipping-address-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.Ward" id="shipping-ward-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.District" id="shipping-district-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.Province" id="shipping-province-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.Latitude" id="shipping-lat-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.Longitude" id="shipping-lng-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.AddressType" id="shipping-type-input" />
+                    
+                    <input type="hidden" asp-for="CheckoutRequest.SaveAddress" id="shipping-save-address-input" />
+                    <input type="hidden" asp-for="CheckoutRequest.IsDefaultAddress" id="shipping-is-default-input" />
+
+                    <!-- Selected Address Summary Card -->
+                    <div id="selected-address-card" class="relative bg-primary/5 border-2 border-primary/20 rounded-xl p-5 hover:border-primary/40 transition-colors">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex gap-4 min-w-0">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary mt-1">
+                                    <span class="material-symbols-outlined">home</span>
+                                </div>
+                                <div class="space-y-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h3 class="font-bold text-slate-900 dark:text-white text-base" id="summary-fullname">
+                                            @(Model.CheckoutRequest.ShippingInfo.FullName != "" ? Model.CheckoutRequest.ShippingInfo.FullName : "No Name")
+                                        </h3>
+                                        <span class="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
+                                        <p class="font-semibold text-slate-600 dark:text-slate-400 text-sm" id="summary-phone">
+                                            @(Model.CheckoutRequest.ShippingInfo.PhoneNumber != "" ? Model.CheckoutRequest.ShippingInfo.PhoneNumber : "No Phone")
+                                        </p>
+                                    </div>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" id="summary-address">
+                                        @if (!string.IsNullOrEmpty(Model.CheckoutRequest.ShippingInfo.Address))
+                                        {
+                                            @($"{Model.CheckoutRequest.ShippingInfo.Address}, {(string.IsNullOrEmpty(Model.CheckoutRequest.ShippingInfo.Ward) ? "" : Model.CheckoutRequest.ShippingInfo.Ward + ", ")}{Model.CheckoutRequest.ShippingInfo.District}, {Model.CheckoutRequest.ShippingInfo.Province}")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-red-500 font-medium">Please select a delivery address</span>
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openAddressModal()" class="flex-shrink-0 text-sm font-bold text-primary hover:text-blue-700 bg-white border border-primary/20 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all">
+                                Change
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 flex gap-3 items-center">
+                    <span class="material-symbols-outlined text-primary text-xl">payments</span>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Payment Method</h2>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <!-- COD Option -->
+                    <label class="payment-method-option flex items-center p-4 border-2 border-primary rounded-xl cursor-pointer bg-primary/5 transition-all" data-method="cod">
+                        <input type="radio" name="CheckoutRequest.PaymentMethod" value="COD" checked class="w-5 h-5 text-primary border-gray-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-2">
+                        <div class="ml-4 flex flex-1 items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-slate-400 text-2xl">local_shipping</span>
+                                <div>
+                                    <span class="block text-sm font-semibold text-slate-900 dark:text-white">Cash on Delivery (COD)</span>
+                                    <span class="block text-xs text-slate-500 mt-0.5">Pay when you receive the order</span>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- PayOS Option -->
+                    <label class="payment-method-option flex items-center p-4 border-2 border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all" data-method="payos">
+                        <input type="radio" name="CheckoutRequest.PaymentMethod" value="PayOS" class="w-5 h-5 text-primary border-gray-300 bg-white dark:bg-slate-800 dark:border-slate-600 focus:ring-primary focus:ring-2">
+                        <div class="ml-4 flex flex-1 items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-blue-500 text-2xl">qr_code_2</span>
+                                <div>
+                                    <span class="block text-sm font-semibold text-slate-900 dark:text-white">Bank Transfer (QR Code)</span>
+                                    <span class="block text-xs text-slate-500 mt-0.5">Scan QR to pay via PayOS — fast & secure</span>
+                                </div>
+                            </div>
+                            <span class="text-xs font-semibold text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-full">Recommended</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Voucher Selection -->
+            <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 flex gap-3 items-center">
+                    <span class="material-symbols-outlined text-primary text-xl">confirmation_number</span>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Vouchers</h2>
+                </div>
+                <input type="hidden" asp-for="CheckoutRequest.OrderVoucherCode" id="order-voucher-code-input" />
+                <input type="hidden" asp-for="CheckoutRequest.ShippingVoucherCode" id="shipping-voucher-code-input" />
+                <div class="p-6 space-y-4">
+                    <!-- Order Discount Voucher Row -->
+                    <div class="flex items-center justify-between p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl transition-all" id="order-voucher-row">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-orange-500 text-xl">sell</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900 dark:text-white">Order Discount</p>
+                                <p class="text-xs text-slate-500" id="order-voucher-status">No voucher applied</p>
+                            </div>
+                        </div>
+                        <div id="order-voucher-actions">
+                            <button type="button" onclick="openVoucherModal('order')" class="text-sm font-bold text-primary hover:text-blue-700 bg-primary/5 hover:bg-primary/10 px-4 py-2 rounded-lg transition-all flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">add</span>
+                                Select Voucher
+                            </button>
+                        </div>
+                        <div id="order-voucher-applied" class="hidden flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg border border-green-200 dark:border-green-800">
+                                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                <span id="order-voucher-label"></span>
+                            </span>
+                            <button type="button" onclick="removeVoucher('order')" class="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Shipping Discount Voucher Row -->
+                    <div class="flex items-center justify-between p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl transition-all" id="shipping-voucher-row">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-blue-500 text-xl">local_shipping</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900 dark:text-white">Free Shipping</p>
+                                <p class="text-xs text-slate-500" id="shipping-voucher-status">No voucher applied</p>
+                            </div>
+                        </div>
+                        <div id="shipping-voucher-actions">
+                            <button type="button" onclick="openVoucherModal('shipping')" class="text-sm font-bold text-primary hover:text-blue-700 bg-primary/5 hover:bg-primary/10 px-4 py-2 rounded-lg transition-all flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">add</span>
+                                Select Voucher
+                            </button>
+                        </div>
+                        <div id="shipping-voucher-applied" class="hidden flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm font-bold rounded-lg border border-green-200 dark:border-green-800">
+                                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                <span id="shipping-voucher-label"></span>
+                            </span>
+                            <button type="button" onclick="removeVoucher('shipping')" class="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ordered Items List -->
+            <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                 <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 flex gap-3 items-center">
+                    <span class="material-symbols-outlined text-primary text-xl">shopping_bag</span>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Review Items</h2>
+                </div>
+                
+                <div class="p-0">
+                    @foreach (var group in storeGroups)
+                    {
+                        var store = group.Key;
+                        var items = group.ToList();
+                        
+                        <div class="border-b border-slate-100 dark:border-slate-700 last:border-0 relative">
+                            <!-- Store header -->
+                            <div class="px-6 py-3 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
+                                <span class="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-sm text-slate-400">storefront</span>
+                                    @(store?.StoreName ?? "Main Store")
+                                </span>
+                            </div>
+
+                            @foreach (var item in items)
+                            {
+                                <div class="px-6 py-4 flex gap-4 items-center">
+                                    <div class="size-16 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                                         @{
+                                             var primaryImage = item.Variant.Product.Images.FirstOrDefault(i => i.IsPrimary) 
+                                                               ?? item.Variant.Product.Images.FirstOrDefault();
+                                         }
+                                         @if (primaryImage != null)
+                                         {
+                                             <img src="@primaryImage.ImageUrl" alt="@item.Variant.Product.Name" class="w-full h-full object-cover mix-blend-multiply dark:mix-blend-normal">
+                                         }
+                                         else
+                                         {
+                                            <div class="w-full h-full flex items-center justify-center text-slate-400">
+                                                <span class="material-symbols-outlined">inventory_2</span>
+                                            </div>
+                                         }
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">@item.Variant.Product.Name</h3>
+                                        <div class="mt-1 text-xs text-slate-500 flex flex-col gap-1">
+                                            <span>Variant: @string.Join(", ", item.Variant.AttributeValues.Select(v => v.CategoryAttributeOption.Value))</span>
+                                            <span>Qty: @item.Quantity</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <div class="text-sm font-bold text-slate-900 dark:text-white">@((item.Quantity * item.Variant.Price).ToString("N0"))₫</div>
+                                    </div>
+                                </div>
+                            }
+                            
+                            <!-- Store Shipping & Subtotal -->
+                            <div class="px-6 py-3 bg-slate-50/20 dark:bg-slate-800/10 flex justify-between items-center text-sm">
+                                <div class="flex flex-col">
+                                    <span class="text-slate-500">Shipping (Standard)</span>
+                                    <span class="text-[10px] text-slate-400" id="store-distance-@store?.Id">Distance: -- km</span>
+                                </div>
+                                <span class="font-medium text-slate-900 dark:text-white" id="store-shipping-@store?.Id">Calculating...</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Order Summary (Sticky) -->
+        <div class="lg:col-span-4 relative h-full">
+            <div class="sticky top-24 space-y-4">
+                <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-6">
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6">Payment Summary</h2>
+                    
+                    <div class="space-y-4 text-sm text-slate-600 dark:text-slate-300">
+                        <div class="flex justify-between items-center">
+                            <span>Merchandise Subtotal</span>
+                            <span class="font-medium text-slate-900 dark:text-white" id="summary-subtotal">@Model.GrandTotal.ToString("N0")₫</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Shipping Total</span>
+                            <span class="font-medium text-slate-900 dark:text-white" id="summary-shipping">0₫</span>
+                        </div>
+                        <div class="flex justify-between items-center hidden" id="summary-order-discount-row">
+                            <span class="flex items-center gap-1 text-green-600"><span class="material-symbols-outlined text-[14px]">confirmation_number</span> Order Discount</span>
+                            <span class="font-medium text-green-600" id="summary-order-discount">-0₫</span>
+                        </div>
+                        <div class="flex justify-between items-center hidden" id="summary-shipping-discount-row">
+                            <span class="flex items-center gap-1 text-green-600"><span class="material-symbols-outlined text-[14px]">local_shipping</span> Shipping Discount</span>
+                            <span class="font-medium text-green-600" id="summary-shipping-discount">-0₫</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-dashed border-slate-200 dark:border-slate-700 my-6"></div>
+                    
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="text-lg font-semibold text-slate-900 dark:text-white">Total Payment</span>
+                        <div class="text-right">
+                            <span class="block text-3xl font-bold text-secondary" id="summary-total">@Model.GrandTotal.ToString("N0")₫</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="place-order-btn" class="w-full bg-secondary hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-orange-500/20 transition-all transform hover:scale-[1.01] active:scale-[0.99] flex justify-center items-center gap-2 text-lg uppercase tracking-wider">
+                        PLACE ORDER
+                        <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                    </button>
+
+                    <!-- Trust Badges -->
+                    <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 text-center">
+                        <p class="text-xs text-slate-400 mb-2 flex items-center justify-center gap-1">
+                            <span class="material-symbols-outlined text-[16px] text-green-600">verified_user</span>
+                            Your privacy and security are guaranteed.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Address Modal -->
+        <div id="addressModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity opacity-0" id="addressModalBackdrop" aria-hidden="true" onclick="closeAddressModal()"></div>
+
+            <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+                <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                    <div class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" id="addressModalContent">
+                        
+                        <!-- Modal Header -->
+                        <div class="bg-white dark:bg-slate-900 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 z-10">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-primary text-2xl">book</span>
+                                <h3 class="text-lg font-bold text-slate-900 dark:text-white" id="modal-title">Address Book</h3>
+                            </div>
+                            <button type="button" onclick="closeAddressModal()" class="text-slate-400 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-full transition-colors focus:outline-none">
+                                <span class="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <!-- Modal Body (List of Addresses) -->
+                        <div class="px-6 py-4 max-h-[60vh] overflow-y-auto space-y-4">
+                            @if (Model.UserAddresses.Any())
+                            {
+                                @foreach (var addr in Model.UserAddresses.OrderByDescending(a => a.IsDefault))
+                                {
+                                    <div class="group relative bg-white dark:bg-slate-900 border @(addr.IsDefault ? "border-primary/40 ring-1 ring-primary/20 bg-primary/5 dark:bg-primary/10" : "border-slate-200 dark:border-slate-700") rounded-xl p-4 transition-all hover:border-primary/40 cursor-pointer"
+                                         onclick="selectAddressFromModal(this)"
+                                         data-id="@addr.Id"
+                                         data-name="@addr.FullName"
+                                         data-phone="@addr.PhoneNumber"
+                                         data-address="@addr.AddressLine"
+                                         data-ward="@addr.Ward"
+                                         data-district="@addr.District"
+                                         data-province="@addr.Province"
+                                         data-lat="@(addr.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                         data-lng="@(addr.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture))">
+                                        
+                                        <div class="flex items-start gap-4">
+                                            <div class="w-10 h-10 rounded-full @(addr.IsDefault ? "bg-primary/20 text-primary" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400") flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                                <span class="material-symbols-outlined text-[20px]">
+                                                    @(addr.AddressType == AddressType.Home ? "home" : addr.AddressType == AddressType.Office ? "business" : "location_on")
+                                                </span>
+                                            </div>
+                                            <div class="flex-grow min-w-0">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="font-bold text-slate-900 dark:text-white text-sm">@addr.FullName</span>
+                                                    <span class="text-slate-300 dark:text-slate-600">|</span>
+                                                    <span class="text-sm text-slate-600 dark:text-slate-400">@addr.PhoneNumber</span>
+                                                    @if (addr.IsDefault)
+                                                    {
+                                                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-primary/10 text-primary border border-primary/20">
+                                                            Default
+                                                        </span>
+                                                    }
+                                                </div>
+                                                <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-[90%]">@addr.AddressLine, @addr.Ward, @addr.District, @addr.Province</p>
+                                            </div>
+                                            <div class="flex-shrink-0">
+                                                <div class="w-6 h-6 rounded-full border-2 border-slate-300 dark:border-slate-600 group-hover:border-primary flex items-center justify-center transition-colors">
+                                                    <div class="w-2.5 h-2.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-center py-10">
+                                    <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">location_off</span>
+                                    <p class="text-slate-500">No saved addresses found.</p>
+                                </div>
+                            }
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            <!-- New Address Modal -->
+            <div id="newAddressModal" class="fixed inset-0 z-[110] hidden overflow-y-auto">
+                <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                    <div id="newAddressModalBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity opacity-0" onclick="closeNewAddressModal()"></div>
+                    
+                    <div id="newAddressModalContent" class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+                        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Add New Address</h3>
+                            <button type="button" onclick="closeNewAddressModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                <span class="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <!-- New Address Form (Modeled from Profile.cshtml but operates purely via JS) -->
+                        <div class="px-6 py-5 max-h-[70vh] overflow-y-auto space-y-5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-1.5">
+                                    <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">Full Name</label>
+                                    <input type="text" id="modal-new-fullname" class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white py-2.5 px-4 focus:ring-primary focus:border-primary transition-colors" placeholder="Recipient Name" />
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">Phone Number</label>
+                                    <input type="tel" id="modal-new-phone" class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white py-2.5 px-4 focus:ring-primary focus:border-primary transition-colors" placeholder="Phone Number" />
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-1.5 relative">
+                                <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">Street Address</label>
+                                <input type="text" id="modal-new-address" class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white py-2.5 px-4 focus:ring-primary focus:border-primary transition-colors" placeholder="Search address..." autocomplete="off" />
+                                <div id="modal-new-goong-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"></div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ward</label>
+                                    <input type="text" id="modal-new-ward" readonly class="w-full bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-400 py-2.5 px-4 focus:ring-primary focus:border-primary transition-colors" />
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">District</label>
+                                    <input type="text" id="modal-new-district" readonly class="w-full bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-400 py-2.5 px-4 focus:ring-primary focus:border-primary transition-colors" />
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Province</label>
+                                    <input type="text" id="modal-new-province" readonly class="w-full bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-400 py-2.5 px-4 focus:ring-primary focus:border-primary transition-colors" />
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px] text-primary">pin_drop</span> Location Preview
+                                </label>
+                                <div id="modal-new-map" class="w-full h-[250px] rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner overflow-hidden"></div>
+                                <input type="hidden" id="modal-new-lat" value="0"/>
+                                <input type="hidden" id="modal-new-lng" value="0"/>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-sm font-semibold text-slate-700 dark:text-slate-300">Address Type</label>
+                                <input type="hidden" id="modal-new-type" value="Home" />
+                                <div class="flex gap-3">
+                                    @foreach (AddressType type in Enum.GetValues(typeof(AddressType)))
+                                    {
+                                        <button type="button" 
+                                                onclick="setAddressType('@type')"
+                                                id="typeBtn_@type"
+                                                class="flex-1 py-2 px-3 border-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 type-selector-btn @(type == AddressType.Home ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400")">
+                                            <span class="material-symbols-outlined text-[16px]">
+                                                @(type == AddressType.Home ? "home" : type == AddressType.Office ? "business" : "location_on")
+                                            </span>
+                                            @type
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                                <div class="flex items-center gap-2" id="modal-new-default-container">
+                                    <input type="checkbox" id="modal-new-is-default" class="size-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer" />
+                                    <label for="modal-new-is-default" class="text-sm text-slate-600 dark:text-slate-400 cursor-pointer">Set as default address</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col sm:flex-row-reverse items-center justify-start gap-3 rounded-b-2xl">
+                            <button type="button" onclick="confirmNewAddress()" class="w-full sm:w-auto px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-primary/20">
+                                Confirm Address
+                            </button>
+                            <button type="button" onclick="closeNewAddressModal()" class="w-full sm:w-auto px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voucher Modal -->
+        <div id="voucherModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true" onclick="closeVoucherModal()"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                
+                <div class="inline-block align-bottom bg-white dark:bg-[#1a202c] rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200 dark:border-slate-700">
+                    <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary" id="modal-voucher-icon">confirmation_number</span>
+                            <span id="modal-voucher-title">Select Voucher</span>
+                        </h3>
+                        <button type="button" onclick="closeVoucherModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+
+                    <div class="p-6">
+                        <!-- Manual Code Input -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Voucher Code</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="manual-voucher-code" placeholder="Enter voucher code..." 
+                                       class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all uppercase" />
+                                <button type="button" onclick="applyManualVoucher()" id="apply-manual-btn"
+                                        class="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-primary/20">
+                                    Apply
+                                </button>
+                            </div>
+                            <p id="voucher-error-msg" class="text-xs text-red-500 mt-2 hidden italic"></p>
+                        </div>
+
+                        <div class="border-t border-slate-100 dark:border-slate-800 my-6"></div>
+
+                        <!-- Available Vouchers List -->
+                        <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wider">Available Vouchers</h4>
+                        <div id="vouchers-list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            <!-- Skeleton Loader -->
+                            <div class="voucher-skeleton hidden space-y-3">
+                                <div class="h-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"></div>
+                                <div class="h-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"></div>
+                            </div>
+                            <!-- Vouchers will be injected here -->
+                        </div>
+                        <div id="no-vouchers-msg" class="hidden py-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                             <span class="material-symbols-outlined text-slate-300 text-4xl mb-2">sentiment_dissatisfied</span>
+                             <p class="text-slate-500 text-sm italic">No vouchers available at the moment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <link href="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js/dist/goong-js.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js/dist/goong-js.js"></script>
+    <script src="~/js/goong-autocomplete.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const apiKey = '@Model.GoongApiKey';
+            const mapKey = '@Model.GoongMapKey';
+
+            const defaultLat = parseFloat('@(Model.CheckoutRequest.ShippingInfo.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture))') || 0;
+            const defaultLng = parseFloat('@(Model.CheckoutRequest.ShippingInfo.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture))') || 0;
+            if (defaultLat !== 0 && defaultLng !== 0) {
+                setTimeout(() => calculateShipping(defaultLat, defaultLng), 500);
+            }
+            let map, marker;
+
+            // Initialize Map
+            const initMap = () => {
+                const mapContainer = document.getElementById('checkout-map');
+                if (!mapContainer || !mapKey) return;
+
+                const initialLat = parseFloat(document.getElementById('shipping-lat-input')?.value || 21.028);
+                const initialLng = parseFloat(document.getElementById('shipping-lng-input')?.value || 105.839);
+
+                goongjs.accessToken = mapKey;
+                map = new goongjs.Map({
+                    container: 'checkout-map',
+                    style: 'https://tiles.goong.io/assets/goong_map_web.json',
+                    center: [initialLng, initialLat],
+                    zoom: 15
+                });
+
+                marker = new goongjs.Marker()
+                    .setLngLat([initialLng, initialLat])
+                    .addTo(map);
+                
+                // Ensure map resizes correctly if container was hidden/loaded dynamically
+                setTimeout(() => map.resize(), 500);
+            };
+
+            const updateMap = (lat, lng) => {
+                if (!map || isNaN(lat) || isNaN(lng) || lat === 0) return;
+                
+                map.flyTo({
+                    center: [lng, lat],
+                    zoom: 16,
+                    essential: true
+                });
+                marker.setLngLat([lng, lat]);
+            };
+
+            initMap();
+
+            // ─── Goong Autocomplete ────────────────────────
+            
+            if (apiKey) {
+                const streetInput = document.getElementById('shipping-address-input');
+                const resultsElement = document.getElementById('goong-results');
+                const latInput = document.getElementById('shipping-lat-input');
+                const lngInput = document.getElementById('shipping-lng-input');
+
+                if (streetInput && resultsElement) {
+                    const wardInput = document.getElementById('shipping-ward-input');
+                    const districtInput = document.getElementById('shipping-district-input');
+                    const provinceInput = document.getElementById('shipping-province-input');
+
+                    new GoongAutocomplete(apiKey, {
+                        inputElement: streetInput,
+                        resultsElement: resultsElement,
+                        onSelect: (place) => {
+                            console.log("Goong Place Selected:", place);
+                            if (place.formatted_address) {
+                                const components = place.address_components || [];
+                                
+                                if (place.original_description) {
+                                    streetInput.value = place.original_description.split(',')[0].trim();
+                                } else {
+                                    const streetNumber = components.find(c => c.types.includes('street_number'))?.long_name;
+                                    const route = components.find(c => c.types.includes('route'))?.long_name;
+                                    
+                                    if (streetNumber && route) {
+                                        streetInput.value = `${streetNumber} ${route}`;
+                                    } else {
+                                        const fullParts = place.formatted_address.split(',').map(p => p.trim());
+                                        if (fullParts.length > 1 && /^\d+[\/\d]*$/.test(fullParts[0])) {
+                                            streetInput.value = `${fullParts[0]} ${fullParts[1]}`;
+                                        } else {
+                                            streetInput.value = fullParts[0];
+                                        }
+                                    }
+                                }
+                                
+                                let ward = components.find(c => c.types.includes('sublocality_level_1') || c.types.includes('ward'))?.long_name;
+                                let district = components.find(c => c.types.includes('administrative_area_level_2') || c.types.includes('district'))?.long_name;
+                                let province = components.find(c => c.types.includes('administrative_area_level_1') || c.types.includes('city') || c.types.includes('province'))?.long_name;
+
+                                if (!ward || !district || !province) {
+                                    const parts = place.formatted_address.split(',').map(p => p.trim());
+                                    if (parts.length >= 3) {
+                                        province = province || parts[parts.length - 1];
+                                        district = district || parts[parts.length - 2];
+                                        ward = ward || (parts.length >= 4 ? parts[parts.length - 3] : null);
+                                    }
+                                }
+
+                                if (ward && wardInput) { wardInput.value = ward || ''; wardInput.dispatchEvent(new Event('change')); }
+                                if (district && districtInput) { districtInput.value = district || ''; districtInput.dispatchEvent(new Event('change')); }
+                                if (province && provinceInput) { provinceInput.value = province || ''; provinceInput.dispatchEvent(new Event('change')); }
+                                
+                                if (latInput) latInput.value = place.geometry?.location?.lat || 0;
+                                if (lngInput) lngInput.value = place.geometry?.location?.lng || 0;
+
+                                if (place.geometry?.location) {
+                                    updateMap(place.geometry.location.lat, place.geometry.location.lng);
+                                }
+                                
+                                streetInput.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    });
+                }
+                
+                // Initialize autocomplete for New Address Modal
+                const modalStreetInput = document.getElementById('modal-new-address');
+                const modalResultsElement = document.getElementById('modal-new-goong-results');
+                if (modalStreetInput && modalResultsElement) {
+                   new GoongAutocomplete(apiKey, {
+                        inputElement: modalStreetInput,
+                        resultsElement: modalResultsElement,
+                        onSelect: (place) => {
+                             if (place.formatted_address) {
+                                const components = place.address_components || [];
+                                
+                                if (place.original_description) {
+                                    modalStreetInput.value = place.original_description.split(',')[0].trim();
+                                } else {
+                                    const streetNumber = components.find(c => c.types.includes('street_number'))?.long_name;
+                                    const route = components.find(c => c.types.includes('route'))?.long_name;
+                                    if (streetNumber && route) {
+                                        modalStreetInput.value = `${streetNumber} ${route}`;
+                                    } else {
+                                        modalStreetInput.value = place.formatted_address.split(',')[0].trim();
+                                    }
+                                }
+
+                                let ward = components.find(c => c.types.includes('sublocality_level_1') || c.types.includes('ward'))?.long_name;
+                                let district = components.find(c => c.types.includes('administrative_area_level_2') || c.types.includes('district'))?.long_name;
+                                let province = components.find(c => c.types.includes('administrative_area_level_1') || c.types.includes('city') || c.types.includes('province'))?.long_name;
+
+                                if (!ward || !district || !province) {
+                                    const parts = place.formatted_address.split(',').map(p => p.trim());
+                                    if (parts.length >= 3) {
+                                        province = province || parts[parts.length - 1];
+                                        district = district || parts[parts.length - 2];
+                                        ward = ward || (parts.length >= 4 ? parts[parts.length - 3] : null);
+                                    }
+                                }
+
+                                document.getElementById('modal-new-ward').value = ward || '';
+                                document.getElementById('modal-new-district').value = district || '';
+                                document.getElementById('modal-new-province').value = province || '';
+                                
+                                const lat = place.geometry?.location?.lat || 0;
+                                const lng = place.geometry?.location?.lng || 0;
+                                document.getElementById('modal-new-lat').value = lat;
+                                document.getElementById('modal-new-lng').value = lng;
+                                
+                                updateModalMap(lat, lng);
+                             }
+                        }
+                   });
+                }
+            }
+
+            // ─── Payment Method Selection Highlight ────────
+            const methodOptions = document.querySelectorAll('.payment-method-option');
+            const radios = document.querySelectorAll('input[name="CheckoutRequest.PaymentMethod"]');
+
+            function updateMethodStyles() {
+                methodOptions.forEach(opt => {
+                    const radio = opt.querySelector('input[type="radio"]');
+                    if (radio && radio.checked) {
+                        opt.classList.remove('border-slate-200', 'dark:border-slate-700');
+                        opt.classList.add('border-primary', 'bg-primary/5');
+                    } else {
+                        opt.classList.remove('border-primary', 'bg-primary/5');
+                        opt.classList.add('border-slate-200', 'dark:border-slate-700');
+                    }
+                });
+            }
+
+            radios.forEach(radio => {
+                radio.addEventListener('change', updateMethodStyles);
+            });
+
+            updateMethodStyles();
+
+            // ─── Address Modal Selection ────────────────────────
+            const nameInput = document.querySelector('input[name="CheckoutRequest.ShippingInfo.FullName"]');
+            const phoneInput = document.querySelector('input[name="CheckoutRequest.ShippingInfo.PhoneNumber"]');
+            const addressInput = document.getElementById('shipping-address-input');
+            const wardInput = document.getElementById('shipping-ward-input');
+            const districtInput = document.getElementById('shipping-district-input');
+            const provinceInput = document.getElementById('shipping-province-input');
+            const latInputManual = document.getElementById('shipping-lat-input');
+            const lngInputManual = document.getElementById('shipping-lng-input');
+
+            window.openAddressModal = function() {
+                const modal = document.getElementById('addressModal');
+                const backdrop = document.getElementById('addressModalBackdrop');
+                const content = document.getElementById('addressModalContent');
+                
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    backdrop.classList.remove('opacity-0');
+                    backdrop.classList.add('opacity-100');
+                    content.classList.remove('opacity-0', 'translate-y-4', 'sm:translate-y-0', 'sm:scale-95');
+                    content.classList.add('opacity-100', 'translate-y-0', 'sm:scale-100');
+                }, 10);
+                document.body.style.overflow = 'hidden';
+            };
+
+            window.closeAddressModal = function() {
+                const modal = document.getElementById('addressModal');
+                const backdrop = document.getElementById('addressModalBackdrop');
+                const content = document.getElementById('addressModalContent');
+                
+                backdrop.classList.remove('opacity-100');
+                backdrop.classList.add('opacity-0');
+                content.classList.remove('opacity-100', 'translate-y-0', 'sm:scale-100');
+                content.classList.add('opacity-0', 'translate-y-4', 'sm:translate-y-0', 'sm:scale-95');
+                
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }, 300);
+            };
+
+            function updateSummaryCard(name, phone, address, ward, district, province) {
+                document.getElementById('summary-fullname').textContent = name || "No Name";
+                document.getElementById('summary-phone').textContent = phone || "No Phone";
+                
+                let fullAddress = address || "";
+                if(fullAddress) {
+                    fullAddress += ", " + (ward ? ward + ", " : "") + district + ", " + province;
+                }
+                const summaryAddressEl = document.getElementById('summary-address');
+                if (fullAddress) {
+                    summaryAddressEl.textContent = fullAddress;
+                    summaryAddressEl.classList.remove('text-red-500', 'font-medium');
+                    summaryAddressEl.classList.add('text-slate-600', 'dark:text-slate-400');
+                } else {
+                    summaryAddressEl.innerHTML = '<span class="text-red-500 font-medium">Please select a delivery address</span>';
+                }
+            }
+
+            window.selectAddressFromModal = function(card) {
+                const data = card.dataset;
+                
+                // Copy to hidden inputs
+                if (nameInput) nameInput.value = data.name || '';
+                if (phoneInput) phoneInput.value = data.phone || '';
+                if (addressInput) addressInput.value = data.address || '';
+                if (wardInput) wardInput.value = data.ward || '';
+                if (districtInput) districtInput.value = data.district || '';
+                if (provinceInput) provinceInput.value = data.province || '';
+                if (latInputManual) latInputManual.value = data.lat || 0;
+                if (lngInputManual) lngInputManual.value = data.lng || 0;
+
+                // When selecting from existing, we don't save a new one or set new default
+                const saveInput = document.getElementById('shipping-save-address-input');
+                const defaultInput = document.getElementById('shipping-is-default-input');
+                if (saveInput) saveInput.value = "false";
+                if (defaultInput) defaultInput.value = "false";
+
+                // Update UI Card
+                updateSummaryCard(data.name, data.phone, data.address, data.ward, data.district, data.province);
+
+                calculateShipping(parseFloat(data.lat), parseFloat(data.lng));
+
+                closeAddressModal();
+            };
+
+            // ─── New Address Modal Logic ────────────────────────
+            
+            let newAddressMap, newAddressMarker;
+            
+            window.openNewAddressModal = function() {
+                closeAddressModal(); // Close the address book first
+                
+                // Clear modal fields
+                document.getElementById('modal-new-fullname').value = '';
+                document.getElementById('modal-new-phone').value = '';
+                document.getElementById('modal-new-address').value = '';
+                document.getElementById('modal-new-ward').value = '';
+                document.getElementById('modal-new-district').value = '';
+                document.getElementById('modal-new-province').value = '';
+                
+                if (window.setAddressType) setAddressType('Home');
+                
+                const modal = document.getElementById('newAddressModal');
+                const backdrop = document.getElementById('newAddressModalBackdrop');
+                const content = document.getElementById('newAddressModalContent');
+                
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    backdrop.classList.remove('opacity-0');
+                    backdrop.classList.add('opacity-100');
+                    content.classList.remove('opacity-0', 'translate-y-4', 'sm:translate-y-0', 'sm:scale-95');
+                    content.classList.add('opacity-100', 'translate-y-0', 'sm:scale-100');
+                }, 10);
+                document.body.style.overflow = 'hidden';
+                
+                setTimeout(() => { 
+                    initNewAddressMap(); 
+                    document.getElementById('modal-new-fullname').focus();
+                }, 300);
+            };
+
+            window.closeNewAddressModal = function() {
+                const modal = document.getElementById('newAddressModal');
+                const backdrop = document.getElementById('newAddressModalBackdrop');
+                const content = document.getElementById('newAddressModalContent');
+                
+                backdrop.classList.remove('opacity-100');
+                backdrop.classList.add('opacity-0');
+                content.classList.remove('opacity-100', 'translate-y-0', 'sm:scale-100');
+                content.classList.add('opacity-0', 'translate-y-4', 'sm:translate-y-0', 'sm:scale-95');
+                
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }, 300);
+            };
+            
+            function initNewAddressMap() {
+                const mapContainer = document.getElementById('modal-new-map');
+                if (!mapContainer || !mapKey) return;
+
+                if (!newAddressMap) {
+                    goongjs.accessToken = mapKey;
+                    // Default VN coord
+                    newAddressMap = new goongjs.Map({
+                        container: 'modal-new-map',
+                        style: 'https://tiles.goong.io/assets/goong_map_web.json',
+                        center: [106.660172, 10.762622], 
+                        zoom: 15
+                    });
+
+                    newAddressMarker = new goongjs.Marker({ draggable: true })
+                        .setLngLat([106.660172, 10.762622])
+                        .addTo(newAddressMap);
+                        
+                    newAddressMarker.on('dragend', async () => {
+                         const lngLat = newAddressMarker.getLngLat();
+                         document.getElementById('modal-new-lat').value = lngLat.lat;
+                         document.getElementById('modal-new-lng').value = lngLat.lng;
+                         // Reverse geocode could be added here if needed
+                    });
+                }
+                setTimeout(() => newAddressMap.resize(), 100);
+            }
+            
+            function updateModalMap(lat, lng) {
+                 if (!newAddressMap || isNaN(lat) || isNaN(lng) || lat === 0) return;
+                 newAddressMap.flyTo({ center: [lng, lat], zoom: 16, essential: true });
+                 newAddressMarker.setLngLat([lng, lat]);
+            }
+
+            window.confirmNewAddress = async function() {
+                // Validation
+                const name = document.getElementById('modal-new-fullname').value;
+                const phone = document.getElementById('modal-new-phone').value;
+                const address = document.getElementById('modal-new-address').value;
+                const province = document.getElementById('modal-new-province').value;
+                const ward = document.getElementById('modal-new-ward').value;
+                const district = document.getElementById('modal-new-district').value;
+                const lat = parseFloat(document.getElementById('modal-new-lat').value || 0);
+                const lng = parseFloat(document.getElementById('modal-new-lng').value || 0);
+                const isDefault = document.getElementById('modal-new-is-default').checked;
+                const addressType = document.getElementById('modal-new-type').value || 'Home';
+                
+                if (!name || !phone || !address || !province) {
+                    alert("Please fill in all required fields (Name, Phone, Address).");
+                    return;
+                }
+
+                const btn = document.querySelector('button[onclick="confirmNewAddress()"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[20px]">sync</span> Saving...';
+                btn.disabled = true;
+
+                try {
+                    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                    
+                    const response = await fetch('?handler=AddNewAddress', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            fullName: name,
+                            phoneNumber: phone,
+                            addressLine: address,
+                            ward: ward,
+                            district: district,
+                            province: province,
+                            latitude: lat,
+                            longitude: lng,
+                            isDefault: isDefault,
+                            addressType: addressType
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        const msg = errorData.message || (errorData.errors ? errorData.errors.join(', ') : 'Failed to save address');
+                        throw new Error(msg);
+                    }
+                } catch (error) {
+                    console.error('Error saving address:', error);
+                    alert('Error saving address: ' + error.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+                
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+
+                // Copy to hidden form inputs
+                if (nameInput) nameInput.value = name;
+                if (phoneInput) phoneInput.value = phone;
+                if (addressInput) addressInput.value = address;
+                if (wardInput) wardInput.value = ward;
+                if (districtInput) districtInput.value = district;
+                if (provinceInput) provinceInput.value = province;
+                if (latInputManual) latInputManual.value = lat;
+                if (lngInputManual) lngInputManual.value = lng;
+                
+                const typeInput = document.getElementById('shipping-type-input');
+                if (typeInput) typeInput.value = addressType;
+                
+                const saveInput = document.getElementById('shipping-save-address-input');
+                const defaultInput = document.getElementById('shipping-is-default-input');
+                
+                // If it was already saved directly to DB via AJAX, no need to save it again on form submission.
+                if (saveInput) saveInput.value = "false";
+                if (defaultInput) defaultInput.value = isDefault ? "true" : "false";
+
+                // Update UI Summary Card
+                updateSummaryCard(name, phone, address, ward, district, province);
+
+                calculateShipping(lat, lng);
+
+                closeNewAddressModal();
+            };
+
+            window.setAddressType = function(type) {
+                const typeInput = document.getElementById('modal-new-type');
+                if (typeInput) typeInput.value = type;
+                
+                document.querySelectorAll('.type-selector-btn').forEach(btn => {
+                    btn.classList.remove('border-primary', 'bg-primary/5', 'text-primary');
+                    btn.classList.add('border-slate-200', 'text-slate-500', 'dark:border-slate-700', 'dark:text-slate-400');
+                });
+                
+                const activeBtn = document.getElementById('typeBtn_' + type);
+                if (activeBtn) {
+                    activeBtn.classList.remove('border-slate-200', 'text-slate-500', 'dark:border-slate-700', 'dark:text-slate-400');
+                    activeBtn.classList.add('border-primary', 'bg-primary/5', 'text-primary');
+                }
+            };
+
+            // ─── Voucher Logic ───────────────────────────
+            let currentVoucherType = 'order'; // 'order' or 'shipping'
+            let appliedOrderVoucher = null;
+            let appliedShippingVoucher = null;
+            let currentShippingFee = 0;
+
+            window.calculateShipping = async function(lat, lng) {
+                if (!lat || !lng || lat === 0) return;
+                
+                const storeIds = [];
+                document.querySelectorAll('[id^="store-shipping-"]').forEach(el => {
+                    const id = el.id.replace('store-shipping-', '');
+                    storeIds.push(id);
+                    el.innerText = "Calculating...";
+                });
+
+                try {
+                    const response = await fetch('/Checkout?handler=CalculateShipping', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({
+                            cartItemIds: @Html.Raw(Json.Serialize(Model.SelectedCartItemIds)),
+                            latitude: lat,
+                            longitude: lng
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("Failed to calculate shipping Fee");
+                    
+                    const result = await response.json();
+                    currentShippingFee = result.totalShippingFee;
+
+                    result.storeFees.forEach(sf => {
+                        const feeEl = document.getElementById(`store-shipping-${sf.storeId}`);
+                        const distEl = document.getElementById(`store-distance-${sf.storeId}`);
+                        
+                        if (feeEl) feeEl.innerText = sf.isFreeShipping ? "FREE" : formatCurrency(sf.shippingFee);
+                        if (distEl) distEl.innerText = `Distance: ${sf.distanceKm.toFixed(1)} km`;
+                    });
+
+                    const shipTotalEl = document.getElementById('summary-shipping');
+                    if (shipTotalEl) shipTotalEl.innerText = formatCurrency(currentShippingFee);
+                    
+                    updateFinalTotal();
+                } catch (error) {
+                    console.error('Error calculating shipping:', error);
+                }
+            };
+
+            window.openVoucherModal = function(type) {
+                currentVoucherType = type;
+                const modal = document.getElementById('voucherModal');
+                const title = document.getElementById('modal-voucher-title');
+                const icon = document.getElementById('modal-voucher-icon');
+                const errorMsg = document.getElementById('voucher-error-msg');
+                const codeInput = document.getElementById('manual-voucher-code');
+
+                title.innerText = type === 'order' ? 'Order Vouchers' : 'Shipping Vouchers';
+                icon.innerText = type === 'order' ? 'sell' : 'local_shipping';
+                errorMsg.classList.add('hidden');
+                codeInput.value = '';
+
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+
+                fetchAvailableVouchers();
+            };
+
+            window.closeVoucherModal = function() {
+                const modal = document.getElementById('voucherModal');
+                modal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            };
+
+            async function fetchAvailableVouchers() {
+                const list = document.getElementById('vouchers-list');
+                const skeleton = list.querySelector('.voucher-skeleton');
+                const emptyMsg = document.getElementById('no-vouchers-msg');
+                const merchandiseTotal = parseFloat("@Model.GrandTotal");
+                const shippingFee = currentShippingFee;
+
+                list.innerHTML = '';
+                list.appendChild(skeleton);
+                skeleton.classList.remove('hidden');
+                emptyMsg.classList.add('hidden');
+
+                try {
+                    const response = await fetch(`/Checkout?handler=AvailableVouchers&type=${currentVoucherType}&merchandiseTotal=${merchandiseTotal}&shippingFee=${shippingFee}`);
+                    const vouchers = await response.json();
+
+                    skeleton.classList.add('hidden');
+
+                    if (!vouchers || vouchers.length === 0) {
+                        emptyMsg.classList.remove('hidden');
+                        return;
+                    }
+
+                    vouchers.forEach(v => {
+                        const card = document.createElement('div');
+                        card.className = `voucher-ticket mb-4 group ${v.isEligible ? 'eligible cursor-pointer active:scale-[0.98]' : 'opacity-60'}`;
+                        
+                        const discountLabel = v.discountType === 0 ? `${v.discountValue}%` : formatCurrency(v.discountValue);
+                        const usagePercent = Math.min(100, Math.round((v.usedCount / v.usageLimit) * 100));
+                        const expiry = new Date(v.endAt).toLocaleDateString('vi-VN', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const validText = `VALID UNTIL ${expiry}`;
+                        
+                        const icon = currentVoucherType === 'order' ? 'sell' : 'local_shipping';
+
+                        card.innerHTML = `
+                            <div class="voucher-ticket-left">
+                                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-2 shadow-inner">
+                                    <span class="material-symbols-outlined text-white">${icon}</span>
+                                </div>
+                                <div class="font-black text-sm tracking-tight">${discountLabel} OFF</div>
+                                <div class="text-[9px] opacity-80 font-mono font-bold mt-1 tracking-widest uppercase">${v.code}</div>
+                            </div>
+                            
+                            <div class="flex-1 p-4 bg-white dark:bg-slate-900 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start">
+                                        <div class="flex items-center gap-2">
+                                            <h5 class="font-bold text-slate-900 dark:text-white truncate max-w-[150px] leading-tight">${v.name}</h5>
+                                            <span class="voucher-badge ${v.isEligible ? 'voucher-badge-active' : 'voucher-badge-ineligible'}">
+                                                ${v.isEligible ? 'ACTIVE' : 'INELIGIBLE'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 gap-1 mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                        <div class="flex items-center gap-1.5">
+                                            <div class="w-1 h-1 rounded-full bg-slate-300"></div>
+                                            Min. Spend: <span class="text-slate-900 dark:text-slate-200 font-bold ml-auto">${v.minOrderAmount ? formatCurrency(v.minOrderAmount) : 'No min'}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <div class="w-1 h-1 rounded-full bg-slate-300"></div>
+                                            Max Disc: <span class="text-slate-900 dark:text-slate-200 font-bold ml-auto">${v.maxDiscount ? formatCurrency(v.maxDiscount) : 'No Limit'}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Progress Bar Section -->
+                                    <div class="mt-4">
+                                        <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div class="h-full bg-primary" style="width: ${usagePercent}%"></div>
+                                        </div>
+                                        <div class="flex justify-between mt-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                            <span>${v.usedCount} USAGE / ${v.usageLimit}</span>
+                                            <span>${validText}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                ${!v.isEligible ? `
+                                <div class="mt-2 pt-2 border-t border-slate-50 dark:border-slate-800">
+                                    <span class="text-[10px] font-bold text-red-500 italic truncate">${v.ineligibleReason}</span>
+                                </div>` : ''}
+                            </div>
+                        `;
+
+                        if (v.isEligible) {
+                            card.onclick = () => applyVoucher(v.code);
+                        }
+                        
+                        list.appendChild(card);
+                    });
+                } catch (error) {
+                    console.error('Error fetching vouchers:', error);
+                    skeleton.classList.add('hidden');
+                    emptyMsg.classList.remove('hidden');
+                }
+            }
+
+            window.applyManualVoucher = function() {
+                const code = document.getElementById('manual-voucher-code').value.trim();
+                if (!code) return;
+                applyVoucher(code);
+            };
+
+            async function applyVoucher(code) {
+                const btn = document.getElementById('apply-manual-btn');
+                const errorMsg = document.getElementById('voucher-error-msg');
+                const originalText = btn.innerHTML;
+                const merchandiseTotal = parseFloat("@Model.GrandTotal");
+                btn.innerHTML = '<span class="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
+                btn.disabled = true;
+                errorMsg.classList.add('hidden');
+
+                try {
+                    const response = await fetch('/Checkout?handler=ApplyVoucher', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({
+                            code: code,
+                            type: currentVoucherType,
+                            merchandiseTotal: merchandiseTotal,
+                            shippingFee: currentShippingFee
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.isValid) {
+                        errorMsg.innerText = result.errorMessage;
+                        errorMsg.classList.remove('hidden');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    // Success!
+                    if (currentVoucherType === 'order') {
+                        appliedOrderVoucher = result;
+                        document.getElementById('order-voucher-code-input').value = result.voucherCode;
+                        document.getElementById('order-voucher-label').innerText = result.voucherName + " (" + result.discountLabel + ")";
+                        document.getElementById('order-voucher-actions').classList.add('hidden');
+                        document.getElementById('order-voucher-applied').classList.remove('hidden');
+                        document.getElementById('order-voucher-status').innerText = "Applied successfully";
+                        document.getElementById('order-voucher-row').classList.add('border-primary/30', 'bg-primary/5');
+                        
+                        document.getElementById('summary-order-discount-row').classList.remove('hidden');
+                        document.getElementById('summary-order-discount').innerText = '-' + formatCurrency(result.discountAmount);
+                    } else {
+                        appliedShippingVoucher = result;
+                        document.getElementById('shipping-voucher-code-input').value = result.voucherCode;
+                        document.getElementById('shipping-voucher-label').innerText = result.voucherName;
+                        document.getElementById('shipping-voucher-actions').classList.add('hidden');
+                        document.getElementById('shipping-voucher-applied').classList.remove('hidden');
+                        document.getElementById('shipping-voucher-status').innerText = "Applied successfully";
+                        document.getElementById('shipping-voucher-row').classList.add('border-primary/30', 'bg-primary/5');
+
+                        document.getElementById('summary-shipping-discount-row').classList.remove('hidden');
+                        document.getElementById('summary-shipping-discount').innerText = '-' + formatCurrency(result.discountAmount);
+                    }
+
+                    updateFinalTotal();
+                    closeVoucherModal();
+                } catch (error) {
+                    console.error('Error applying voucher:', error);
+                    errorMsg.innerText = "Error connecting to server.";
+                    errorMsg.classList.remove('hidden');
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+
+            window.removeVoucher = function(type) {
+                if (type === 'order') {
+                    appliedOrderVoucher = null;
+                    document.getElementById('order-voucher-code-input').value = '';
+                    document.getElementById('order-voucher-actions').classList.remove('hidden');
+                    document.getElementById('order-voucher-applied').classList.add('hidden');
+                    document.getElementById('order-voucher-status').innerText = "No voucher applied";
+                    document.getElementById('order-voucher-row').classList.remove('border-primary/30', 'bg-primary/5');
+                    document.getElementById('summary-order-discount-row').classList.add('hidden');
+                } else {
+                    appliedShippingVoucher = null;
+                    document.getElementById('shipping-voucher-code-input').value = '';
+                    document.getElementById('shipping-voucher-actions').classList.remove('hidden');
+                    document.getElementById('shipping-voucher-applied').classList.add('hidden');
+                    document.getElementById('shipping-voucher-status').innerText = "No voucher applied";
+                    document.getElementById('shipping-voucher-row').classList.remove('border-primary/30', 'bg-primary/5');
+                    document.getElementById('summary-shipping-discount-row').classList.add('hidden');
+                }
+                updateFinalTotal();
+            };
+
+            function updateFinalTotal() {
+                const subtotal = parseFloat("@Model.GrandTotal");
+                const orderDiscount = appliedOrderVoucher ? appliedOrderVoucher.discountAmount : 0;
+                const shippingDiscount = appliedShippingVoucher ? appliedShippingVoucher.discountAmount : 0;
+                const shippingFee = currentShippingFee;
+
+                const finalTotal = Math.max(0, subtotal + shippingFee - orderDiscount - shippingDiscount);
+                document.getElementById('summary-total').innerText = formatCurrency(finalTotal);
+            }
+
+            function formatCurrency(amount) {
+                return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+            }
+
+            // Esc key handles all modals
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    const addressModal = document.getElementById('addressModal');
+                    const newAddressModal = document.getElementById('newAddressModal');
+                    const voucherModal = document.getElementById('voucherModal');
+                    
+                    if(addressModal && !addressModal.classList.contains('hidden')) closeAddressModal();
+                    if(newAddressModal && !newAddressModal.classList.contains('hidden')) closeNewAddressModal();
+                    if(voucherModal && !voucherModal.classList.contains('hidden')) closeVoucherModal();
+                }
+            });
+
+        });
+    </script>
+}

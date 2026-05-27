@@ -1,0 +1,415 @@
+@page "/admin/stores"
+@using GearZone.Domain.Enums
+@model GearZone.Web.Pages.Admin.StoreManagement.IndexModel
+@{
+    var Store = Model.StoreApplication;
+    ViewData["Title"] = "Store Management";
+    ViewData["PageHeader"] = "Store Management";
+    ViewData["ActivePage"] = "Stores_Management";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Store Management" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">store</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Stores</p>
+                <h3 class="text-2xl font-bold text-slate-900">@(Model.Stats.TotalCount - Model.Stats.PendingCount - Model.Stats.RejectedCount)</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Active Stores</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Stats.ApprovedCount</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">block</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Suspended/Locked</p>
+                <h3 class="text-2xl font-bold text-slate-900">@(Model.Stats.TotalCount - Model.Stats.PendingCount - Model.Stats.ApprovedCount - Model.Stats.RejectedCount)</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Actions Bar -->
+    <form method="get" class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-start">
+        <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto flex-1 items-start">
+            <!-- Search -->
+            <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <span class="material-symbols-outlined text-[20px]">search</span>
+                </span>
+                <input asp-for="Query.SearchTerm" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary h-[42px]" placeholder="Search Store or Tax Code..." type="text" />
+            </div>
+            <!-- Status Filter -->
+            <div class="w-full sm:w-40">
+                <select asp-for="Query.Status" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm text-slate-900 focus:border-primary focus:ring-primary h-[42px]">
+                    <option value="">All Status</option>
+                    @foreach (StoreStatus status in Enum.GetValues(typeof(StoreStatus)))
+                    {
+                        if (status != StoreStatus.Draft && status != StoreStatus.Pending && status != StoreStatus.Rejected)
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    }
+                </select>
+            </div>
+            <button type="submit"
+                    class="w-full sm:w-auto h-[42px] flex items-center justify-center gap-2
+               bg-primary text-white border border-primary
+               px-4 py-2.5 text-sm rounded-lg font-medium
+               hover:bg-primary-dark transition-all shadow-sm">
+
+                <span class="material-symbols-outlined text-[20px]">
+                    search
+                </span>
+                Search
+            </button>
+            <!-- Date Filter -->
+            <div class="w-full sm:w-80 space-y-2">
+                <select asp-for="DateRangeShortcut" id="dateRangeShortcut" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm focus:ring-primary focus:border-primary h-[42px]" onchange="toggleCustomDateRange()">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+                <div id="customDateRangeContainer" class="relative @(Model.DateRangeShortcut == "custom" ? "" : "hidden")">
+                    <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">
+                        <span class="material-symbols-outlined text-[18px]">calendar_today</span>
+                    </span>
+                    <input type="text" asp-for="DateRange" id="dateRangePicker" class="form-input w-full pl-10 pr-4 py-2 border-slate-200 bg-slate-50 rounded-lg text-sm focus:ring-primary focus:border-primary cursor-pointer transition-all h-[42px]" placeholder="Select Range" />
+                </div>
+            </div>
+        </div>
+        <!-- Export Button -->
+        <button type="button" class="w-full lg:w-auto flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-lg font-medium hover:bg-slate-50 transition-all shadow-sm h-[42px]">
+            <span class="material-symbols-outlined text-[20px]">download</span>
+            <span>Export CSV</span>
+        </button>
+    </form>
+
+    <!-- Data Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden flex flex-col">
+        <div class="overflow-x-auto w-full">
+            <table class="w-full text-left border-collapse min-w-max">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 pl-6 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Store Name</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Owner</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Email</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Phone</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Status</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Created Date</th>
+                        <th class="py-4 pl-3 pr-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right whitespace-nowrap">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach (var item in Model.StoreApplications.Items)
+                    {
+                        <tr class="group hover:bg-slate-50 transition-all cursor-pointer" onclick="if(!event.target.closest('a, button, form')) window.location.href='/admin/stores/@item.Id'">
+                            <td class="py-4 pl-6 pr-3 whitespace-nowrap">
+                                <div class="flex items-center gap-3">
+                                    <div class="size-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0">@(string.IsNullOrEmpty(item.StoreName) ? "ST" : new string(item.StoreName.Take(2).ToArray()).ToUpper())</div>
+                                    <span class="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors">@(string.IsNullOrEmpty(item.StoreName) ? "N/A" : item.StoreName)</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-3 text-slate-600 whitespace-nowrap">
+                                <span class="text-sm font-medium text-slate-900">@item.OwnerName</span>
+                            </td>
+                            <td class="py-4 px-3 text-slate-500 text-sm whitespace-nowrap">@item.Email</td>
+                            <td class="py-4 px-3 text-slate-500 text-sm whitespace-nowrap">@item.Phone</td>
+                            <td class="py-4 px-3 whitespace-nowrap">
+                                @{
+                                    var statusClass = item.Status switch
+                                    {
+                                        StoreStatus.Pending => "bg-amber-50 text-amber-700 ring-amber-600/20",
+                                        StoreStatus.Approved => "bg-green-50 text-green-700 ring-green-600/20",
+                                        // StoreStatus.Active => "bg-green-50 text-green-700 ring-green-600/20",
+                                        StoreStatus.Rejected => "bg-red-50 text-red-700 ring-red-600/10",
+                                        StoreStatus.Locked => "bg-red-50 text-red-700 ring-red-600/10",
+                                        // StoreStatus.Suspend => "bg-red-50 text-red-700 ring-red-600/10",
+                                        _ => "bg-slate-50 text-slate-700 ring-slate-600/20"
+                                    };
+                                    var dotClass = item.Status switch
+                                    {
+                                        StoreStatus.Pending => "bg-amber-500",
+                                        StoreStatus.Approved => "bg-green-500",
+                                        // StoreStatus.Active => "bg-green-500",
+                                        StoreStatus.Rejected => "bg-red-500",
+                                        StoreStatus.Locked => "bg-red-500",
+                                        // StoreStatus.Suspend => "bg-red-500",
+                                        _ => "bg-slate-500"
+                                    };
+                                }
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium @statusClass ring-1 ring-inset">
+                                    <span class="size-1.5 rounded-full @dotClass"></span>
+                                    @item.Status
+                                </span>
+                            </td>
+                            <td class="py-4 px-3 whitespace-nowrap">
+                                <div class="flex flex-col">
+                                    <span class="text-sm text-slate-900">@item.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">@item.CreatedAt.ToString("hh:mm tt")</span>
+                                </div>
+                            </td>
+                            <td class="py-4 pl-3 pr-6 text-right whitespace-nowrap">
+                                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a asp-page="/Admin/StoreManagement/Detail" asp-route-id="@item.Id" class="text-slate-400 hover:text-primary transition-colors p-1" title="View Details">
+                                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                    </a>
+                                    @if (item.Status == StoreStatus.Approved)
+                                    {
+                                        <button class="text-slate-400 hover:text-amber-500 transition-colors p-1" title="Suspend" data-id="@item.Id" data-storeName="@item.StoreName" onclick="OpenStatusChangeModal(this, 'suspend')">
+                                            <span class="material-symbols-outlined text-[20px]">block</span>
+                                        </button>
+                                        <button class="text-slate-400 hover:text-red-500 transition-colors p-1" title="Lock" data-id="@item.Id" data-storeName="@item.StoreName" onclick="OpenStatusChangeModal(this, 'lock')">
+                                            <span class="material-symbols-outlined text-[20px]">lock</span>
+                                        </button>
+                                    }
+                                    @if (item.Status == StoreStatus.Locked)
+                                    {
+                                        <form method="post" asp-page-handler="ChangeStatus" asp-route-storeId="@item.Id" asp-route-status="@StoreStatus.Approved" class="inline">
+                                            <button type="submit" class="text-slate-400 hover:text-green-500 transition-colors p-1" title="Activate">
+                                                <span class="material-symbols-outlined text-[20px]">lock_open</span>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (item.Status == StoreStatus.Pending)
+                                    {
+                                        <button class="text-slate-400 hover:text-green-500 transition-colors p-1" title="Approve" data-id="@item.Id" data-storeName="@item.StoreName" onclick="OpenStatusChangeModal(this, 'approve')">
+                                            <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                                        </button>
+                                        <button class="text-slate-400 hover:text-red-500 transition-colors p-1" title="Reject" data-id="@item.Id" data-storeName="@item.StoreName" onclick="OpenStatusChangeModal(this,'reject')">
+                                            <span class="material-symbols-outlined text-[20px]">cancel</span>
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.StoreApplications.Items.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center py-6 text-slate-500">No stores found matching your criteria.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="border-t border-slate-100 px-6 py-4 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-sm text-slate-500">
+                @{
+                    var startItem = (Model.StoreApplications.PageNumber - 1) * Model.StoreApplications.PageSize + 1;
+                    var endItem = Math.Min(Model.StoreApplications.PageNumber * Model.StoreApplications.PageSize, Model.StoreApplications.TotalCount);
+                    if (Model.StoreApplications.TotalCount == 0)
+                    {
+                        startItem = 0;
+                    }
+                }
+                Showing <span class="font-medium text-slate-900">@startItem</span> to 
+                <span class="font-medium text-slate-900">@endItem</span> of 
+                <span class="font-medium text-slate-900">@Model.StoreApplications.TotalCount</span> stores
+            </div>
+            
+            <nav aria-label="Pagination" class="flex items-center gap-1">
+                @if (Model.StoreApplications.PageNumber > 1)
+                {
+                    <a asp-page="./Index" 
+                       asp-route-Query.PageNumber="@(Model.StoreApplications.PageNumber - 1)" 
+                       asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                       asp-route-Query.Status="@Model.Query.Status"
+                       asp-route-DateRangeShortcut="@Model.DateRangeShortcut"
+                       asp-route-DateRange="@Model.DateRange"
+                       class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                    </a>
+                }
+                else
+                {
+                    <button disabled class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 opacity-50 cursor-not-allowed">
+                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                    </button>
+                }
+
+                <div class="flex items-center gap-1 px-1">
+                    <button class="size-9 rounded-lg border border-primary bg-primary text-white text-sm font-bold shadow-sm shadow-primary/20 transition-all">@Model.StoreApplications.PageNumber</button>
+                </div>
+
+                @if (Model.StoreApplications.PageNumber * Model.StoreApplications.PageSize < Model.StoreApplications.TotalCount)
+                {
+                    <a asp-page="./Index" 
+                       asp-route-Query.PageNumber="@(Model.StoreApplications.PageNumber + 1)" 
+                       asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                       asp-route-Query.Status="@Model.Query.Status"
+                       asp-route-DateRangeShortcut="@Model.DateRangeShortcut"
+                       asp-route-DateRange="@Model.DateRange"
+                       class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </a>
+                }
+                else
+                {
+                    <button disabled class="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 opacity-50 cursor-not-allowed">
+                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </button>
+                }
+            </nav>
+        </div>
+    </div>
+</div>
+
+<div id="statusModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg p-6 mx-auto bg-white rounded-2xl shadow-xl border border-slate-100">
+        <form method="post" asp-page-handler="ChangeStatus">
+            <input type="hidden" id="storeIdModalInput" name="storeId" />
+            <input type="hidden" id="statusModalInput" name="status" />
+            <div class="flex gap-4">
+                <div class="mt-1 flex size-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+                    <span class="material-symbols-outlined text-2xl">warning</span>
+                </div>
+                <div class="w-full">
+                    <h3 id="modalTitle" class="text-xl font-bold text-slate-900"></h3>
+                    <p class="text-sm text-slate-500 mt-1">
+                        You are about to <span id="modalAction"></span> the store
+                        <span id="storeNameModalSpa" class="font-bold text-slate-900"></span>.
+                    </p>
+                    <div class="mt-6 w-full">
+                        <label class="block text-sm font-bold text-slate-700 mb-2">
+                            Reason
+                        </label>
+                        <textarea name="reason"
+                              rows="4"
+                              class="w-full resize-none rounded-xl border border-slate-200 py-3 px-4 text-sm"
+                              placeholder="Please provide reason..."
+                              required></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
+                <button type="button"
+                        onclick="closeModal()"
+                        class="px-5 py-2 text-sm font-bold text-slate-600 border rounded-xl">
+                    Cancel
+                </button>
+                <button type="submit"
+                        id="modalSubmitBtn"
+                        class="px-6 py-2 text-sm font-bold text-white bg-red-600 rounded-xl">
+                    Confirm
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div id="approveModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center overflow-auto bg-slate-900/50 backdrop-blur-sm">
+    <div class="relative w-full max-w-md p-6 mx-auto bg-white rounded-2xl shadow-xl flex flex-col gap-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
+        <form method="post" asp-page-handler="ChangeStatus">
+            <input type="hidden" id="storeIdInput" name="storeId" />
+            <input type="hidden" id="statusInput" name="status" />
+
+            <div class="flex flex-col items-center justify-center text-center gap-3">
+                <div class="w-16 h-16 mx-auto bg-green-50 rounded-full flex items-center justify-center mb-2 ring-8 ring-green-50/50">
+                    <span class="material-symbols-outlined text-green-600 text-3xl">check_circle</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">Approve Store</h3>
+                <p class="text-sm text-slate-500">Are you sure you want to approve the store <span id="storeNameSpa" class="font-bold text-slate-900"></span>?</p>
+            </div>
+            
+            <div class="flex justify-center gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('approveModal').classList.add('hidden')" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex-1">Cancel</button>
+                <button type="submit" class="px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/30 flex-1">Approve</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        function toggleCustomDateRange() {
+            const select = document.getElementById('dateRangeShortcut');
+            const container = document.getElementById('customDateRangeContainer');
+            if (select.value === 'custom') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                const picker = document.getElementById('dateRangePicker');
+                if (picker) picker.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("#dateRangePicker", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                allowInput: true
+            });
+        });
+
+        function OpenStatusChangeModal(btn, status) {
+            if (status === 'approve') {
+                const storeIdInput = document.getElementById('storeIdInput');
+                const storeNameSpa = document.getElementById('storeNameSpa');
+                const statusInput = document.getElementById('statusInput');
+                storeIdInput.value = btn.dataset.id;
+                statusInput.value = 'Approved';
+                storeNameSpa.innerText = btn.dataset.storename;
+                document.getElementById('approveModal').classList.remove('hidden');
+                return;
+            }
+
+            const statusInput = document.getElementById("statusModalInput");
+            const modal = document.getElementById("statusModal");
+            const title = document.getElementById("modalTitle");
+            const action = document.getElementById("modalAction");
+            const submitBtn = document.getElementById("modalSubmitBtn");
+            const storeIdModalInput = document.getElementById("storeIdModalInput");
+            const storeNameModalSpa = document.getElementById("storeNameModalSpa");
+            
+            storeIdModalInput.value = btn.dataset.id;
+            storeNameModalSpa.innerText = btn.dataset.storename;
+
+            switch (status) {
+                case "reject":
+                    title.innerText = "Reject Registration";
+                    action.innerText = "reject";
+                    submitBtn.innerText = "Confirm Rejection";
+                    statusInput.value = "Rejected";
+                    break;
+                case "lock":
+                    title.innerText = "Lock Store";
+                    action.innerText = "lock";
+                    submitBtn.innerText = "Confirm Lock";
+                    statusInput.value = "Locked";
+                    break;
+                case "suspend":
+                    title.innerText = "Suspend Store";
+                    action.innerText = "suspend";
+                    submitBtn.innerText = "Confirm Suspend";
+                    statusInput.value = "Suspend";
+                    break;
+            }
+
+            modal.classList.remove("hidden");
+        }
+
+        function closeModal(){
+            document.getElementById("statusModal").classList.add("hidden");
+        }
+    </script>
+}

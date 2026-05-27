@@ -1,0 +1,258 @@
+<style>
+    .chat-shell [data-chat-pane-host],
+    .chat-shell [data-chat-list-host] {
+        transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+
+    .chat-shell.is-list-loading [data-chat-list-host],
+    .chat-shell.is-thread-loading [data-chat-pane-host] {
+        opacity: 0.74;
+    }
+
+    .chat-shell .chat-pane-enter {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    .chat-shell .chat-pane-enter.chat-pane-enter-active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .chat-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .chat-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .chat-scroll::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.14);
+        border-radius: 9999px;
+    }
+
+    .chat-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.22);
+    }
+
+    .chat-conversation-row {
+        transition: background-color 0.14s ease;
+    }
+
+    .chat-conversation-row[data-active="true"] {
+        background: #f6f6f6;
+    }
+
+    .chat-thread-panel {
+        background: #ffffff;
+        min-width: 0;
+    }
+
+    .chat-message-bubble {
+        max-width: min(26rem, 100%);
+        border-radius: 0.7rem;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #ececec;
+        background: #ffffff;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .chat-message-bubble p,
+    .chat-message-bubble span {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .chat-message-bubble.chat-message-own {
+        border-color: #ffd7cb;
+        background: #fff2ee;
+    }
+
+    .chat-message-bubble.chat-message-other {
+        border-color: #ececec;
+        background: #ffffff;
+    }
+
+    .chat-message-meta {
+        line-height: 1rem;
+    }
+
+    .chat-composer-input {
+        line-height: 1.4rem;
+    }
+
+    .chat-shell--widget .chat-message-bubble {
+        max-width: min(19rem, 100%);
+    }
+
+    .chat-shell--account {
+        min-width: 0;
+        width: 100%;
+        overflow: hidden;
+        border: 1px solid #e8e8e8;
+        border-radius: 1.1rem;
+        background: #ffffff;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.06);
+        align-self: flex-start;
+        height: var(--chat-account-height, auto);
+        max-height: var(--chat-account-height, none);
+    }
+
+    .chat-shell--account > div,
+    .chat-shell--account [data-chat-list-host],
+    .chat-shell--account [data-chat-pane-host] {
+        min-width: 0;
+    }
+
+    .chat-shell--account .chat-conversation-row--compact {
+        padding-top: 0.82rem;
+        padding-bottom: 0.82rem;
+    }
+
+    .chat-shell--account .chat-message-bubble {
+        max-width: min(23rem, 82%);
+        border-radius: 0.85rem;
+        padding: 0.6rem 0.78rem;
+    }
+
+    .chat-shell--account .chat-thread-panel--account [data-chat-message-list] {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        overscroll-behavior: contain;
+    }
+
+    .chat-shell--account .chat-thread-panel--account .chat-composer-input {
+        min-height: 2.5rem;
+        max-height: 7rem;
+        padding-top: 0.78rem;
+        padding-bottom: 0.78rem;
+    }
+
+    .chat-shell--account .chat-thread-panel--account [data-chat-composer] {
+        gap: 0.75rem;
+    }
+
+    .chat-shell--account .chat-thread-panel--account [data-chat-send-button] {
+        height: 2.15rem;
+        min-width: 2.15rem;
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
+    }
+
+    .chat-shell--seller-canvas {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    .chat-shell--seller-canvas > div {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .chat-shell--seller-canvas [data-chat-list-host] {
+        border-right: 1px solid #efefef;
+        background: #fff;
+    }
+
+    .chat-shell--seller-canvas .chat-conversation-row--compact {
+        padding-top: 0.7rem;
+        padding-bottom: 0.7rem;
+    }
+
+    .chat-shell--seller-canvas .chat-message-bubble {
+        max-width: min(22rem, 100%);
+        border-radius: 0.65rem;
+        padding: 0.5rem 0.68rem;
+    }
+
+    .chat-shell--seller-canvas .chat-thread-panel--seller-canvas .chat-composer-input {
+        min-height: 2.35rem;
+        max-height: 6.5rem;
+        padding-top: 0.7rem;
+        padding-bottom: 0.7rem;
+    }
+
+    .chat-shell--seller-canvas .chat-thread-panel--seller-canvas [data-chat-composer] {
+        gap: 0.65rem;
+    }
+
+    .chat-shell--seller-canvas .chat-thread-panel--seller-canvas [data-chat-send-button] {
+        height: 2rem;
+        min-width: 2rem;
+        padding-left: 0.55rem;
+        padding-right: 0.55rem;
+    }
+
+    .chat-shell--seller-canvas .chat-thread-panel--seller-canvas [data-chat-message-list] {
+        padding-top: 0.9rem;
+        padding-bottom: 0.9rem;
+    }
+
+    .chat-shell--widget .chat-mobile-back {
+        display: inline-flex;
+    }
+
+    @@media (max-width: 1023.98px) {
+        .chat-shell--account {
+            min-height: 34rem;
+            height: 34rem !important;
+            max-height: 34rem !important;
+        }
+
+        .chat-shell--widget {
+            position: relative;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .chat-shell--widget > div {
+            height: 100%;
+            min-height: 0;
+        }
+
+        .chat-shell--widget [data-chat-list-host],
+        .chat-shell--widget [data-chat-pane-host] {
+            height: 100%;
+            min-height: 0;
+            transition: transform 0.18s ease, opacity 0.18s ease;
+        }
+
+        .chat-shell--widget [data-chat-pane-host] {
+            position: absolute;
+            inset: 0;
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+            background: #fff;
+        }
+
+        .chat-shell--widget[data-mobile-view="thread"] [data-chat-list-host] {
+            transform: translateX(-100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .chat-shell--widget[data-mobile-view="thread"] [data-chat-pane-host] {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+    }
+
+    @@media (min-width: 1024px) {
+        .chat-shell--account {
+            height: var(--chat-account-height, min(39rem, calc(100vh - 10rem))) !important;
+            max-height: var(--chat-account-height, min(39rem, calc(100vh - 10rem))) !important;
+        }
+
+        .chat-shell--widget .chat-mobile-back {
+            display: none;
+        }
+    }
+</style>

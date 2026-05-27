@@ -1,0 +1,509 @@
+@page "/admin/payouts"
+@model GearZone.Web.Pages.Admin.Payouts.IndexModel
+@{
+    ViewData["Title"] = "Payout Management";
+    ViewData["PageHeader"] = "Payout Management";
+    ViewData["ActivePage"] = "Payouts";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Finance", "Payouts" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">payments</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Net Revenue</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Summary.TotalNetDisbursed.ToString("N0") ₫</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">pending_actions</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Pending/Processing</p>
+                <h3 class="text-2xl font-bold text-slate-900">@(Model.Summary.PendingCount + Model.Summary.ProcessingCount)</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">task_alt</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Completed</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Summary.CompletedCount</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[24px]">error</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Failed/Manual</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.Summary.FailedCount</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Actions Bar -->
+    <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex flex-col gap-4">
+        <form method="get" id="filter-form" class="flex flex-col gap-4">
+            <input type="hidden" name="Query.PageNumber" id="page-number-input" value="@Model.Query.PageNumber" />
+            <input type="hidden" name="Query.SortBy" id="sort-by-input" value="@Model.Query.SortBy" />
+            <input type="hidden" name="Query.SortDirection" id="sort-dir-input" value="@Model.Query.SortDirection" />
+
+            <div class="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-end">
+                <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto flex-1">
+                    <!-- Search -->
+                    <div class="relative w-full sm:max-w-xs">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <span class="material-symbols-outlined text-[20px]">search</span>
+                    </span>
+                    <input asp-for="Query.SearchTerm" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary" placeholder="Search Store or Code..." type="text" />
+                </div>
+                    <!-- Status Filter -->
+                    <div class="w-full sm:w-48">
+                        <select asp-for="Query.Status" asp-items="Html.GetEnumSelectList<GearZone.Domain.Enums.PayoutTransactionStatus>()" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 text-sm text-slate-900 focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                            <option value="">All Status</option>
+                        </select>
+                    </div>
+                    <!-- Date Filter Selection -->
+                    <div class="w-full sm:w-48">
+                        <select asp-for="Query.DateRangeType" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 text-sm text-slate-900 focus:border-primary focus:ring-primary" onchange="toggleCustomDate(this.value); if(this.value !== 'Custom') this.form.submit();">
+                            <option value="">All Time</option>
+                            <option value="Today">Today</option>
+                            <option value="Week">This Week</option>
+                            <option value="Month">This Month</option>
+                            <option value="Custom">Custom Range</option>
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                            class="w-full sm:w-auto h-[42px] px-5 flex items-center justify-center gap-2 bg-slate-800 text-white border border-slate-800 text-sm rounded-lg font-medium hover:bg-slate-900 transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-[20px]">search</span>
+                        Search
+                    </button>
+                    
+                    <button type="button" id="toggle-advanced-btn"
+                            class="w-full sm:w-auto h-[42px] px-4 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-600 text-sm rounded-lg font-medium hover:bg-slate-50 transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-[20px]">tune</span>
+                        <span>Filters</span>
+                        @{
+                            var advancedCount = 0;
+                            if (Model.Query.MinAmount.HasValue || Model.Query.MaxAmount.HasValue) advancedCount++;
+                            if (Model.Query.DateRangeType == "Custom") advancedCount++;
+                        }
+                        @if (advancedCount > 0)
+                        {
+                            <span class="size-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center font-bold">@advancedCount</span>
+                        }
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                    <a asp-page="/Admin/Payouts/Index" class="w-full sm:w-auto h-[42px] px-4 flex items-center justify-center text-slate-500 hover:text-slate-700 font-medium" title="Reset Filters">
+                        <span class="material-symbols-outlined text-[20px]">restart_alt</span>
+                    </a>
+                    <button type="button" class="w-full sm:w-auto h-[42px] px-5 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 text-sm rounded-lg font-medium hover:bg-slate-50 transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-[20px]">download</span>
+                        <span>Export</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Advanced Filters -->
+            <div id="advanced-filters" class="@(advancedCount > 0 ? "" : "hidden") border-t border-slate-100 pt-4 flex flex-col gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Date Range (Custom) -->
+                    <div id="custom-date-inputs" class="@(Model.Query.DateRangeType == "Custom" ? "" : "hidden") flex flex-col gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">calendar_today</span> Custom Date Range
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" asp-for="Query.StartDate" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm text-slate-900 focus:border-primary focus:ring-primary" />
+                            <span class="text-slate-300">—</span>
+                            <input type="date" asp-for="Query.EndDate" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm text-slate-900 focus:border-primary focus:ring-primary" />
+                        </div>
+                    </div>
+
+                    <!-- Amount Range -->
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">payments</span> Net Amount Range (₫)
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" asp-for="Query.MinAmount" placeholder="Min" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm text-slate-900 focus:border-primary focus:ring-primary" />
+                            <span class="text-slate-300">—</span>
+                            <input type="number" asp-for="Query.MaxAmount" placeholder="Max" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 py-2 text-sm text-slate-900 focus:border-primary focus:ring-primary" />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="flex items-center justify-center gap-2 bg-slate-800 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-slate-900 transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-[18px]">check</span>
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden flex flex-col">
+        <div class="overflow-x-auto w-full">
+            <table class="w-full text-left border-collapse min-w-max">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 pl-6 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-[50px]">
+                            <input class="rounded border-slate-300 text-primary focus:ring-primary size-4" type="checkbox" id="selectAll" />
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                            <button type="button" class="sort-header inline-flex items-center gap-1 hover:text-primary transition-colors group" data-col="code">
+                                Payout Code
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "code" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "code" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "code" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                            <button type="button" class="sort-header inline-flex items-center gap-1 hover:text-primary transition-colors group" data-col="store">
+                                Store Info
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "store" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "store" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "store" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap text-right">
+                            <button type="button" class="sort-header inline-flex items-center justify-end gap-1 w-full hover:text-primary transition-colors group" data-col="gross">
+                                Gross revenue
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "gross" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "gross" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "gross" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap text-right">Commission</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap text-right">
+                            <button type="button" class="sort-header inline-flex items-center justify-end gap-1 w-full hover:text-primary transition-colors group" data-col="net">
+                                Net disbursed
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "net" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "net" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "net" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">Bank Reference</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap text-center">
+                            <button type="button" class="sort-header inline-flex items-center justify-center gap-1 w-full hover:text-primary transition-colors group" data-col="status">
+                                Status
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "status" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "status" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "status" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+                            <button type="button" class="sort-header inline-flex items-center gap-1 hover:text-primary transition-colors group" data-col="date">
+                                Request Date
+                                <span class="sort-icon material-symbols-outlined text-[16px] transition-all @(Model.Query.SortBy == "date" ? "text-primary" : "text-slate-300 group-hover:text-slate-400")">
+                                    @(Model.Query.SortBy == "date" && Model.Query.SortDirection == "asc" ? "arrow_upward" : Model.Query.SortBy == "date" && Model.Query.SortDirection == "desc" ? "arrow_downward" : "unfold_more")
+                                </span>
+                            </button>
+                        </th>
+                        <th class="py-4 pl-3 pr-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right whitespace-nowrap">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.Transactions.Items.Any())
+                    {
+                        @foreach (var tx in Model.Transactions.Items)
+                        {
+                            <tr class="group hover:bg-slate-50 transition-all cursor-pointer" onclick="if(!event.target.closest('a, button, input')) window.location.href='/Admin/Payouts/TransactionDetail?id=@tx.Id'">
+                                <td class="py-4 pl-6 pr-3 align-middle">
+                                    <input class="rounded border-slate-300 text-primary focus:ring-primary size-4 row-checkbox" type="checkbox" value="@tx.Id" />
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap text-sm font-bold text-slate-900 group-hover:text-primary transition-colors">
+                                    <div class="flex flex-col">
+                                        <a asp-page="/Admin/Payouts/TransactionDetail" asp-route-id="@tx.Id" class="font-mono">@tx.TransactionCode</a>
+                                        @if (!string.IsNullOrEmpty(tx.BatchCode))
+                                        {
+                                            <span class="text-[10px] text-slate-400 font-medium tracking-tight">Batch: @tx.BatchCode</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap">
+                                    <div class="flex items-center gap-3">
+                                        <div class="size-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0">
+                                            @tx.StoreName.Substring(0, Math.Min(2, tx.StoreName.Length)).ToUpper()
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-semibold text-slate-900 leading-tight">@tx.StoreName</span>
+                                            <span class="text-[10px] text-slate-500">@tx.StoreEmail</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap text-right">
+                                    <span class="text-sm font-medium text-slate-700">@tx.GrossAmount.ToString("N0") ₫</span>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap text-right">
+                                    <span class="text-sm font-medium text-slate-500">@tx.CommissionAmount.ToString("N0") ₫</span>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap text-right">
+                                    <span class="text-sm font-bold text-emerald-600">@tx.NetAmount.ToString("N0") ₫</span>
+                                </td>
+                                <td class="py-4 px-3 text-slate-500 text-sm whitespace-nowrap">
+                                    <div class="flex flex-col">
+                                        <span class="text-[13px] font-medium text-slate-700 leading-tight">@tx.BankName</span>
+                                        <span class="text-[11px] font-mono text-slate-400">@tx.BankAccountNumber</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap text-center">
+                                    @{
+                                        var (tbg, ttx, tdt) = tx.Status switch
+                                        {
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Queued => ("bg-slate-50 text-slate-600 ring-slate-500/20", "Queued", "bg-slate-400"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Processing => ("bg-blue-50 text-blue-700 ring-blue-600/20", "Processing", "bg-blue-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Success => ("bg-green-50 text-green-700 ring-green-600/20", "Success", "bg-green-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Failed => ("bg-red-50 text-red-700 ring-red-600/20", "Failed", "bg-red-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.ManualRequired => ("bg-orange-50 text-orange-700 ring-orange-600/20", "Manual Req", "bg-orange-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Excluded => ("bg-slate-100 text-slate-500 ring-slate-400/20", "Excluded", "bg-slate-400"),
+                                            _ => ("bg-slate-50 text-slate-600 ring-slate-500/20", tx.Status.ToString(), "bg-slate-400")
+                                        };
+                                    }
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold @tbg ring-1 ring-inset uppercase tracking-tight">
+                                        <span class="size-1.5 rounded-full @tdt"></span>
+                                        @ttx
+                                    </span>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap">
+                                    <div class="flex flex-col">
+                                        <span class="text-[13px] font-bold text-slate-900 leading-tight">@tx.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">@tx.CreatedAt.ToString("hh:mm tt")</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 pl-3 pr-6 text-right whitespace-nowrap">
+                                    <div class="flex items-center justify-end gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                        <a asp-page="/Admin/Payouts/TransactionDetail" asp-route-id="@tx.Id" class="text-slate-400 hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-sm" title="View Details">
+                                            <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                        </a>
+                                        @if (tx.Status == GearZone.Domain.Enums.PayoutTransactionStatus.Failed || tx.Status == GearZone.Domain.Enums.PayoutTransactionStatus.ManualRequired)
+                                        {
+                                            <button class="text-slate-400 hover:text-blue-500 transition-colors p-1.5 rounded-lg" title="Retry">
+                                                <span class="material-symbols-outlined text-[20px]">refresh</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="10" class="py-12 text-center">
+                                <span class="material-symbols-outlined text-slate-200 text-[64px] block mb-2">payments</span>
+                                <p class="text-slate-400 font-medium">No payout transactions found matching your filters</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div class="border-t border-slate-100 px-6 py-4 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-sm text-slate-500 font-medium">
+                Showing <span class="text-slate-900">@( (Model.Transactions.PageNumber - 1) * Model.Transactions.PageSize + 1 )</span> to 
+                <span class="text-slate-900">@( Math.Min(Model.Transactions.PageNumber * Model.Transactions.PageSize, Model.Transactions.TotalCount) )</span> of 
+                <span class="text-slate-900">@Model.Transactions.TotalCount</span> transactions
+            </div>
+            
+            <nav aria-label="Pagination" class="flex items-center gap-1">
+                <button type="button" onclick="gotoPage(@(Model.Transactions.PageNumber - 1))"
+                   class="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all @(Model.Transactions.PageNumber <= 1 ? "pointer-events-none opacity-50" : "")">
+                    <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                </button>
+                
+                @for (int i = 1; i <= Math.Ceiling((double)Model.Transactions.TotalCount / Model.Transactions.PageSize); i++)
+                {
+                    <button type="button" onclick="gotoPage(@i)"
+                       class="size-9 rounded-lg border @(i == Model.Transactions.PageNumber ? "border-primary bg-primary text-white shadow-sm shadow-primary/20" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50") flex items-center justify-center text-sm font-bold transition-all">
+                        @i
+                    </button>
+                }
+
+                <button type="button" onclick="gotoPage(@(Model.Transactions.PageNumber + 1))"
+                   class="p-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all @(Model.Transactions.PageNumber >= Math.Ceiling((double)Model.Transactions.TotalCount / Model.Transactions.PageSize) ? "pointer-events-none opacity-50" : "")">
+                    <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Bulk Actions Bar -->
+<div id="bulkActionsContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden transition-all duration-300 translate-y-4 opacity-0">
+    <div class="bg-[#4a89db] px-5 py-3 rounded-xl shadow-2xl flex items-center gap-4 text-white">
+        <div class="flex items-center gap-2.5 border-r border-white/20 pr-4">
+            <span class="font-bold text-xl" id="selectedCountDisplay">0</span>
+            <div class="flex flex-col text-xs font-semibold leading-[1.1] text-blue-50">
+                <span>payouts</span>
+                <span>selected</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 transition-colors text-sm font-medium shadow-sm text-white">
+                <span class="material-symbols-outlined text-[18px]">payments</span>
+                Process Payout
+            </button>
+            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium text-white">
+                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                Approve
+            </button>
+            <button type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/30 hover:bg-white/10 transition-colors text-sm font-medium text-white">
+                <span class="material-symbols-outlined text-[18px]">cancel</span>
+                Reject
+            </button>
+            <button type="button" id="closeBulkActionsBtn" class="flex items-center justify-center p-1 rounded-lg hover:bg-black/10 transition-colors ml-1 text-blue-100 hover:text-white">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function gotoPage(page) {
+            const pageInput = document.getElementById('page-number-input');
+            const filterForm = document.getElementById('filter-form');
+            if (pageInput && filterForm) {
+                pageInput.value = page;
+                filterForm.submit();
+            }
+        }
+
+        function toggleCustomDate(val) {
+            const customDateInputs = document.getElementById('custom-date-inputs');
+            const advancedFilters = document.getElementById('advanced-filters');
+            if (val === 'Custom') {
+                customDateInputs.classList.remove('hidden');
+                advancedFilters.classList.remove('hidden');
+            } else {
+                customDateInputs.classList.add('hidden');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAll = document.getElementById('selectAll');
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+            const bulkActionsContainer = document.getElementById('bulkActionsContainer');
+            const selectedCountDisplay = document.getElementById('selectedCountDisplay');
+            
+            // Advanced filters toggle
+            const toggleAdvancedBtn = document.getElementById('toggle-advanced-btn');
+            const advancedFilters = document.getElementById('advanced-filters');
+            if (toggleAdvancedBtn) {
+                toggleAdvancedBtn.addEventListener('click', () => {
+                    advancedFilters.classList.toggle('hidden');
+                    if (advancedFilters.classList.contains('hidden')) {
+                        toggleAdvancedBtn.classList.remove('bg-slate-50', 'text-slate-900', 'border-slate-300');
+                    } else {
+                        toggleAdvancedBtn.classList.add('bg-slate-50', 'text-slate-900', 'border-slate-300');
+                    }
+                });
+            }
+
+            // Column Sort Logic
+            const sortByInput = document.getElementById('sort-by-input');
+            const sortDirInput = document.getElementById('sort-dir-input');
+            const filterForm = document.getElementById('filter-form');
+
+            document.querySelectorAll('.sort-header').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const col = this.dataset.col;
+                    const currentCol = sortByInput.value;
+                    const currentDir = sortDirInput.value;
+
+                    let nextDir = '';
+                    if (currentCol !== col) {
+                        nextDir = 'desc';
+                    } else if (currentDir === 'desc') {
+                        nextDir = 'asc';
+                    } else if (currentDir === 'asc') {
+                        nextDir = '';
+                    } else {
+                        nextDir = 'desc';
+                    }
+
+                    if (nextDir === '') {
+                        sortByInput.value = '';
+                        sortDirInput.value = '';
+                    } else {
+                        sortByInput.value = col;
+                        sortDirInput.value = nextDir;
+                    }
+
+                    document.getElementById('page-number-input').value = '1';
+                    filterForm.submit();
+                });
+            });
+
+            function updateProcessButton() {
+                const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+                if (checkedCount > 0) {
+                    if (bulkActionsContainer) {
+                        bulkActionsContainer.classList.remove('hidden');
+                        // Use a tiny timeout to ensure the display change applies before transition begins
+                        setTimeout(() => {
+                            bulkActionsContainer.classList.remove('translate-y-4', 'opacity-0');
+                            bulkActionsContainer.classList.add('translate-y-0', 'opacity-100');
+                        }, 10);
+                    }
+                    if (selectedCountDisplay) selectedCountDisplay.textContent = checkedCount;
+                } else {
+                    if (bulkActionsContainer) {
+                        bulkActionsContainer.classList.remove('translate-y-0', 'opacity-100');
+                        bulkActionsContainer.classList.add('translate-y-4', 'opacity-0');
+                        // Wait for transition before hiding element
+                        setTimeout(() => {
+                            // Check again in case user rapidly checked something else
+                            if (document.querySelectorAll('.row-checkbox:checked').length === 0) {
+                                bulkActionsContainer.classList.add('hidden');
+                            }
+                        }, 300);
+                    }
+                }
+            }
+
+            const closeBulkActionsBtn = document.getElementById('closeBulkActionsBtn');
+            if (closeBulkActionsBtn) {
+                closeBulkActionsBtn.addEventListener('click', () => {
+                    if (selectAll) selectAll.checked = false;
+                    rowCheckboxes.forEach(cb => cb.checked = false);
+                    updateProcessButton();
+                });
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function() {
+                    rowCheckboxes.forEach(cb => {
+                        cb.checked = selectAll.checked;
+                    });
+                    updateProcessButton();
+                });
+            }
+
+            rowCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const allChecked = Array.from(rowCheckboxes).every(c => c.checked);
+                    const someChecked = Array.from(rowCheckboxes).some(c => c.checked);
+                    
+                    if (selectAll) {
+                        selectAll.checked = allChecked;
+                        selectAll.indeterminate = someChecked && !allChecked;
+                    }
+                    updateProcessButton();
+                });
+            });
+        });
+    </script>
+}

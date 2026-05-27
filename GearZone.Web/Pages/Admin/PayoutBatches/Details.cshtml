@@ -1,0 +1,382 @@
+@page "{id:guid}"
+@model GearZone.Web.Pages.Admin.PayoutBatches.DetailsModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = $"Batch {Model.Batch?.BatchCode}";
+    ViewData["PageHeader"] = "Payout Batch Detail";
+    ViewData["ActivePage"] = "PayoutBatches";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Payout Batches", Model.Batch?.BatchCode ?? "" };
+}
+
+@if (Model.Batch == null)
+{
+    <p>Batch not found.</p>
+    return;
+}
+
+<div class="flex flex-col gap-6 pb-8">
+    <!-- Page Title Row -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <a asp-page="/Admin/PayoutBatches/Index" class="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 shadow-sm transition-all">
+                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+            </a>
+            <h2 class="text-[22px] font-bold text-slate-900">@Model.Batch.BatchCode</h2>
+            @{
+                var (statusClass, dotClass) = Model.Batch.Status switch
+                {
+                    GearZone.Domain.Enums.PayoutBatchStatus.PendingApproval => ("bg-amber-50 text-amber-700 ring-amber-600/20", "bg-amber-500"),
+                    GearZone.Domain.Enums.PayoutBatchStatus.Approved => ("bg-blue-50 text-blue-700 ring-blue-600/20", "bg-blue-500"),
+                    GearZone.Domain.Enums.PayoutBatchStatus.Processing => ("bg-violet-50 text-violet-700 ring-violet-600/20", "bg-violet-500"),
+                    GearZone.Domain.Enums.PayoutBatchStatus.Completed => ("bg-green-50 text-green-700 ring-green-600/20", "bg-green-500"),
+                    GearZone.Domain.Enums.PayoutBatchStatus.PartialFailed => ("bg-orange-50 text-orange-700 ring-orange-600/20", "bg-orange-500"),
+                    GearZone.Domain.Enums.PayoutBatchStatus.OnHold => ("bg-red-50 text-red-700 ring-red-600/20", "bg-red-500"),
+                    _ => ("bg-slate-50 text-slate-600 ring-slate-500/20", "bg-slate-400")
+                };
+            }
+            <span class="inline-flex items-center gap-1.5 rounded-full @statusClass px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset uppercase tracking-tight">
+                <span class="size-1.5 rounded-full @dotClass"></span>
+                @Model.Batch.Status
+            </span>
+        </div>
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+            @if (Model.Batch.Status == GearZone.Domain.Enums.PayoutBatchStatus.PendingApproval)
+            {
+                <button type="button" onclick="openApproveModal('@Model.Batch.Id')"
+                        class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">verified</span>
+                    Approve
+                </button>
+            }
+            @if (Model.Batch.Status == GearZone.Domain.Enums.PayoutBatchStatus.Approved)
+            {
+                <button type="button" onclick="openProcessModal('@Model.Batch.Id', '@Model.Batch.BatchCode')"
+                        class="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                    Process
+                </button>
+            }
+            @if (Model.Batch.Status != GearZone.Domain.Enums.PayoutBatchStatus.Completed &&
+                 Model.Batch.Status != GearZone.Domain.Enums.PayoutBatchStatus.OnHold)
+            {
+                <button type="button" onclick="openHoldModal('@Model.Batch.Id')"
+                        class="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-all">
+                    <span class="material-symbols-outlined text-[18px]">pause</span>
+                    Hold
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Flash -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+            <span class="material-symbols-outlined text-green-600 text-[20px]">check_circle</span>
+            @TempData["SuccessMessage"]
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <span class="material-symbols-outlined text-red-600 text-[20px]">error</span>
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <!-- Summary Stats Widgets -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Status Widget -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Current Status</span>
+                <span class="material-symbols-outlined text-slate-400 text-[20px]">info</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 rounded-full @statusClass px-3 py-1 text-xs font-bold ring-1 ring-inset uppercase tracking-tight">
+                    <span class="size-1.5 rounded-full @dotClass"></span>
+                    @Model.Batch.Status
+                </span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-3">Created on @Model.Batch.CreatedAt.ToString("dd/MM/yyyy")</p>
+        </div>
+
+        <!-- Gross Widget -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Gross Revenue</span>
+                <div class="size-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[18px]">payments</span>
+                </div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900">@Model.Batch.TotalGrossAmount.ToString("N0") ₫</h3>
+            <p class="text-[11px] text-slate-400 mt-2">From @Model.Batch.TotalStores stores</p>
+        </div>
+
+        <!-- Commission Widget -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Commission</span>
+                <div class="size-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                </div>
+            </div>
+            <h3 class="text-xl font-bold text-indigo-600">@Model.Batch.TotalCommissionAmount.ToString("N0") ₫</h3>
+            <p class="text-[11px] text-slate-400 mt-2">Platform fee collected</p>
+        </div>
+
+        <!-- Net Widget -->
+        <div class="bg-white p-5 rounded-xl shadow-card border border-slate-100 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Net Disbursed</span>
+                <div class="size-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                </div>
+            </div>
+            <h3 class="text-xl font-bold text-emerald-600">@Model.Batch.TotalNetAmount.ToString("N0") ₫</h3>
+            <p class="text-[11px] text-slate-400 mt-2">PayOS transfer total</p>
+        </div>
+    </div>
+
+    <!-- Details Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+            <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Batch Information</h2>
+            <div class="flex items-center gap-4 text-xs font-medium text-slate-500">
+                <div class="flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                    @Model.Batch.PeriodStart.ToString("dd/MM/yyyy") – @Model.Batch.PeriodEnd.ToString("dd/MM/yyyy")
+                </div>
+                |
+                <div class="flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">fingerprint</span>
+                    @Model.Batch.Id
+                </div>
+            </div>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-x-8">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center sm:text-left">Success / Failed</p>
+                    <div class="flex items-center justify-center sm:justify-start gap-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="size-2 rounded-full bg-emerald-500"></span>
+                            <span class="text-sm font-bold text-slate-900">@Model.Batch.SuccessCount</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="size-2 rounded-full bg-red-500"></span>
+                            <span class="text-sm font-bold text-slate-900">@Model.Batch.FailedCount</span>
+                        </div>
+                    </div>
+                </div>
+                @if (Model.Batch.ApprovedAt.HasValue)
+                {
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Approved At</p>
+                        <p class="text-sm font-semibold text-slate-900">@Model.Batch.ApprovedAt.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                    </div>
+                }
+                @if (Model.Batch.CompletedAt.HasValue)
+                {
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Completed At</p>
+                        <p class="text-sm font-semibold text-slate-900">@Model.Batch.CompletedAt.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.Batch.HoldReason))
+                {
+                    <div class="col-span-2">
+                        <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-1.5">Hold Reason</p>
+                        <p class="text-sm font-semibold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">@Model.Batch.HoldReason</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/30">
+            <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Transactions (@Model.Batch.Transactions.Count)</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-max">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 pl-6 pr-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Transaction</th>
+                        <th class="py-4 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Store</th>
+                        <th class="py-4 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right">Gross revenue</th>
+                        <th class="py-4 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right">Commission</th>
+                        <th class="py-4 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right">Net disbursed</th>
+                        <th class="py-4 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Bank Reference</th>
+                        <th class="py-4 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center">Status</th>
+                        <th class="py-4 pr-6 pl-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.Batch.Transactions.Any())
+                    {
+                        @foreach (var tx in Model.Batch.Transactions)
+                        {
+                            <tr class="group hover:bg-slate-50 transition-all cursor-pointer" onclick="if(!event.target.closest('a, button, input')) window.location.href='/Admin/Payouts/TransactionDetail?id=@tx.Id'">
+                                <td class="py-4 pl-6 pr-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-mono font-bold text-slate-900 group-hover:text-primary transition-colors">@tx.TransactionCode</span>
+                                        <span class="text-[10px] text-slate-400 font-medium">@tx.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3 align-middle">
+                                    <div class="flex items-center gap-3">
+                                        <div class="size-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                            @tx.StoreName.Substring(0, Math.Min(2, tx.StoreName.Length)).ToUpper()
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-bold text-slate-900 leading-tight">@tx.StoreName</span>
+                                            <span class="text-[10px] text-slate-400">@tx.StoreEmail</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3 text-right text-sm font-semibold text-slate-700 align-middle">@tx.GrossAmount.ToString("N0") ₫</td>
+                                <td class="py-4 px-3 text-right text-sm font-semibold text-indigo-600/80 align-middle">@tx.CommissionAmount.ToString("N0") ₫</td>
+                                <td class="py-4 px-3 text-right text-sm font-bold text-emerald-600 align-middle">@tx.NetAmount.ToString("N0") ₫</td>
+                                <td class="py-4 px-3 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-bold text-slate-700">@tx.BankName</span>
+                                        <span class="text-[11px] text-slate-400 font-mono">@tx.BankAccountNumber</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3 text-center align-middle">
+                                    @{
+                                        var (tbg, ttx, tdt) = tx.Status switch
+                                        {
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Queued => ("bg-slate-50 text-slate-600 ring-slate-500/20", "Queued", "bg-slate-400"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Processing => ("bg-blue-50 text-blue-700 ring-blue-600/20", "Processing", "bg-blue-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Success => ("bg-green-50 text-green-700 ring-green-600/20", "Success", "bg-green-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Failed => ("bg-red-50 text-red-700 ring-red-600/20", "Failed", "bg-red-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.ManualRequired => ("bg-orange-50 text-orange-700 ring-orange-600/20", "Manual Req", "bg-orange-500"),
+                                            GearZone.Domain.Enums.PayoutTransactionStatus.Excluded => ("bg-slate-100 text-slate-500 ring-slate-400/20", "Excluded", "bg-slate-400"),
+                                            _ => ("bg-slate-50 text-slate-600 ring-slate-500/20", tx.Status.ToString(), "bg-slate-400")
+                                        };
+                                    }
+                                    <span class="inline-flex items-center gap-1.5 rounded-full @tbg px-2.5 py-1 text-[10px] font-bold ring-1 ring-inset uppercase tracking-tight">
+                                        <span class="size-1 rounded-full @tdt"></span>
+                                        @ttx
+                                    </span>
+                                </td>
+                                <td class="py-4 pr-6 pl-3 align-middle text-right">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        @if (tx.Status == GearZone.Domain.Enums.PayoutTransactionStatus.Failed ||
+                                             tx.Status == GearZone.Domain.Enums.PayoutTransactionStatus.ManualRequired)
+                                        {
+                                            <form method="post" asp-page-handler="RetryTransaction" style="display:inline">
+                                                <input type="hidden" name="txId" value="@tx.Id" />
+                                                <input type="hidden" name="id" value="@Model.Batch.Id" />
+                                                <button type="submit"
+                                                        class="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                                                        title="Retry Transaction">
+                                                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                                                </button>
+                                            </form>
+                                        }
+                                        <a href="/Admin/Payouts/TransactionDetail?id=@tx.Id"
+                                           class="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition-all"
+                                           title="View details">
+                                            <span class="material-symbols-outlined text-[18px]">visibility</span>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="py-12 text-center">
+                                <span class="material-symbols-outlined text-slate-200 text-[48px] block mb-2">payments</span>
+                                <p class="text-sm text-slate-400">No transactions found in this batch</p>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div id="approve-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold text-slate-900 mb-2">Approve Batch</h3>
+        <p class="text-sm text-slate-500 mb-5">Are you sure you want to approve this payout batch?</p>
+        <form method="post" asp-page-handler="ApproveBatch">
+            <input type="hidden" name="id" value="@Model.Batch.Id" />
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="closeModal('approve-modal')" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-colors">Approve</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Hold Modal -->
+<div id="hold-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold text-slate-900 mb-2">Hold Batch</h3>
+        <p class="text-sm text-slate-500 mb-3">Please provide a reason.</p>
+        <form method="post" asp-page-handler="HoldBatch">
+            <input type="hidden" name="id" value="@Model.Batch.Id" />
+            <textarea name="reason" rows="3" class="form-input w-full rounded-lg border-slate-200 py-2 px-3 text-sm mb-4 focus:ring-primary focus:border-primary" placeholder="Hold reason…" required></textarea>
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="closeModal('hold-modal')" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-sm transition-colors">Confirm Hold</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Process Modal -->
+<div id="process-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold text-slate-900 mb-2">Process Batch</h3>
+        <p class="text-sm text-slate-500 mb-5">This will initiate all pending payouts via PayOS. Continue?</p>
+        <form method="post" asp-page-handler="ProcessBatch">
+            <input type="hidden" name="id" value="@Model.Batch.Id" />
+            <input type="hidden" name="batchCode" value="@Model.Batch.BatchCode" />
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="closeModal('process-modal')" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold shadow-sm transition-colors">Process</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Exclude Transaction Modal -->
+<div id="exclude-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold text-slate-900 mb-2">Exclude Transaction</h3>
+        <p class="text-sm text-slate-500 mb-3">Please provide a reason for exclusion.</p>
+        <form method="post" asp-page-handler="ExcludeTransaction">
+            <input type="hidden" name="id" value="@Model.Batch.Id" />
+            <input type="hidden" name="txId" id="exclude-tx-id" />
+            <textarea name="reason" rows="3" class="form-input w-full rounded-lg border-slate-200 py-2 px-3 text-sm mb-4 focus:ring-primary focus:border-primary" placeholder="Exclusion reason…" required></textarea>
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="closeModal('exclude-modal')" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold shadow-sm transition-colors">Confirm Exclude</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openApproveModal(id) { document.getElementById('approve-modal').classList.remove('hidden'); }
+        function openHoldModal(id) { document.getElementById('hold-modal').classList.remove('hidden'); }
+        function openProcessModal(id, code) { document.getElementById('process-modal').classList.remove('hidden'); }
+        function openExcludeModal(txId) {
+            document.getElementById('exclude-tx-id').value = txId;
+            document.getElementById('exclude-modal').classList.remove('hidden');
+        }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    </script>
+}

@@ -1,0 +1,176 @@
+﻿@using System.Linq
+@using GearZone.Web.Pages.Shared.Models
+@model ChatThreadPaneViewModel
+@{
+    var thread = Model.Thread;
+    var isWidget = Model.IsWidgetSurface;
+}
+
+<div class="chat-thread-panel flex h-full min-h-0 min-w-0 flex-col @(isWidget || Model.IsFullCanvasPage || Model.IsAccountCenterSurface ? "bg-white" : "overflow-hidden rounded-sm border border-[#e8e8e8] bg-white") @(Model.IsFullCanvasPage ? "chat-thread-panel--seller-canvas" : string.Empty) @(Model.IsAccountCenterSurface ? "chat-thread-panel--account" : string.Empty)"
+     data-chat-thread-pane
+     data-loaded-page-count="@(thread?.LoadedPageCount ?? 1)"
+     data-has-older-messages="@(thread?.HasOlderMessages == true ? "true" : "false")"
+     data-conversation-id="@(thread?.ConversationId ?? Guid.Empty)">
+    @if (thread == null)
+    {
+        <div class="flex h-full min-h-[24rem] flex-col items-center justify-center px-8 text-center">
+            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-[#fff1ed] text-[#ee4d2d]">
+                <span class="material-symbols-outlined text-[32px]">chat</span>
+            </div>
+            <h3 class="mt-5 text-xl font-semibold text-[#333]">@Model.EmptyTitle</h3>
+            <p class="mt-3 max-w-md text-[13px] leading-7 text-[#999]">@Model.EmptyDescription</p>
+        </div>
+    }
+    else
+    {
+        <div class="border-b border-[#efefef] bg-white px-4 py-2.5">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-3">
+                    @if (isWidget)
+                    {
+                        <button type="button"
+                                class="chat-mobile-back inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#666] transition hover:border-[#ee4d2d] hover:text-[#ee4d2d] lg:hidden"
+                                data-chat-mobile-back>
+                            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                        </button>
+                    }
+
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f5f5f5] text-sm font-semibold text-[#555]">
+                        @if (!string.IsNullOrWhiteSpace(thread.CounterpartAvatarUrl))
+                        {
+                            <img src="@thread.CounterpartAvatarUrl" alt="@thread.CounterpartName" class="h-full w-full object-cover" />
+                        }
+                        else
+                        {
+                            @thread.CounterpartName[0]
+                        }
+                    </div>
+
+                    <div class="min-w-0">
+                        <p class="truncate text-[14px] font-medium text-[#333]">@thread.CounterpartName</p>
+                        <p class="truncate text-[12px] text-[#999]">@(thread.IsSellerView ? "Buyer" : "Active now")</p>
+                    </div>
+                </div>
+
+                @if (!thread.IsSellerView)
+                {
+                    <a href="/store/@thread.StoreSlug"
+                       class="inline-flex h-8 items-center justify-center rounded-md border border-[#e5e5e5] px-3 text-[12px] font-medium text-[#666] transition hover:border-[#ee4d2d] hover:text-[#ee4d2d]">
+                        View store
+                    </a>
+                }
+            </div>
+        </div>
+
+        @if (thread.ActiveProductContext != null && !thread.IsSellerView)
+        {
+            var product = thread.ActiveProductContext;
+            <div class="border-b border-[#f2f2f2] bg-[#fffaf8] px-4 py-2">
+                <a href="/product/@product.ProductSlug" class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#f3e6df] bg-white">
+                        <img src="@(string.IsNullOrWhiteSpace(product.ProductImageUrl) ? "/images/placeholder.png" : product.ProductImageUrl)"
+                             alt="@product.ProductName"
+                             class="h-full w-full object-contain p-1" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="line-clamp-1 text-[12px] font-medium text-[#333]">@product.ProductName</p>
+                        <p class="mt-0.5 text-[12px] text-[#ee4d2d]">@product.Price.ToString("N0") VND</p>
+                    </div>
+                </a>
+            </div>
+        }
+
+        @if (!isWidget && thread.RecentOrders.Any())
+        {
+            <div class="border-b border-[#f2f2f2] bg-[#fafafa] px-4 py-2.5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-[11px] font-medium uppercase tracking-[0.08em] text-[#999]">Recent orders</span>
+                    @foreach (var order in thread.RecentOrders.Take(2))
+                    {
+                        <span class="inline-flex items-center gap-2 rounded-md border border-[#ececec] bg-white px-2.5 py-1.5 text-[12px] text-[#666]">
+                            <span class="font-medium text-[#333]">#@order.OrderCode</span>
+                            <span>@order.Status</span>
+                            <span class="font-medium text-[#ee4d2d]">@order.Subtotal.ToString("N0") VND</span>
+                        </span>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="chat-scroll flex-1 space-y-2.5 overflow-y-auto bg-[#f6f6f6] px-4 py-3.5" data-chat-message-list data-chat-thread-scroll>
+            @if (thread.Messages.Count == 0)
+            {
+                <div class="mx-auto mt-10 max-w-sm rounded-md border border-[#ececec] bg-white px-5 py-6 text-center">
+                    <p class="text-[14px] font-medium text-[#333]">Welcome to GearZone Chat</p>
+                    <p class="mt-2 text-[13px] leading-6 text-[#999]">Send the first message to start chatting with @(thread.IsSellerView ? "the buyer" : "the shop").</p>
+                </div>
+            }
+            else
+            {
+                DateOnly? currentDate = null;
+                foreach (var message in thread.Messages)
+                {
+                    var messageDate = DateOnly.FromDateTime(message.SentAt.ToLocalTime());
+                    if (currentDate != messageDate)
+                    {
+                        currentDate = messageDate;
+                        <div class="flex justify-center py-1">
+                            <span class="rounded-full bg-[#ebebeb] px-3 py-1 text-[11px] font-medium text-[#999]">
+                                @message.SentAt.ToLocalTime().ToString("dd/MM/yyyy")
+                            </span>
+                        </div>
+                    }
+
+                    var isOwn = message.SenderUserId == Model.CurrentUserId;
+                    <div class="flex min-w-0 @(isOwn ? "justify-end" : "justify-start")">
+                        <div class="chat-message-bubble min-w-0 @(isOwn ? "chat-message-own" : "chat-message-other")">
+                            @if (!isOwn)
+                            {
+                                <p class="mb-1 text-[11px] font-medium text-[#666]">@message.SenderDisplayName</p>
+                            }
+                            <p class="whitespace-pre-wrap break-words text-[13px] leading-6 text-[#333]">@message.Content</p>
+                            <div class="chat-message-meta mt-1 flex items-center justify-end gap-2 text-[11px] text-[#999]">
+                                <span>@message.SentAt.ToLocalTime().ToString("HH:mm")</span>
+                                @if (isOwn && message.IsRead)
+                                {
+                                    <span class="font-medium text-[#ee4d2d]">Seen</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="border-t border-[#efefef] bg-white px-4 py-2.5">
+            <form class="flex items-end gap-3" data-chat-composer>
+                <div class="flex-1 overflow-hidden rounded-md border border-[#e5e5e5] bg-white">
+                    <label class="sr-only" for="chatComposerInput">Type your message</label>
+                    <textarea id="chatComposerInput"
+                              rows="1"
+                              maxlength="2000"
+                              placeholder="Type your message"
+                              class="chat-composer-input min-h-[2.75rem] max-h-[7.5rem] w-full resize-none overflow-y-auto border-0 px-3 py-2.5 text-[13px] text-[#333] outline-none focus:ring-0"
+                              data-chat-input></textarea>
+                    <div class="flex items-center justify-between border-t border-[#f3f3f3] px-2.5 py-1.5">
+                        <div class="flex items-center gap-1 text-[#d0d0d0]">
+                            <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-full" disabled>
+                                <span class="material-symbols-outlined text-[17px]">image</span>
+                            </button>
+                            <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-full" disabled>
+                                <span class="material-symbols-outlined text-[17px]">photo_camera</span>
+                            </button>
+                        </div>
+
+                        <button type="submit"
+                                class="inline-flex h-8 min-w-8 items-center justify-center rounded-md bg-[#ee4d2d] px-2.5 text-white transition hover:bg-[#d93c1c] disabled:cursor-not-allowed disabled:opacity-60"
+                                data-chat-send-button>
+                            <span class="material-symbols-outlined text-[16px]">send</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    }
+</div>
+

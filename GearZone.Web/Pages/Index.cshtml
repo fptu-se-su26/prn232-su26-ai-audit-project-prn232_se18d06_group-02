@@ -1,0 +1,599 @@
+@page
+@model GearZone.Web.Pages.IndexModel
+@using System.Linq
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    ViewData["Title"] = "Marketplace Home";
+
+    string GetToneBackground(string tone) => tone switch
+    {
+        "orange" => "bg-[#fff1e8] text-[#ff6b00]",
+        "violet" => "bg-[#f2edff] text-violet-600",
+        "sky" => "bg-[#eef6ff] text-sky-600",
+        "emerald" => "bg-[#ecfbf4] text-emerald-600",
+        "blue" => "bg-[#e8f2ff] text-[#0261c7]",
+        "slate" => "bg-slate-100 text-slate-700",
+        _ => "bg-[#e8f2ff] text-[#0261c7]"
+    };
+    var spotlightCategories = Model.HomePage.Categories.Take(12).ToList();
+    var flashProducts = Model.HomePage.FlashRail.Products.Take(5).ToList();
+    var recommendedProducts = Model.HomePage.RecommendedRail.Products.Take(10).ToList();
+    var showcaseStores = Model.HomePage.Stores.Take(4).ToList();
+}
+
+@section Styles {
+    <style>
+        .dmx-home {
+            background: linear-gradient(180deg, #eef5ff 0%, #f7fbff 32%, #f8fafc 100%);
+            overflow-x: clip;
+        }
+
+        .dmx-shell {
+            width: min(1200px, 100%);
+            margin: 0 auto;
+            padding-inline: 1rem;
+        }
+
+        .dmx-band {
+            background:
+                linear-gradient(180deg, rgba(1, 49, 118, 0.96) 0%, rgba(10, 92, 196, 0.95) 58%, rgba(11, 108, 221, 0.94) 100%),
+                radial-gradient(circle at top right, rgba(255, 107, 0, 0.14), transparent 24%);
+            overflow: clip;
+        }
+
+        .dmx-panel {
+            border-radius: 1.2rem;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: white;
+            box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.22);
+        }
+
+        .dmx-hero-card {
+            position: relative;
+            min-height: clamp(440px, 36vw, 540px);
+            overflow: hidden;
+            border-radius: 1.25rem;
+            background: linear-gradient(135deg, #003a8c 0%, #0056b3 45%, #0095ff 100%);
+            color: white;
+            box-shadow: 0 30px 60px -42px rgba(0, 58, 140, 0.45);
+        }
+
+        .dmx-hero-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .dmx-hero-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(18px) scale(0.99);
+            transition: opacity 0.42s ease, transform 0.42s ease;
+        }
+
+        .dmx-hero-slide.is-active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0) scale(1);
+        }
+
+        .dmx-hero-media {
+            position: absolute;
+            inset: 0;
+        }
+
+        .dmx-hero-media::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(100deg, rgba(2, 6, 23, 0.7) 12%, rgba(2, 6, 23, 0.5) 42%, rgba(2, 6, 23, 0.22) 68%, rgba(2, 6, 23, 0.12) 100%),
+                linear-gradient(180deg, rgba(2, 6, 23, 0.36) 0%, rgba(2, 6, 23, 0.1) 55%, rgba(2, 6, 23, 0.42) 100%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .dmx-hero-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        .dmx-hero-copy {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            min-height: inherit;
+            align-items: center;
+            padding: 1.4rem 1.35rem 3.9rem;
+        }
+
+        .dmx-hero-copy-inner {
+            width: min(100%, 34rem);
+        }
+
+        .dmx-hero-text-shadow {
+            text-shadow: 0 14px 30px rgba(2, 6, 23, 0.38);
+        }
+
+        .dmx-hero-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.12);
+            padding: 0.52rem 0.9rem;
+            font-size: 0.65rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.24em;
+            color: #f8fafc;
+            backdrop-filter: blur(18px);
+        }
+
+        .dmx-hero-tag {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.42rem 0.8rem;
+            font-size: 0.68rem;
+            font-weight: 800;
+            color: white;
+            backdrop-filter: blur(12px);
+        }
+
+        .dmx-hero-control {
+            display: inline-flex;
+            height: 2.35rem;
+            width: 2.35rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            backdrop-filter: blur(16px);
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .dmx-hero-control:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .dmx-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border: none;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.42);
+            transition: width 0.2s ease, background-color 0.2s ease;
+        }
+
+        .dmx-dot.is-active {
+            width: 1.45rem;
+            background: white;
+        }
+
+        .dmx-service-strip {
+            margin-top: -0.15rem;
+        }
+
+        .dmx-flash-timer-box {
+            display: inline-flex;
+            min-width: 2rem;
+            justify-content: center;
+            border-radius: 0.45rem;
+            background: #111827;
+            padding: 0.28rem 0.45rem;
+            color: white;
+        }
+
+        @@media (min-width: 768px) {
+            .dmx-shell {
+                padding-inline: 1.5rem;
+            }
+
+            .dmx-hero-copy {
+                padding: 1.8rem 1.8rem 4.2rem;
+            }
+        }
+
+        @@media (min-width: 1024px) {
+            .dmx-shell {
+                padding-inline: 2rem;
+            }
+
+            .dmx-hero-copy {
+                padding: 2rem 2rem 4.45rem;
+            }
+        }
+    </style>
+}
+
+<div class="dmx-home pb-16">
+    <section class="dmx-band pb-5 pt-5">
+        <div class="dmx-shell">
+            <section class="dmx-hero-card"
+                     data-hero-carousel
+                     aria-label="Featured promotions"
+                     aria-roledescription="carousel"
+                     tabindex="0">
+                @for (var index = 0; index < Model.HeroSlides.Count; index++)
+                {
+                    var slide = Model.HeroSlides[index];
+                    <article class="dmx-hero-slide @(index == 0 ? "is-active" : "")"
+                             data-carousel-slide
+                             aria-hidden="@(index == 0 ? "false" : "true")">
+                        <div class="dmx-hero-media">
+                            <img src="@slide.ImageUrl"
+                                 alt="@slide.ImageAlt"
+                                 loading="@(index == 0 ? "eager" : "lazy")"
+                                 decoding="async" />
+                        </div>
+                        <div class="dmx-hero-copy">
+                            <div class="dmx-hero-copy-inner">
+                                <div class="dmx-hero-chip">
+                                    <span class="h-2 w-2 rounded-full bg-[#ffb36b]"></span>
+                                    @slide.Eyebrow
+                                </div>
+                                <h1 class="dmx-hero-text-shadow mt-4 font-['Space_Grotesk'] text-[clamp(1.9rem,4.6vw,3.35rem)] font-bold leading-[0.94] tracking-[-0.06em] text-white">
+                                    @slide.Title
+                                </h1>
+                                <p class="mt-3 max-w-[31rem] text-sm leading-6 text-white md:text-[15px] md:leading-7">
+                                    @slide.Description
+                                </p>
+
+                                @if (slide.Tags.Any())
+                                {
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        @foreach (var tag in slide.Tags)
+                                        {
+                                            <span class="dmx-hero-tag">@tag</span>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="mt-5 flex flex-wrap gap-3">
+                                    <a href="@slide.PrimaryHref" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff6b00] px-4 py-3 text-sm font-extrabold text-white shadow-[0_18px_28px_-18px_rgba(255,107,0,.78)] transition hover:-translate-y-0.5">
+                                        @slide.PrimaryLabel
+                                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                                    </a>
+                                    <a href="@slide.SecondaryHref" class="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/20 px-4 py-3 text-sm font-extrabold text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/30">
+                                        @slide.SecondaryLabel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+
+                <div class="absolute inset-x-4 bottom-4 z-[3] flex flex-wrap items-center justify-between gap-3 md:inset-x-6">
+                    <div class="flex items-center gap-2">
+                        @for (var index = 0; index < Model.HeroSlides.Count; index++)
+                        {
+                            <button type="button"
+                                    class="dmx-dot @(index == 0 ? "is-active" : "")"
+                                    data-carousel-dot
+                                    data-slide-index="@index"
+                                    aria-current="@(index == 0 ? "true" : "false")">
+                                <span class="sr-only">Go to slide @(index + 1)</span>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" data-carousel-prev aria-label="Previous slide" class="dmx-hero-control">
+                            <span class="material-symbols-outlined text-[18px]">west</span>
+                        </button>
+                        <button type="button" data-carousel-next aria-label="Next slide" class="dmx-hero-control">
+                            <span class="material-symbols-outlined text-[18px]">east</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    @if (Model.ServiceItems.Any())
+    {
+        <section class="dmx-service-strip pt-4">
+            <div class="dmx-shell">
+                <div class="dmx-panel grid grid-cols-2 gap-3 p-3 md:grid-cols-4 xl:grid-cols-6">
+                    @foreach (var item in Model.ServiceItems.Take(6))
+                    {
+                        <a href="@item.Href" class="flex items-center gap-3 rounded-2xl border border-slate-200/90 px-3 py-3 transition hover:border-blue-200 hover:bg-slate-50">
+                            <span class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl @GetToneBackground(item.Tone)">
+                                <span class="material-symbols-outlined text-[20px]">@item.Icon</span>
+                            </span>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-extrabold text-slate-900">@item.Title</span>
+                                <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">@item.Subtitle</span>
+                            </span>
+                        </a>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+
+    <section class="pt-4">
+        <div class="dmx-shell">
+            <div class="dmx-panel p-4">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500">Popular categories</p>
+                        <h2 class="mt-1 text-xl font-black tracking-[-0.03em] text-slate-950">Browse the catalog the fast retail way</h2>
+                    </div>
+                    <a href="/products" class="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0261c7]">View all</a>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+                    @foreach (var category in spotlightCategories)
+                    {
+                        <a href="@category.Href" class="rounded-2xl border border-slate-200/90 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_18px_28px_-24px_rgba(37,99,235,.18)]">
+                            <span class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl @GetToneBackground(category.Tone)">
+                                <span class="material-symbols-outlined text-[22px]">@category.Icon</span>
+                            </span>
+                            <p class="mt-3 text-sm font-extrabold leading-5 text-slate-900">@category.Name</p>
+                            <p class="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">@category.ProductCount items</p>
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pt-4" id="home-flash-zone">
+        <div class="dmx-shell">
+            <div class="dmx-panel overflow-hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-gradient-to-r from-[#0b58c4] to-[#0f78e4] px-4 py-4 text-white">
+                    <div class="flex items-center gap-3">
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-[#0b58c4]">@Model.HomePage.FlashRail.Eyebrow</span>
+                        <h2 class="text-xl font-black tracking-[-0.03em]">@Model.HomePage.FlashRail.Title</h2>
+                    </div>
+                    <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/85">
+                        Sorted by latest updates
+                    </span>
+                </div>
+
+                <div class="p-4">
+                    <p class="mb-4 text-sm leading-7 text-slate-500">@Model.HomePage.FlashRail.Description</p>
+                    @if (flashProducts.Any())
+                    {
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                            @foreach (var product in flashProducts)
+                            {
+                                <div class="product-slot min-w-0">
+                                    <partial name="/Pages/Shared/_ProductCard.cshtml"
+                                             model="product"
+                                             view-data='new ViewDataDictionary(ViewData) { ["ViewMode"] = "grid" }' />
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="rounded-2xl border border-dashed border-slate-300/80 bg-white/70 px-4 py-8 text-center text-sm text-slate-500">No flash deal products are available yet.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pt-4">
+        <div class="dmx-shell">
+            <div class="dmx-panel p-4">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500">Official store zone</p>
+                        <h2 class="mt-1 text-xl font-black tracking-[-0.03em] text-slate-950">Verified stores laid out like a mall strip</h2>
+                    </div>
+                    <a href="/products" class="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0261c7]">See more</a>
+                </div>
+
+                <div class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)]">
+                    <a href="@(showcaseStores.FirstOrDefault()?.Href ?? "/products")" class="rounded-[1.35rem] bg-gradient-to-br from-[#eef5ff] via-white to-[#fff1e8] p-5">
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.22em] text-[#0261c7]">Official hub</p>
+                        <h3 class="mt-2 text-[1.8rem] font-black leading-none tracking-[-0.05em] text-slate-950">
+                            @(showcaseStores.FirstOrDefault()?.StoreName ?? "GearZone Official")
+                        </h3>
+                        <p class="mt-3 max-w-[32rem] text-sm leading-7 text-slate-600">
+                            Official routes, seeded catalog, and support entry points grouped in one cleaner zone instead of oversized homepage cards.
+                        </p>
+                        <div class="mt-5 flex flex-wrap gap-2">
+                            @foreach (var store in showcaseStores.Take(4))
+                            {
+                                <span class="rounded-full bg-white px-3 py-2 text-[11px] font-extrabold text-slate-700 shadow-sm">@store.StoreName</span>
+                            }
+                        </div>
+                    </a>
+
+                    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+                        @foreach (var store in showcaseStores)
+                        {
+                            <a href="@store.Href" class="rounded-2xl border border-slate-200/90 bg-white p-4 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_18px_28px_-24px_rgba(37,99,235,.18)]">
+                                <div class="flex items-start gap-3">
+                                    <span class="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#eef6ff] text-base font-black text-[#0261c7]">
+                                        @if (!string.IsNullOrWhiteSpace(store.LogoUrl))
+                                        {
+                                            <img src="@store.LogoUrl" alt="@store.StoreName" class="h-full w-full object-cover" loading="lazy" decoding="async" />
+                                        }
+                                        else
+                                        {
+                                            @(string.IsNullOrWhiteSpace(store.StoreName) ? "G" : store.StoreName[0].ToString())
+                                        }
+                                    </span>
+                                    <span class="min-w-0">
+                                        <span class="block truncate text-sm font-extrabold text-slate-900">@store.StoreName</span>
+                                        <span class="mt-1 block text-xs leading-5 text-slate-500">@(string.IsNullOrWhiteSpace(store.Description) ? "Verified marketplace seller with live storefront routing." : store.Description)</span>
+                                    </span>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <span class="rounded-full bg-slate-50 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-700">@store.ProductCount products</span>
+                                    <span class="rounded-full bg-slate-50 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-700">@store.TotalSold sold</span>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pt-4">
+        <div class="dmx-shell">
+            <div class="dmx-panel p-4">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500">@Model.HomePage.RecommendedRail.Eyebrow</p>
+                        <h2 class="mt-1 text-xl font-black tracking-[-0.03em] text-slate-950">@Model.HomePage.RecommendedRail.Title</h2>
+                        <p class="mt-1 text-sm leading-7 text-slate-500">@Model.HomePage.RecommendedRail.Description</p>
+                    </div>
+                    <a href="@Model.HomePage.RecommendedRail.ViewAllHref" class="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0261c7]">@Model.HomePage.RecommendedRail.ViewAllLabel</a>
+                </div>
+
+                @if (recommendedProducts.Any())
+                {
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                        @foreach (var product in recommendedProducts)
+                        {
+                            <div class="product-slot min-w-0">
+                                <partial name="/Pages/Shared/_ProductCard.cshtml"
+                                         model="product"
+                                         view-data='new ViewDataDictionary(ViewData) { ["ViewMode"] = "grid" }' />
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="rounded-2xl border border-dashed border-slate-300/80 bg-white/70 px-4 py-8 text-center text-sm text-slate-500">No recommended products are available yet.</div>
+                }
+            </div>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-hero-carousel]').forEach(function (root) {
+                const slides = Array.from(root.querySelectorAll('[data-carousel-slide]'));
+                const dots = Array.from(root.querySelectorAll('[data-carousel-dot]'));
+                const prevButton = root.querySelector('[data-carousel-prev]');
+                const nextButton = root.querySelector('[data-carousel-next]');
+                const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                const intervalMs = 2000;
+                let activeIndex = Math.max(0, slides.findIndex(slide => slide.classList.contains('is-active')));
+                let timerId = null;
+
+                if (!slides.length) {
+                    return;
+                }
+
+                function stopAutoAdvance() {
+                    if (timerId) {
+                        window.clearTimeout(timerId);
+                        timerId = null;
+                    }
+                }
+
+                function scheduleNext() {
+                    if (slides.length < 2) {
+                        return;
+                    }
+
+                    stopAutoAdvance();
+                    timerId = window.setTimeout(function () {
+                        setActive(activeIndex + 1, true);
+                    }, intervalMs);
+                }
+
+                function setActive(nextIndex, restartAuto) {
+                    activeIndex = (nextIndex + slides.length) % slides.length;
+
+                    slides.forEach(function (slide, index) {
+                        const isActive = index === activeIndex;
+                        slide.classList.toggle('is-active', isActive);
+                        slide.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+                    });
+
+                    dots.forEach(function (dot, index) {
+                        const isActive = index === activeIndex;
+                        dot.classList.toggle('is-active', isActive);
+                        dot.setAttribute('aria-current', isActive ? 'true' : 'false');
+                    });
+
+                    if (restartAuto !== false) {
+                        scheduleNext();
+                    }
+                }
+
+                function move(delta) {
+                    stopAutoAdvance();
+                    setActive(activeIndex + delta, true);
+                }
+
+                prevButton?.addEventListener('click', function () {
+                    move(-1);
+                });
+
+                nextButton?.addEventListener('click', function () {
+                    move(1);
+                });
+
+                dots.forEach(function (dot, index) {
+                    dot.addEventListener('click', function () {
+                        stopAutoAdvance();
+                        setActive(index, true);
+                    });
+                });
+
+                root.addEventListener('mouseenter', stopAutoAdvance);
+                root.addEventListener('mouseleave', scheduleNext);
+                root.addEventListener('focusin', stopAutoAdvance);
+                root.addEventListener('focusout', function (event) {
+                    if (!root.contains(event.relatedTarget)) {
+                        scheduleNext();
+                    }
+                });
+
+                root.addEventListener('keydown', function (event) {
+                    if (event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        move(-1);
+                    }
+
+                    if (event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        move(1);
+                    }
+                });
+
+                document.addEventListener('visibilitychange', function () {
+                    if (document.hidden) {
+                        stopAutoAdvance();
+                    }
+                    else {
+                        scheduleNext();
+                    }
+                });
+
+                setActive(activeIndex, false);
+                scheduleNext();
+            });
+        });
+    </script>
+}

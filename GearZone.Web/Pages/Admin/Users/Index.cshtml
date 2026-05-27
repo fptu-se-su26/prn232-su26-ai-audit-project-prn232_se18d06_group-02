@@ -1,0 +1,993 @@
+@page "/admin/users"
+@model GearZone.Web.Pages.Admin.Users.IndexModel
+@{
+    ViewData["Title"] = "User Management";
+    ViewData["PageHeader"] = "User Management";
+    ViewData["ActivePage"] = "Users";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "User Management" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">group</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Users</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.UserStats.TotalUsers</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">how_to_reg</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Active Now</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.UserStats.ActiveUsers</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">person</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Customers</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.UserStats.CustomerCount</h3>
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex items-center gap-4">
+            <div class="size-12 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                <span class="material-symbols-outlined">storefront</span>
+            </div>
+            <div>
+                <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Store Owners</p>
+                <h3 class="text-2xl font-bold text-slate-900">@Model.UserStats.StoreOwnerCount</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Actions Bar -->
+    <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-end">
+        <form method="get" class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto flex-1">
+            <!-- Search -->
+            <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <span class="material-symbols-outlined text-[20px]">search</span>
+                </span>
+                <input asp-for="Query.SearchTerm" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary" placeholder="Search by name or email..." type="text" />
+            </div>
+            <!-- Role Filter -->
+            <div class="w-full sm:w-40">
+                <select asp-for="Query.Role" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 text-sm text-slate-900 focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                    <option value="">All Roles</option>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <option value="@role">@role</option>
+                    }
+                </select>
+            </div>
+            <!-- Status Filter -->
+            <div class="w-full sm:w-40">
+                <select asp-for="Query.IsActive" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 text-sm text-slate-900 focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+            <!-- Search Submit Button -->
+            <button type="submit" class="hidden">Search</button>
+            <!-- Reset Button -->
+            <a asp-page="/Admin/Users/Index" class="flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                <span class="material-symbols-outlined text-[20px]">restart_alt</span>
+            </a>
+        </form>
+        <!-- Add Button -->
+        <button id="add-user-btn" class="w-full lg:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg font-medium shadow-sm shadow-blue-500/30 transition-all">
+            <span class="material-symbols-outlined text-[20px]">add</span>
+            <span>Add New User</span>
+        </button>
+    </div>
+
+    <!-- Users Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden flex flex-col">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 pl-6 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-[50px]">
+                            <input class="rounded border-slate-300 text-primary focus:ring-primary size-4" type="checkbox" />
+                        </th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">User Profile</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Role</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Phone</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hidden lg:table-cell">Created At</th>
+                        <th class="py-4 pl-3 pr-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.Users.Items.Any())
+                    {
+                        foreach (var user in Model.Users.Items)
+                        {
+                            <tr class="user-row group hover:bg-slate-50 transition-all cursor-pointer" data-user-id="@user.Id">
+                                <td class="py-4 pl-6 pr-3">
+                                    <input class="stop-propagation rounded border-slate-300 text-primary focus:ring-primary size-4" type="checkbox" value="@user.Id" />
+                                </td>
+                                <td class="py-4 px-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="relative flex-shrink-0">
+                                            @if (!string.IsNullOrEmpty(user.AvatarUrl))
+                                            {
+                                                <img src="@user.AvatarUrl" alt="@user.FullName" class="size-10 rounded-full object-cover shadow-sm" />
+                                            }
+                                            else
+                                            {
+                                                <div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shadow-sm">
+                                                    @(string.IsNullOrEmpty(user.FullName) ? "?" : user.FullName.Substring(0, 1).ToUpper())
+                                                </div>
+                                            }
+                                            <span class="absolute bottom-0 right-0 size-2.5 @(user.IsActive ? "bg-green-500" : "bg-slate-300") border-2 border-white rounded-full"></span>
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors">@(user.FullName ?? "Unnamed User")</span>
+                                            <span class="text-xs text-slate-500">@user.Email</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-3">
+                                    @if (!string.IsNullOrEmpty(user.Role))
+                                    {
+                                        <span class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 uppercase">
+                                            @user.Role
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-slate-400 italic">No role</span>
+                                    }
+                                </td>
+                                <td class="py-4 px-3">
+                                    @if (user.IsDeleted)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+                                            <span class="size-1.5 rounded-full bg-red-600"></span> Deleted
+                                        </span>
+                                    }
+                                    else if (user.IsActive)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                            <span class="size-1.5 rounded-full bg-green-600"></span> Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
+                                            <span class="size-1.5 rounded-full bg-slate-400"></span> Inactive
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-4 px-3 hidden md:table-cell">
+                                    <span class="text-sm text-slate-600">@(string.IsNullOrEmpty(user.PhoneNumber) ? "-" : user.PhoneNumber)</span>
+                                </td>
+                                <td class="py-4 px-3 hidden lg:table-cell">
+                                    <p class="text-sm text-slate-600">@user.CreatedAt.ToString("MMM dd, yyyy")</p>
+                                </td>
+                                <td class="py-4 pl-3 pr-6 text-right">
+                                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity stop-propagation">
+                                        <button class="view-user-btn text-slate-400 hover:text-primary transition-colors p-1" title="View Details">
+                                            <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                        </button>
+                                        @if (user.IsDeleted)
+                                        {
+                                            <button class="restore-user-btn text-slate-400 hover:text-green-600 transition-colors p-1" title="Restore User">
+                                                <span class="material-symbols-outlined text-[20px]">restore</span>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="edit-user-btn text-slate-400 hover:text-amber-500 transition-colors p-1" title="Edit User">
+                                                <span class="material-symbols-outlined text-[20px]">edit</span>
+                                            </button>
+                                            <button class="delete-user-btn text-slate-400 hover:text-red-600 transition-colors p-1" title="Delete User">
+                                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="py-8 text-center text-slate-500">
+                                <div class="flex flex-col items-center justify-center space-y-3">
+                                    <span class="material-symbols-outlined text-4xl text-slate-300">search_off</span>
+                                    <p class="text-base font-medium">No users found</p>
+                                    <p class="text-sm">Try adjusting your filters or search term.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Improved Pagination -->
+        <div class="border-t border-slate-100 px-6 py-4 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-sm text-slate-500">
+                Showing <span class="font-medium text-slate-900">@((Model.Users.PageNumber - 1) * Model.Users.PageSize + (Model.Users.Items.Any() ? 1 : 0))</span> to
+                <span class="font-medium text-slate-900">
+                    @(Math.Min(Model.Users.PageNumber * Model.Users.PageSize, Model.Users.TotalCount))
+                </span> of
+                <span class="font-medium text-slate-900">@Model.Users.TotalCount</span> users
+            </div>
+
+            @if (Model.Users.TotalPages > 1)
+            {
+                <nav aria-label="Pagination" class="flex items-center gap-1">
+                    <a asp-page="/Admin/Users/Index"
+                       asp-route-Query.PageNumber="@(Model.Users.PageNumber - 1)"
+                       asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                       asp-route-Query.Role="@Model.Query.Role"
+                       asp-route-Query.IsActive="@Model.Query.IsActive"
+                       class="@(Model.Users.PageNumber <= 1 ? "pointer-events-none opacity-50" : "") p-2 rounded-lg border border-slate-200 text-slate-400 hover:bg-white hover:text-primary hover:border-primary transition-all shadow-sm" title="Previous">
+                        <span class="material-symbols-outlined text-lg leading-none">chevron_left</span>
+                    </a>
+
+                    <div class="flex items-center gap-1 px-1">
+                        @for (int i = 1; i <= Model.Users.TotalPages; i++)
+                        {
+                            <a asp-page="/Admin/Users/Index"
+                               asp-route-Query.PageNumber="@i"
+                               asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                               asp-route-Query.Role="@Model.Query.Role"
+                               asp-route-Query.IsActive="@Model.Query.IsActive"
+                               class="min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all @(i == Model.Users.PageNumber ? "bg-primary text-white shadow-sm shadow-blue-500/20" : "border border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-primary")">
+                                @i
+                            </a>
+                        }
+                    </div>
+
+                    <a asp-page="/Admin/Users/Index"
+                       asp-route-Query.PageNumber="@(Model.Users.PageNumber + 1)"
+                       asp-route-Query.SearchTerm="@Model.Query.SearchTerm"
+                       asp-route-Query.Role="@Model.Query.Role"
+                       asp-route-Query.IsActive="@Model.Query.IsActive"
+                       class="@(Model.Users.PageNumber >= Model.Users.TotalPages ? "pointer-events-none opacity-50" : "") p-2 rounded-lg border border-slate-200 text-slate-400 hover:bg-white hover:text-primary hover:border-primary transition-all shadow-sm" title="Next">
+                        <span class="material-symbols-outlined text-lg leading-none">chevron_right</span>
+                    </a>
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Add New User Modal -->
+<div id="add-user-modal" class="fixed inset-0 z-[60] hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+
+    <!-- Modal Content -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <h3 class="text-xl font-bold text-slate-900">Add New User</h3>
+                <button type="button" class="close-modal-btn p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto custom-scrollbar">
+                <form id="add-user-form" method="post" asp-page-handler="Create" class="space-y-8">
+                    <div asp-validation-summary="ModelOnly" class="text-red-500 text-sm"></div>
+                    <!-- Basic Information Section -->
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-2 pb-1 border-b border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basic Information</span>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label asp-for="CreateUserRequest.FullName" class="block text-sm font-semibold text-slate-700"></label>
+                            <div class="relative group">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                    <span class="material-symbols-outlined text-xl">person</span>
+                                </span>
+                                <input asp-for="CreateUserRequest.FullName" placeholder="e.g. Sarah Johnson" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" />
+                            </div>
+                            <span asp-validation-for="CreateUserRequest.FullName" class="text-xs text-red-500"></span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label asp-for="CreateUserRequest.Email" class="block text-sm font-semibold text-slate-700"></label>
+                                <div class="relative group">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-xl">mail</span>
+                                    </span>
+                                    <input asp-for="CreateUserRequest.Email" placeholder="sarah@resto.com" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" />
+                                </div>
+                                <span asp-validation-for="CreateUserRequest.Email" class="text-xs text-red-500"></span>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label asp-for="CreateUserRequest.PhoneNumber" class="block text-sm font-semibold text-slate-700"></label>
+                                <div class="relative group">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-xl">call</span>
+                                    </span>
+                                    <input asp-for="CreateUserRequest.PhoneNumber" placeholder="+1 (555) 000-0000" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" />
+                                </div>
+                                <span asp-validation-for="CreateUserRequest.PhoneNumber" class="text-xs text-red-500"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Section -->
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-2 pb-1 border-b border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label asp-for="CreateUserRequest.Password" class="block text-sm font-semibold text-slate-700"></label>
+                                <div class="relative group">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-xl">lock</span>
+                                    </span>
+                                    <input asp-for="CreateUserRequest.Password" placeholder="••••••••" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" />
+                                </div>
+                                <span asp-validation-for="CreateUserRequest.Password" class="text-xs text-red-500"></span>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label asp-for="CreateUserRequest.ConfirmPassword" class="block text-sm font-semibold text-slate-700"></label>
+                                <div class="relative group">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-xl">history</span>
+                                    </span>
+                                    <input asp-for="CreateUserRequest.ConfirmPassword" placeholder="••••••••" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" />
+                                </div>
+                                <span asp-validation-for="CreateUserRequest.ConfirmPassword" class="text-xs text-red-500"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Access Control Section -->
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-2 pb-1 border-b border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Access Control</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-1.5">
+                                <label asp-for="CreateUserRequest.Role" class="block text-sm font-semibold text-slate-700"></label>
+
+                                <div class="relative">
+                                    <select asp-for="CreateUserRequest.Role" class="appearance-none w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors duration-200 cursor-pointer bg-none">
+                                        <option value="" disabled selected>Select a role</option>
+                                        @foreach (var role in Model.Roles)
+                                        {
+                                            <option value="@role">@role</option>
+                                        }
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                                        <span class="material-symbols-outlined text-[20px]">expand_more</span>
+                                    </div>
+                                </div>
+                                <span asp-validation-for="CreateUserRequest.Role" class="text-xs text-red-500"></span>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="block text-sm font-semibold text-slate-700">Account Status</label>
+                                <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/30 flex items-center justify-between group hover:border-primary/20 transition-colors duration-200">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-slate-900">Is Active?</span>
+                                        <span class="text-xs text-slate-500">Enable user login access</span>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input asp-for="CreateUserRequest.IsActive" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-sm"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button type="button" class="close-modal-btn px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                    Cancel
+                </button>
+                <button type="submit" form="add-user-form" class="px-6 py-2.5 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-dark transition-all shadow-md shadow-primary/20">
+                    Create User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="edit-user-modal" class="fixed inset-0 z-[60] hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+
+    <!-- Modal Content -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <!-- Header -->
+            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div class="flex items-center gap-3 w-full">
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
+                        <span class="material-symbols-outlined text-[24px] leading-none">
+                            edit_square
+                        </span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 tracking-tight">Edit Selected User</h3>
+                        <p class="text-sm text-slate-500 font-medium">Update account information and access levels</p>
+                    </div>
+                    <button type="button" class="close-modal-btn ml-auto p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors group">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="p-8 overflow-y-auto custom-scrollbar flex-1">
+                <form id="edit-user-form" method="post" asp-page-handler="Edit">
+                    <input type="hidden" asp-for="EditUserRequest.Id" id="edit-user-id" />
+
+                    <div class="space-y-6">
+                        <!-- Profile Section -->
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-2 pb-1 border-b border-slate-100">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Personal Details</span>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label asp-for="EditUserRequest.FullName" class="block text-sm font-semibold text-slate-700"></label>
+                                <div class="relative group">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-xl">person</span>
+                                    </span>
+                                    <input asp-for="EditUserRequest.FullName" id="edit-full-name" placeholder="e.g. Sarah Johnson" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors duration-200" />
+                                </div>
+                                <span asp-validation-for="EditUserRequest.FullName" class="text-xs text-red-500"></span>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-1.5">
+                                    <label class="block text-sm font-semibold text-slate-700">Email Address (Read-only)</label>
+                                    <div class="relative group">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                            <span class="material-symbols-outlined text-xl">mail</span>
+                                        </span>
+                                        <input asp-for="EditUserRequest.Email" id="edit-email" disabled class="w-full rounded-xl border-slate-200 bg-slate-100 text-slate-500 pl-11 pr-4 py-2.5 text-sm cursor-not-allowed" />
+                                    </div>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label asp-for="EditUserRequest.PhoneNumber" class="block text-sm font-semibold text-slate-700"></label>
+                                    <div class="relative group">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 group-focus-within:text-primary transition-colors">
+                                            <span class="material-symbols-outlined text-xl">call</span>
+                                        </span>
+                                        <input asp-for="EditUserRequest.PhoneNumber" id="edit-phone-number" placeholder="+1 (555) 000-0000" class="w-full rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors duration-200" />
+                                    </div>
+                                    <span asp-validation-for="EditUserRequest.PhoneNumber" class="text-xs text-red-500"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Access Control Section -->
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-2 pb-1 border-b border-slate-100">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Access Control</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-1.5">
+                                    <label asp-for="EditUserRequest.Role" class="block text-sm font-semibold text-slate-700"></label>
+                                    <div class="relative">
+                                        <select asp-for="EditUserRequest.Role" id="edit-role" class="appearance-none w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 py-2.5 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors duration-200 cursor-pointer bg-none">
+                                            <option value="" disabled>Select a role</option>
+                                            @foreach (var role in Model.Roles)
+                                            {
+                                                <option value="@role">@role</option>
+                                            }
+                                        </select>
+                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                                            <span class="material-symbols-outlined text-[20px]">expand_more</span>
+                                        </div>
+                                    </div>
+                                    <span asp-validation-for="EditUserRequest.Role" class="text-xs text-red-500"></span>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="block text-sm font-semibold text-slate-700">Account Status</label>
+                                    <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/30 flex items-center justify-between group hover:border-primary/20 transition-colors duration-200">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium text-slate-900">Is Active?</span>
+                                            <span class="text-xs text-slate-500">Enable user login access</span>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input asp-for="EditUserRequest.IsActive" id="edit-is-active" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-sm"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button type="button" class="close-modal-btn px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                    Cancel
+                </button>
+                <button type="submit" form="edit-user-form" class="px-6 py-2.5 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-dark transition-all shadow-md shadow-primary/20">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Action Forms -->
+<form id="delete-user-form" method="post" asp-page-handler="Delete" class="hidden">
+    <input type="hidden" name="id" id="delete-user-id" />
+</form>
+
+<form id="restore-user-form" method="post" asp-page-handler="Restore" class="hidden">
+    <input type="hidden" name="id" id="restore-user-id" />
+</form>
+
+<!-- Delete User Modal -->
+<div id="delete-user-modal" class="fixed inset-0 z-[60] hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+    <!-- Modal Content -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div class="p-8 text-center space-y-4">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100">
+                    <span class="material-symbols-outlined text-red-600 text-3xl">delete_forever</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">Delete User</h3>
+                <p class="text-sm text-slate-500">Are you sure you want to soft-delete <span id="delete-user-name-display" class="font-bold text-slate-700"></span>?</p>
+                <p class="text-xs text-slate-400">They will not be able to log in, but no historical data will be lost.</p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50/50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" class="close-modal-btn px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-delete-btn" class="px-6 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition-all shadow-md shadow-red-600/20">
+                    Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore User Modal -->
+<div id="restore-user-modal" class="fixed inset-0 z-[60] hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+    <!-- Modal Content -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div class="p-8 text-center space-y-4">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">
+                    <span class="material-symbols-outlined text-green-600 text-3xl">restore</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">Restore User</h3>
+                <p class="text-sm text-slate-500">Are you sure you want to restore <span id="restore-user-name-display" class="font-bold text-slate-700"></span>?</p>
+                <p class="text-xs text-slate-400">They will regain their ability to log in and interact with the system.</p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50/50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" class="close-modal-btn px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-restore-btn" class="px-6 py-2.5 rounded-xl bg-green-600 text-sm font-bold text-white hover:bg-green-700 transition-all shadow-md shadow-green-600/20">
+                    Yes, Restore
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Details Modal -->
+<div id="user-details-modal" class="fixed inset-0 z-[60] hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+
+    <!-- Modal Content -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <!-- Header/Profile Card -->
+            <div class="p-8 pb-0 relative">
+                <button type="button" class="close-details-btn absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+
+                <div class="flex items-start gap-6">
+                    <div class="relative flex-shrink-0" id="detail-avatar-container">
+                        <div class="size-24 rounded-full bg-slate-100 border-4 border-white shadow-xl overflow-hidden" id="detail-avatar-wrapper">
+                            <img id="detail-avatar-img" src="" alt="User avatar" class="w-full h-full object-cover hidden" />
+                            <div id="detail-avatar-letter" class="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-3xl hidden">?</div>
+                        </div>
+                        <span id="detail-status-dot" class="absolute bottom-1 right-1 size-5 bg-green-500 border-2 border-white rounded-full shadow-sm"></span>
+                    </div>
+
+                    <div class="flex-1 pt-1">
+                        <h2 id="detail-name" class="text-2xl font-bold text-slate-900 leading-tight">Sarah Jenkins</h2>
+                        <p id="detail-email" class="text-slate-500 font-medium italic mt-0.5">sarah.jenkins@@restaurant.com</p>
+
+                        <div class="flex items-center gap-2.5 mt-3">
+                            <span id="detail-role" class="px-3 py-1 rounded-lg bg-primary/5 text-primary text-xs font-bold ring-1 ring-inset ring-primary/10">Manager</span>
+                            <span id="detail-id" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold">ID: #8832</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Navigation Tabs -->
+                <div class="flex items-center gap-8 mt-8 border-b border-slate-100">
+                    <button class="tab-btn active px-1 py-4 text-sm font-bold text-primary border-b-2 border-primary transition-all relative after:absolute after:bottom-[-2px] after:left-0 after:w-full after:h-0.5 after:bg-primary" data-tab="profile">
+                        Profile Info
+                    </button>
+                    <button class="tab-btn px-1 py-4 text-sm font-semibold text-slate-400 hover:text-slate-600 transition-all" data-tab="access">
+                        Access & Roles
+                    </button>
+                    <button class="tab-btn px-1 py-4 text-sm font-semibold text-slate-400 hover:text-slate-600 transition-all" data-tab="activity">
+                        Recent Activity
+                    </button>
+                </div>
+            </div>
+
+            <!-- Body/Tabs Content -->
+            <div class="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar">
+                <!-- Profile Tab -->
+                <div id="tab-profile" class="tab-content space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+                    <div class="grid grid-cols-2 gap-x-12 gap-y-8">
+                        <div class="space-y-1.5">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Phone Number</span>
+                            <div class="flex items-center gap-3 text-slate-700">
+                                <span class="material-symbols-outlined text-slate-400 text-xl font-light">call</span>
+                                <span id="detail-phone" class="font-semibold">+1 (555) 123-4567</span>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Account Status</span>
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-slate-400 text-xl font-light">verified</span>
+                                <span id="detail-status-badge" class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-inset ring-green-600/20">
+                                    <span id="detail-status-badge-dot" class="size-1.5 rounded-full bg-green-600"></span> <span id="detail-status-text">Active</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Joined Date</span>
+                            <div class="flex items-center gap-3 text-slate-700">
+                                <span class="material-symbols-outlined text-slate-400 text-xl font-light">calendar_today</span>
+                                <span id="detail-joined" class="font-semibold">Jan 15, 2023</span>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Last Login</span>
+                            <div class="flex items-center gap-3 text-slate-700">
+                                <span class="material-symbols-outlined text-slate-400 text-xl font-light">history</span>
+                                <span class="font-semibold">Today, 9:42 AM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Details -->
+                    <div class="p-6 rounded-3xl bg-slate-50/50 border border-slate-100/50 space-y-4">
+                        <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">info</span>
+                            About User
+                        </h4>
+                        <p class="text-sm text-slate-600 leading-relaxed font-medium">
+                            Dedicated manager with over 2 years of experience at RestoGroup. Currently overseeing the afternoon shift and managing inventory restocking protocols.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Access Tab (Placeholder) -->
+                <div id="tab-access" class="tab-content hidden animate-in slide-in-from-bottom-2 duration-300">
+                    <div class="p-12 text-center space-y-4">
+                        <div class="size-16 rounded-3xl bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
+                            <span class="material-symbols-outlined text-4xl">security</span>
+                        </div>
+                        <p class="text-slate-500 font-medium">Access details are only available for administrative roles.</p>
+                    </div>
+                </div>
+
+                <!-- Activity Tab (Placeholder) -->
+                <div id="tab-activity" class="tab-content hidden animate-in slide-in-from-bottom-2 duration-300">
+                    <div class="p-12 text-center space-y-4">
+                        <div class="size-16 rounded-3xl bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
+                            <span class="material-symbols-outlined text-4xl">history</span>
+                        </div>
+                        <p class="text-slate-500 font-medium">No recent activity logs found for this period.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-8 py-6 border-t border-slate-100 bg-white flex items-center justify-between">
+                <a href="#" class="text-sm font-bold text-primary hover:underline flex items-center gap-1.5">
+                    View detailed logs
+                </a>
+                <div class="flex gap-3">
+                    <button type="button" class="px-6 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                        Edit User
+                    </button>
+                    <button type="button" class="close-details-btn px-8 py-2.5 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-dark transition-all shadow-md shadow-primary/20">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Modal general management
+        function toggleModal(id, show) {
+            const modal = document.getElementById(id);
+            if (show) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            } else {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Add User Modal
+        document.getElementById('add-user-btn').addEventListener('click', () => toggleModal('add-user-modal', true));
+        document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', () => toggleModal('add-user-modal', false)));
+
+        // User Details Modal
+        const detailsModal = document.getElementById('user-details-modal');
+        async function openDetails(userId) {
+            try {
+                const response = await fetch(`?handler=UserDetails&userId=${userId}`);
+                if (!response.ok) throw new Error('Failed to fetch user details');
+
+                const user = await response.json();
+
+                // Update Basic Info
+                document.getElementById('detail-name').textContent = user.fullName || 'Unnamed User';
+                document.getElementById('detail-email').textContent = user.email;
+                document.getElementById('detail-id').textContent = `ID: #${user.id.substring(0, 8)}`;
+
+                // Role Badge
+                const roleBadge = document.getElementById('detail-role');
+                roleBadge.textContent = user.role || 'No role';
+                if (!user.role) {
+                    roleBadge.classList.add('bg-slate-100', 'text-slate-500');
+                    roleBadge.classList.remove('bg-primary/5', 'text-primary');
+                } else {
+                    roleBadge.classList.remove('bg-slate-100', 'text-slate-500');
+                    roleBadge.classList.add('bg-primary/5', 'text-primary');
+                }
+
+                // Avatar Handling
+                const img = document.getElementById('detail-avatar-img');
+                const letter = document.getElementById('detail-avatar-letter');
+
+                if (user.avatarUrl) {
+                    img.src = user.avatarUrl;
+                    img.classList.remove('hidden');
+                    letter.classList.add('hidden');
+                } else {
+                    img.classList.add('hidden');
+                    letter.classList.remove('hidden');
+                    letter.textContent = (user.fullName || '?').substring(0, 1).toUpperCase();
+                }
+
+                // Status Handling
+                const statusDot = document.getElementById('detail-status-dot');
+                const badge = document.getElementById('detail-status-badge');
+                const badgeDot = document.getElementById('detail-status-badge-dot');
+                const statusText = document.getElementById('detail-status-text');
+
+                if (user.isActive) {
+                    statusDot.className = 'absolute bottom-1 right-1 size-5 bg-green-500 border-2 border-white rounded-full shadow-sm';
+                    badge.className = 'inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700 ring-1 ring-inset ring-green-600/20';
+                    badgeDot.className = 'size-1.5 rounded-full bg-green-600';
+                    statusText.textContent = 'Active';
+                } else {
+                    statusDot.className = 'absolute bottom-1 right-1 size-5 bg-slate-300 border-2 border-white rounded-full shadow-sm';
+                    badge.className = 'inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-inset ring-slate-500/20';
+                    badgeDot.className = 'size-1.5 rounded-full bg-slate-400';
+                    statusText.textContent = 'Inactive';
+                }
+
+                // Phone & Joined Date
+                document.getElementById('detail-phone').textContent = user.phoneNumber || 'Not provided';
+
+                const joinedDate = new Date(user.createdAt);
+                document.getElementById('detail-joined').textContent = joinedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                toggleModal('user-details-modal', true);
+                switchTab('profile');
+            } catch (error) {
+                console.error(error);
+                window.toast.error('Could not load user details');
+            }
+        }
+
+        // Trigger Details Modal
+        document.querySelectorAll('.user-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (!e.target.closest('.stop-propagation')) {
+                    const userId = row.dataset.userId;
+                    openDetails(userId);
+                }
+            });
+        });
+
+        document.querySelectorAll('.view-user-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const userId = btn.closest('.user-row').dataset.userId;
+                openDetails(userId);
+            });
+        });
+
+        document.querySelectorAll('.close-details-btn').forEach(btn => btn.addEventListener('click', () => toggleModal('user-details-modal', false)));
+
+        // Stop propagation for interactive elements in row
+        document.querySelectorAll('.stop-propagation').forEach(el => {
+            el.addEventListener('click', (e) => e.stopPropagation());
+        });
+
+        // Edit User Logic
+        document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', () => {
+             toggleModal('add-user-modal', false);
+             toggleModal('edit-user-modal', false);
+        }));
+
+        document.querySelectorAll('.edit-user-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const userId = btn.closest('.user-row').dataset.userId;
+
+                try {
+                    const response = await fetch(`?handler=UserDetails&userId=${userId}`);
+                    if (!response.ok) throw new Error('Failed to fetch user details');
+
+                    const user = await response.json();
+
+                    // Populate forms
+                    document.getElementById('edit-user-id').value = user.id;
+                    document.getElementById('edit-full-name').value = user.fullName || '';
+                    document.getElementById('edit-email').value = user.email || '';
+                    document.getElementById('edit-phone-number').value = user.phoneNumber || '';
+                    document.getElementById('edit-role').value = user.role || '';
+                    document.getElementById('edit-is-active').checked = user.isActive;
+
+                    toggleModal('edit-user-modal', true);
+                } catch (error) {
+                    console.error(error);
+                    window.toast.error('Could not load user data to edit');
+                }
+            });
+        });
+
+        // Delete User Logic
+        document.querySelectorAll('.delete-user-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const row = btn.closest('.user-row');
+                const userId = row.dataset.userId;
+                const name = row.querySelector('.font-medium').textContent;
+
+                document.getElementById('delete-user-id').value = userId;
+                document.getElementById('delete-user-name-display').textContent = name;
+                toggleModal('delete-user-modal', true);
+            });
+        });
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+            document.getElementById('delete-user-form').submit();
+        });
+
+        // Restore User Logic
+        document.querySelectorAll('.restore-user-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const row = btn.closest('.user-row');
+                const userId = row.dataset.userId;
+                const name = row.querySelector('.font-medium').textContent;
+
+                document.getElementById('restore-user-id').value = userId;
+                document.getElementById('restore-user-name-display').textContent = name;
+                toggleModal('restore-user-modal', true);
+            });
+        });
+
+        document.getElementById('confirm-restore-btn').addEventListener('click', () => {
+            document.getElementById('restore-user-form').submit();
+        });
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const isActive = btn.dataset.tab === tabId;
+                btn.classList.toggle('active', isActive);
+                btn.classList.toggle('text-primary', isActive);
+                btn.classList.toggle('after:bg-primary', isActive);
+                btn.classList.toggle('text-slate-400', !isActive);
+                if (isActive) {
+                    btn.classList.add('after:absolute', 'after:bottom-[-2px]', 'after:left-0', 'after:w-full', 'after:h-0.5');
+                } else {
+                    btn.classList.remove('after:absolute', 'after:bottom-[-2px]', 'after:left-0', 'after:w-full', 'after:h-0.5', 'after:bg-primary');
+                }
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('hidden', content.id !== `tab-${tabId}`);
+            });
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // Backdrops
+        document.querySelectorAll('.fixed .bg-slate-900\\/40').forEach(backdrop => {
+            backdrop.addEventListener('click', () => {
+                toggleModal('add-user-modal', false);
+                toggleModal('edit-user-modal', false);
+                toggleModal('delete-user-modal', false);
+                toggleModal('restore-user-modal', false);
+                toggleModal('user-details-modal', false);
+            });
+        });
+
+        // Escape key logic
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                toggleModal('add-user-modal', false);
+                toggleModal('edit-user-modal', false);
+                toggleModal('delete-user-modal', false);
+                toggleModal('restore-user-modal', false);
+                toggleModal('user-details-modal', false);
+            }
+        });
+
+        // Close btn generic handlers
+        document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', () => {
+             toggleModal('add-user-modal', false);
+             toggleModal('edit-user-modal', false);
+             toggleModal('delete-user-modal', false);
+             toggleModal('restore-user-modal', false);
+        }));
+    </script>
+}
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #E2E8F0;
+        border-radius: 10px;
+    }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #CBD5E1;
+        }
+</style>
