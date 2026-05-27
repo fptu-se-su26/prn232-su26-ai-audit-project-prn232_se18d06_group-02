@@ -1,0 +1,765 @@
+@using GearZone.Application.Features.Catalog
+@using GearZone.Application.Abstractions.Services
+@using GearZone.Web.Pages.Shared.Models
+@using System
+@using System.Security.Claims
+@inject ICatalogService CatalogService
+@inject ICartService CartService
+@inject IChatService ChatService
+@{
+    var layoutCategories = await CatalogService.GetCategoriesAsync();
+    var currentSlug = ViewContext.RouteData.Values["CategorySlug"]?.ToString() ?? "";
+    var currentPath = Context.Request.Path.Value ?? "";
+    var currentTab = Context.Request.Query["tab"].ToString() ?? "";
+    var navLabelOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Console & Controllers"] = "Console",
+        ["Setup Accessories"] = "Setup",
+        ["Gaming Furniture"] = "Furniture"
+    };
+    string GetCategoryNavLabel(string name)
+        => navLabelOverrides.TryGetValue(name, out var label) ? label : name;
+    var isBuyerMessagesProfile = currentPath.Equals("/Public/User/Profile", StringComparison.OrdinalIgnoreCase)
+        && currentTab.Equals("messages", StringComparison.OrdinalIgnoreCase);
+    var showBuyerChatWidget = !currentPath.Equals("/messages", StringComparison.OrdinalIgnoreCase)
+        && !isBuyerMessagesProfile;
+    
+    int cartCount = 0;
+    int buyerUnreadCount = 0;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            cartCount = await CartService.GetCartItemsCountAsync(userId);
+            buyerUnreadCount = await ChatService.GetBuyerUnreadCountAsync(userId);
+        }
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - GearZone</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@@100..700,0..1&display=swap" rel="stylesheet" />
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a57db",
+                        "secondary": "#FF6B00",
+                        "accent-orange": "#FF6B00",
+                        "background-light": "#ffffff",
+                        "background-dark": "#111621",
+                        "text-primary": "#111827",
+                        "text-secondary": "#6b7280",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @@layer base {
+            html {
+                overflow-x: hidden;
+                overflow-x: clip;
+            }
+
+            body {
+                @@apply font-display antialiased;
+                overflow-x: hidden;
+                overflow-x: clip;
+            }
+        }
+        
+        /* Custom scrollbar for horizontal scrolling if needed */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .custom-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+        }
+
+        .category-nav-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .category-nav-item.is-open {
+            color: #1a57db;
+            border-color: #1a57db;
+        }
+
+        .category-nav-item.is-open .category-nav-trigger {
+            color: #1a57db;
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+    @if (showBuyerChatWidget)
+    {
+        <partial name="/Pages/Shared/_ChatInboxStyles.cshtml" />
+        <partial name="/Pages/Shared/_BuyerChatWidgetStyles.cshtml" />
+    }
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bg-slate-50 text-text-primary min-h-screen flex flex-col">
+    <!-- Sticky Header -->
+    <header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20 gap-8">
+                <!-- Logo -->
+                <a class="flex items-center gap-2 flex-shrink-0 group" asp-page="/Index">
+                    <div class="w-8 h-8 text-primary">
+                        <span class="material-symbols-outlined text-4xl">memory</span>
+                    </div>
+                    <span class="text-2xl font-bold tracking-tight text-gray-900 group-hover:text-primary transition-colors">GearZone</span>
+                </a>
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-2xl relative" id="search-container">
+                    <form action="/products" method="get" class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="material-symbols-outlined text-gray-400">search</span>
+                        </div>
+                        <input name="search" id="global-search-input" aria-label="Search" class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-all" placeholder="Search for products, brands..." type="text" autocomplete="off" value="@(Context.Request.Query["search"])" />
+                        <button type="submit" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-primary transition-colors">
+                            <span class="material-symbols-outlined">arrow_forward</span>
+                        </button>
+                    </form>
+                    
+                    <!-- Live Search Results Dropdown -->
+                    <div id="search-results-dropdown" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden hidden z-[100] transform transition-all duration-200 scale-95 opacity-0">
+                        <div id="search-results-loader" class="p-8 text-center hidden">
+                            <div class="inline-block animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mb-2"></div>
+                            <p class="text-xs text-gray-500">Searching...</p>
+                        </div>
+                        <div id="search-results-content" class="max-h-[400px] overflow-y-auto py-2">
+                            <!-- Results injected here -->
+                        </div>
+                        <a href="/products" id="search-view-all" class="block bg-gray-50 hover:bg-gray-100 text-center py-3 text-sm font-bold text-primary border-t border-gray-100 hidden">
+                            View All Results
+                        </a>
+                    </div>
+                </div>
+                <!-- Right Actions -->
+                <div class="flex items-center gap-4 flex-shrink-0">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <a href="/Public/User/Profile?tab=messages" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-chat-icon">
+                            <span class="material-symbols-outlined">chat</span>
+                            <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-orange-500 rounded-full @(buyerUnreadCount > 0 ? "" : "hidden")" data-header-chat-badge>@(buyerUnreadCount > 99 ? "99+" : buyerUnreadCount.ToString())</span>
+                        </a>
+                    }
+
+                    <a href="/Cart" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-cart-icon">
+                        <span class="material-symbols-outlined">shopping_cart</span>
+                        <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full @(cartCount > 0 ? "" : "hidden")" id="header-cart-count">@cartCount</span>
+                    </a>
+
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="relative flex items-center gap-3 pl-4 border-l border-gray-200" id="user-menu-container">
+                            <button type="button" class="flex items-center gap-2 group focus:outline-none" id="user-menu-button">
+                                <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                                    <span class="material-symbols-outlined">person</span>
+                                </div>
+                                <div class="hidden sm:block text-left">
+                                    <p class="text-xs text-gray-500 font-medium">Welcome back,</p>
+                                    <p class="text-sm font-bold text-gray-900 leading-tight">@User.Identity.Name</p>
+                                </div>
+                                <span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">expand_more</span>
+                            </button>
+
+                            <!-- Dropdown menu -->
+                            <div class="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 hidden z-[100] transform transition-all duration-200 scale-95 opacity-0" id="user-dropdown">
+                                <div class="px-4 py-3 border-b border-gray-50">
+                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Account Information</p>
+                                    <p class="text-sm font-bold text-gray-900 truncate">@User.Identity.Name</p>
+                                </div>
+                                
+                                <div class="py-1">
+                                    <a href="/Public/User/Profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-[20px]">account_circle</span>
+                                        My Profile
+                                    </a>
+                                    <a href="/Public/User/Profile?tab=orders" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                                        My Orders
+                                    </a>
+                                    <a href="/Public/User/Profile?tab=messages" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                        <span class="material-symbols-outlined text-[20px]">chat</span>
+                                        Messages
+                                    </a>
+                                    @if (User.IsInRole("Super Admin"))
+                                    {
+                                        <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-bold border-t border-gray-50 mt-1">
+                                            <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                                            Admin Panel
+                                        </a>
+                                    }
+                                    @if (User.IsInRole("Store Owner"))
+                                    {
+                                        <a href="/StoreOwner/Dashboard" class="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-bold border-t border-gray-50 mt-1">
+                                            <span class="material-symbols-outlined text-[20px]">store</span>
+                                            Seller Dashboard
+                                        </a>
+                                    }
+                                </div>
+
+                                <div class="pt-1 mt-1 border-t border-gray-50">
+                                    <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
+                                        <span class="material-symbols-outlined text-[20px]">logout</span>
+                                        Sign Out
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <a asp-page="/Public/Auth/Login" class="hidden md:flex items-center justify-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-secondary hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors shadow-sm">
+                            Sign Up / Login
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Secondary Nav -->
+    <nav class="bg-white border-b border-gray-200 hidden md:block relative z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative overflow-visible" data-category-nav-shell>
+            <div class="category-nav-scroll hide-scrollbar">
+                <div class="flex items-center gap-5 lg:gap-6 h-12 text-[13px] lg:text-sm font-medium relative min-w-max">
+                    <a class="category-nav-link flex items-center gap-2 @(string.IsNullOrEmpty(currentSlug) ? "text-primary border-b-2 border-primary" : "text-text-secondary border-b-2 border-transparent") hover:text-primary whitespace-nowrap h-full px-1 transition-colors cursor-pointer" data-category-slug="" asp-page="/Public/Catalog/Browse" asp-route-slug="">
+                        <span class="material-symbols-outlined text-[20px]">grid_view</span>
+                        All Categories
+                    </a>
+                    @foreach (var category in layoutCategories)
+                    {
+                        bool isActive = category.Slug == currentSlug || category.SubCategories.Any(sc => sc.Slug == currentSlug);
+                        if (category.SubCategories.Any())
+                        {
+                            <div class="category-nav-item relative h-full flex items-center @(isActive ? "text-primary border-b-2 border-primary" : "text-text-secondary border-b-2 border-transparent")"
+                                 data-nav-item
+                                 data-nav-slug="@category.Slug">
+                                <a class="category-nav-parent-link hover:text-primary transition-colors whitespace-nowrap h-full flex items-center pl-1 cursor-pointer"
+                                   data-category-slug="@category.Slug"
+                                   asp-page="/Public/Catalog/Browse"
+                                   asp-route-slug="@category.Slug">
+                                    @GetCategoryNavLabel(category.Name)
+                                </a>
+                                <button type="button"
+                                        class="category-nav-trigger inline-flex h-full items-center pr-1 text-current transition-colors hover:text-primary focus:outline-none"
+                                        aria-haspopup="true"
+                                        aria-expanded="false"
+                                        data-nav-trigger>
+                                    <span class="material-symbols-outlined text-[16px]">expand_more</span>
+                                </button>
+                                <div class="hidden" data-nav-dropdown-template>
+                                    @foreach (var sub in category.SubCategories)
+                                    {
+                                        <a class="category-nav-link block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary @(sub.Slug == currentSlug ? "bg-gray-50 text-primary font-bold" : "") cursor-pointer"
+                                           data-category-slug="@sub.Slug"
+                                           asp-page="/Public/Catalog/Browse"
+                                           asp-route-slug="@sub.Slug">
+                                            @sub.Name
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <a class="category-nav-link @(isActive ? "text-primary border-b-2 border-primary" : "text-text-secondary border-b-2 border-transparent") hover:text-primary transition-colors whitespace-nowrap h-full flex items-center px-1 cursor-pointer" data-category-slug="@category.Slug" asp-page="/Public/Catalog/Browse" asp-route-slug="@category.Slug">@GetCategoryNavLabel(category.Name)</a>
+                        }
+                    }
+                    <a class="text-red-600 hover:text-red-700 font-semibold transition-colors whitespace-nowrap h-full flex items-center px-1" href="/#home-flash-zone">
+                        <span class="material-symbols-outlined text-[18px] mr-1">bolt</span>
+                        Flash
+                    </a>
+                </div>
+            </div>
+
+            <div class="pointer-events-none absolute inset-x-0 top-full z-[80] hidden" data-nav-dropdown-layer>
+                <div class="relative">
+                    <div class="pointer-events-auto absolute top-0 hidden w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-2xl ring-1 ring-black/5"
+                         data-nav-dropdown-panel>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow overflow-x-clip">
+        @RenderBody()
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-[#1E2937] text-gray-300 py-12 border-t border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+                <!-- Column 1 -->
+                <div>
+                    <a class="flex items-center gap-2 mb-6 text-white" asp-page="/Index">
+                        <span class="material-symbols-outlined text-3xl text-primary">memory</span>
+                        <span class="text-xl font-bold tracking-tight">GearZone</span>
+                    </a>
+                    <p class="text-sm text-gray-400 mb-6 leading-relaxed">
+                        Vietnam's leading marketplace for PC components and high-end electronics. We connect enthusiasts with the best authentic hardware vendors.
+                    </p>
+                    <div class="flex gap-4">
+                        <span class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white/80 cursor-default">
+                            <span class="text-xs font-bold">f</span>
+                        </span>
+                        <span class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white/80 cursor-default">
+                            <span class="text-xs font-bold">t</span>
+                        </span>
+                        <span class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white/80 cursor-default">
+                            <span class="text-xs font-bold">in</span>
+                        </span>
+                    </div>
+                </div>
+                <!-- Column 2 -->
+                <div>
+                    <h4 class="text-white font-bold mb-4">Categories</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a class="hover:text-primary transition-colors" href="/products/cpus">Processors (CPU)</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/products/gpus">Graphics Cards (GPU)</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/products/motherboards">Motherboards</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/products/ram">Memory (RAM)</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/products/storage">Storage & SSDs</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/products/power-supplies">Power Supplies</a></li>
+                    </ul>
+                </div>
+                <!-- Column 3 -->
+                <div>
+                    <h4 class="text-white font-bold mb-4">Customer Support</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><span class="text-gray-400">Help Center</span></li>
+                        <li><span class="text-gray-400">Warranty Policy</span></li>
+                        <li><span class="text-gray-400">Return & Refund</span></li>
+                        <li><span class="text-gray-400">Shipping Info</span></li>
+                        <li><a class="hover:text-primary transition-colors" href="/Public/User/Profile?tab=orders">Track Order</a></li>
+                    </ul>
+                </div>
+                <!-- Column 4 -->
+                <div>
+                    <h4 class="text-white font-bold mb-4">Contact Us</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-gray-500 text-[20px]">location_on</span>
+                            <span>123 Tech Street, District 1,<br />Ho Chi Minh City, Vietnam</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-gray-500 text-[20px]">phone</span>
+                            <span>1900 123 456</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-gray-500 text-[20px]">mail</span>
+                            <span>support@@gearzone.vn</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+                <p>© 2023 GearZone Vietnam. All rights reserved.</p>
+                <div class="flex items-center gap-4">
+                    <span>Privacy Policy</span>
+                    <span>Terms of Service</span>
+                    <a class="hover:text-primary transition-colors" href="/products">Sitemap</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    @if (showBuyerChatWidget)
+    {
+        <partial name="/Pages/Shared/_BuyerChatWidget.cshtml"
+                 model='new BuyerChatWidgetViewModel
+                 {
+                     IsAuthenticated = User.Identity?.IsAuthenticated == true,
+                     TotalUnreadCount = buyerUnreadCount,
+                     BootstrapUrl = "/messages?handler=WidgetBootstrap",
+                     MessagesUrl = "/Public/User/Profile?tab=messages"
+                 }' />
+    }
+
+    <!-- Login Redirect Modal -->
+    <div id="login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="material-symbols-outlined text-3xl">login</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Login Required</h3>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">You need to be logged in to perform this action. Would you like to go to the login page now?</p>
+                <div class="flex gap-3">
+                    <button id="close-login-modal" class="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <a id="confirm-login-modal" href="/Auth/Login" class="flex-1 px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all text-center">
+                        Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="p-6 text-center">
+                <div id="confirm-modal-icon-container" class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span id="confirm-modal-icon" class="material-symbols-outlined text-3xl">delete</span>
+                </div>
+                <h3 id="confirm-modal-title" class="text-xl font-bold text-gray-900 dark:text-white mb-2">Are you sure?</h3>
+                <p id="confirm-modal-message" class="text-gray-500 dark:text-gray-400 mb-6">Do you really want to remove this item?</p>
+                <div class="flex gap-3">
+                    <button id="btn-confirm-cancel" class="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button id="btn-confirm-proceed" class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    @* <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script> *@
+    <script src="~/js/toast.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <partial name="_Toast" />
+    @await RenderSectionAsync("Scripts", required: false)
+    @if (showBuyerChatWidget)
+    {
+        <partial name="/Pages/Shared/_BuyerChatWidgetScripts.cshtml" />
+    }
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userMenuButton = document.getElementById('user-menu-button');
+            const userDropdown = document.getElementById('user-dropdown');
+
+            if (userMenuButton && userDropdown) {
+                userMenuButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isHidden = userDropdown.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        userDropdown.classList.remove('hidden');
+                        setTimeout(() => {
+                            userDropdown.classList.remove('scale-95', 'opacity-0');
+                            userDropdown.classList.add('scale-100', 'opacity-100');
+                        }, 10);
+                    } else {
+                        userDropdown.classList.remove('scale-100', 'opacity-100');
+                        userDropdown.classList.add('scale-95', 'opacity-0');
+                        setTimeout(() => {
+                            userDropdown.classList.add('hidden');
+                        }, 200);
+                    }
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (!userDropdown.contains(e.target) && !userMenuButton.contains(e.target)) {
+                        userDropdown.classList.remove('scale-100', 'opacity-100');
+                        userDropdown.classList.add('scale-95', 'opacity-0');
+                        setTimeout(() => {
+                            userDropdown.classList.add('hidden');
+                        }, 200);
+                    }
+                });
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const navShell = document.querySelector('[data-category-nav-shell]');
+            const dropdownLayer = navShell?.querySelector('[data-nav-dropdown-layer]');
+            const dropdownPanel = navShell?.querySelector('[data-nav-dropdown-panel]');
+            const navItems = navShell ? Array.from(navShell.querySelectorAll('[data-nav-item]')) : [];
+            const desktopQuery = window.matchMedia('(min-width: 768px)');
+            let activeItem = null;
+            let closeTimer = null;
+
+            if (!navShell || !dropdownLayer || !dropdownPanel || navItems.length === 0) {
+                return;
+            }
+
+            function clearCloseTimer() {
+                if (closeTimer) {
+                    clearTimeout(closeTimer);
+                    closeTimer = null;
+                }
+            }
+
+            function getTrigger(item) {
+                return item.querySelector('[data-nav-trigger]');
+            }
+
+            function getTemplate(item) {
+                return item.querySelector('[data-nav-dropdown-template]');
+            }
+
+            function resetItem(item) {
+                item.classList.remove('is-open');
+                delete item.dataset.locked;
+                const trigger = getTrigger(item);
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            function closeDropdown(force = false) {
+                clearCloseTimer();
+
+                if (!activeItem) {
+                    dropdownPanel.classList.add('hidden');
+                    dropdownLayer.classList.add('hidden');
+                    return;
+                }
+
+                if (!force && activeItem.dataset.locked === 'true') {
+                    return;
+                }
+
+                resetItem(activeItem);
+                activeItem = null;
+                dropdownPanel.innerHTML = '';
+                dropdownPanel.classList.add('hidden');
+                dropdownLayer.classList.add('hidden');
+            }
+
+            function scheduleClose() {
+                clearCloseTimer();
+                closeTimer = window.setTimeout(() => closeDropdown(false), 120);
+            }
+
+            function openDropdown(item, lockOpen = false) {
+                if (!desktopQuery.matches) {
+                    return;
+                }
+
+                const template = getTemplate(item);
+                const trigger = getTrigger(item);
+                if (!template || !trigger) {
+                    return;
+                }
+
+                clearCloseTimer();
+
+                if (activeItem && activeItem !== item) {
+                    resetItem(activeItem);
+                }
+
+                activeItem = item;
+                if (lockOpen) {
+                    item.dataset.locked = 'true';
+                } else {
+                    delete item.dataset.locked;
+                }
+
+                item.classList.add('is-open');
+                trigger.setAttribute('aria-expanded', 'true');
+                dropdownPanel.innerHTML = template.innerHTML;
+                dropdownLayer.classList.remove('hidden');
+                dropdownPanel.classList.remove('hidden');
+
+                requestAnimationFrame(() => {
+                    const shellRect = navShell.getBoundingClientRect();
+                    const itemRect = item.getBoundingClientRect();
+                    const panelWidth = dropdownPanel.offsetWidth;
+                    const availableWidth = navShell.clientWidth;
+                    const preferredLeft = itemRect.left - shellRect.left;
+                    const clampedLeft = Math.max(0, Math.min(preferredLeft, Math.max(0, availableWidth - panelWidth)));
+                    dropdownPanel.style.left = `${clampedLeft}px`;
+                });
+            }
+
+            navItems.forEach(item => {
+                const trigger = getTrigger(item);
+                if (!trigger) {
+                    return;
+                }
+
+                item.addEventListener('mouseenter', () => openDropdown(item));
+                item.addEventListener('mouseleave', scheduleClose);
+                item.addEventListener('focusin', () => openDropdown(item));
+                item.addEventListener('focusout', event => {
+                    const nextTarget = event.relatedTarget;
+                    if (!nextTarget || (!item.contains(nextTarget) && !dropdownPanel.contains(nextTarget))) {
+                        scheduleClose();
+                    }
+                });
+
+                trigger.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (activeItem === item && item.dataset.locked === 'true') {
+                        closeDropdown(true);
+                        return;
+                    }
+
+                    openDropdown(item, true);
+                });
+            });
+
+            dropdownPanel.addEventListener('mouseenter', clearCloseTimer);
+            dropdownPanel.addEventListener('mouseleave', scheduleClose);
+            dropdownPanel.addEventListener('focusin', clearCloseTimer);
+            dropdownPanel.addEventListener('click', () => closeDropdown(true));
+
+            document.addEventListener('click', event => {
+                if (!navShell.contains(event.target) && !dropdownPanel.contains(event.target)) {
+                    closeDropdown(true);
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeDropdown(true);
+                }
+            });
+
+            desktopQuery.addEventListener('change', event => {
+                if (!event.matches) {
+                    closeDropdown(true);
+                }
+            });
+        });
+
+        // Global Live Search Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('global-search-input');
+            const searchDropdown = document.getElementById('search-results-dropdown');
+            const resultsContent = document.getElementById('search-results-content');
+            const resultsLoader = document.getElementById('search-results-loader');
+            const viewAllBtn = document.getElementById('search-view-all');
+            const searchContainer = document.getElementById('search-container');
+            
+            let debounceTimer;
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                clearTimeout(debounceTimer);
+                
+                if (query.length < 2) {
+                    hideSearch();
+                    return;
+                }
+
+                showSearch();
+                resultsContent.innerHTML = '';
+                resultsLoader.classList.remove('hidden');
+                viewAllBtn.classList.add('hidden');
+
+                debounceTimer = setTimeout(() => {
+                    fetch(`/products?handler=Suggestions&query=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            renderSearchResults(data, query);
+                        })
+                        .catch(err => {
+                            console.error('Search error:', err);
+                            resultsContent.innerHTML = '<p class="p-4 text-center text-sm text-red-500">Something went wrong. Please try again.</p>';
+                        })
+                        .finally(() => {
+                            resultsLoader.classList.add('hidden');
+                        });
+                }, 300);
+            });
+
+            function renderSearchResults(results, query) {
+                if (!results || results.length === 0) {
+                    resultsContent.innerHTML = `
+                        <div class="p-8 text-center text-gray-500">
+                            <span class="material-symbols-outlined text-4xl mb-2">search_off</span>
+                            <p class="text-sm">No products found matching "${query}"</p>
+                        </div>`;
+                    return;
+                }
+
+                resultsContent.innerHTML = results.map(item => `
+                    <a href="/product/${item.slug}" class="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors group">
+                        <div class="w-12 h-12 rounded-lg bg-gray-50 flex-shrink-0 border border-gray-100 p-1 group-hover:bg-white transition-colors">
+                            <img src="${item.imageUrl || '/images/placeholder.png'}" alt="${item.name}" class="w-full h-full object-contain mix-blend-multiply" />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <span class="text-[10px] uppercase font-bold text-gray-400">${item.brandName}</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-gray-900 truncate group-hover:text-primary transition-colors">${item.name}</h4>
+                            <p class="text-xs font-bold text-primary">${new Intl.NumberFormat('vi-VN').format(item.price)}₫</p>
+                        </div>
+                    </a>
+                `).join('');
+
+                viewAllBtn.classList.remove('hidden');
+                viewAllBtn.href = `/products?search=${encodeURIComponent(query)}`;
+            }
+
+            function showSearch() {
+                searchDropdown.classList.remove('hidden');
+                setTimeout(() => {
+                    searchDropdown.classList.remove('scale-95', 'opacity-0');
+                    searchDropdown.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            }
+
+            function hideSearch() {
+                searchDropdown.classList.remove('scale-100', 'opacity-100');
+                searchDropdown.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    searchDropdown.classList.add('hidden');
+                }, 200);
+            }
+
+            // Close on click outside
+            document.addEventListener('click', (e) => {
+                if (!searchContainer.contains(e.target)) {
+                    hideSearch();
+                }
+            });
+
+            // Re-show if clicking back into input with text
+            searchInput.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2) {
+                    showSearch();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

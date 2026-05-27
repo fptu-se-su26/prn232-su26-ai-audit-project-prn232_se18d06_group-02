@@ -1,0 +1,158 @@
+@page "/storeowner/reviews"
+@using GearZone.Web.Pages.Shared.Models
+@model GearZone.Web.Pages.StoreOwner.Reviews.IndexModel
+@{
+    ViewData["Title"] = "Customer Reviews";
+    ViewData["PageHeader"] = "Customer Reviews";
+    ViewData["ActivePage"] = "Reviews";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Reviews" };
+    Layout = "_StoreOwnerLayout";
+}
+
+<div class="space-y-6">
+    <div class="review-surface-card rounded-[26px] border border-slate-100 p-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.22em] text-primary">Shopee-style Reply Desk</p>
+                <h1 class="text-2xl font-black text-slate-900 mt-2">Manage customer reviews</h1>
+                <p class="text-slate-500 mt-2">Reply to buyer feedback and keep your product reputation healthy.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <a asp-page="/StoreOwner/Reviews/Index" asp-route-filter="all"
+                   class="review-chip @(Model.Query.Filter == "all" || string.IsNullOrWhiteSpace(Model.Query.Filter) ? "is-active" : string.Empty)">
+                    All
+                </a>
+                <a asp-page="/StoreOwner/Reviews/Index" asp-route-filter="unreplied"
+                   class="review-chip @(Model.Query.Filter == "unreplied" ? "is-active" : string.Empty)">
+                    Awaiting Reply
+                </a>
+                <a asp-page="/StoreOwner/Reviews/Index" asp-route-filter="replied"
+                   class="review-chip @(Model.Query.Filter == "replied" ? "is-active" : string.Empty)">
+                    Replied
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Reviews.Items.Any())
+    {
+        <div class="space-y-4">
+            @foreach (var review in Model.Reviews.Items)
+            {
+                <article class="review-surface-card rounded-[26px] border border-slate-100 p-5">
+                    <div class="flex flex-col xl:flex-row gap-5">
+                        <div class="xl:w-72 flex gap-4">
+                            <div class="w-20 h-20 rounded-3xl bg-slate-50 border border-slate-100 overflow-hidden flex-shrink-0">
+                                <img src="@(string.IsNullOrWhiteSpace(review.ProductImageUrl) ? "/images/placeholder.png" : review.ProductImageUrl)"
+                                     alt="@review.ProductName"
+                                     class="w-full h-full object-contain p-2" />
+                            </div>
+                            <div class="min-w-0">
+                                <a href="/product/@review.ProductSlug" class="font-bold text-slate-900 hover:text-primary line-clamp-2">@review.ProductName</a>
+                                <p class="text-sm text-slate-500 mt-1">Variant: @review.VariantName</p>
+                                <div class="mt-3 flex items-center gap-2">
+                                    <partial name="/Pages/Shared/_ReviewStars.cshtml"
+                                             model='new ReviewStarsViewModel
+                                             {
+                                                 Rating = review.Rating,
+                                                 SizePx = 16,
+                                                 AriaLabel = $"{review.Rating} out of 5 stars"
+                                             }' />
+                                    <span class="ml-1 text-sm font-semibold text-slate-700">@review.Rating/5</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 space-y-4">
+                            <div class="review-summary-shell rounded-[22px] p-4">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-900">@review.BuyerDisplayName</p>
+                                        <p class="text-xs text-slate-400">@review.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</p>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(review.SellerReplyContent))
+                                    {
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600 border border-emerald-200">
+                                            Replied
+                                        </span>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(review.Comment))
+                                {
+                                    <p class="mt-3 text-sm leading-6 text-slate-600">@review.Comment</p>
+                                }
+                                else
+                                {
+                                    <p class="mt-3 text-sm italic text-slate-400">Buyer gave a star rating without a written comment.</p>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(review.SellerReplyContent))
+                            {
+                                <div class="review-reply-card rounded-[22px] p-4">
+                                    <div class="flex items-center gap-2 text-orange-700">
+                                        <span class="material-symbols-outlined text-[18px]">campaign</span>
+                                        <p class="text-sm font-bold">Your reply</p>
+                                    </div>
+                                    <p class="mt-2 text-sm leading-6 text-slate-700">@review.SellerReplyContent</p>
+                                    @if (review.SellerReplyAt.HasValue)
+                                    {
+                                        <p class="mt-2 text-xs text-slate-400">Saved @review.SellerReplyAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")</p>
+                                    }
+                                </div>
+                            }
+
+                            <form method="post" asp-page-handler="Reply" class="space-y-3">
+                                <input type="hidden" name="reviewId" value="@review.Id" />
+                                <input type="hidden" name="Query.Filter" value="@Model.Query.Filter" />
+                                <input type="hidden" name="Query.PageNumber" value="@Model.Query.PageNumber" />
+                                <label class="text-sm font-semibold text-slate-700">@(string.IsNullOrWhiteSpace(review.SellerReplyContent) ? "Write a reply" : "Edit your reply")</label>
+                                <textarea name="replyContent"
+                                          rows="4"
+                                          maxlength="2000"
+                                          class="review-textarea block w-full rounded-[22px] px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400"
+                                          placeholder="Thank the buyer, address any concern, and keep the tone professional.">@review.SellerReplyContent</textarea>
+                                <button type="submit" class="review-primary-button">
+                                    <span class="material-symbols-outlined text-[18px]">reply</span>
+                                    @(string.IsNullOrWhiteSpace(review.SellerReplyContent) ? "Send Reply" : "Update Reply")
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+
+        @if (Model.Reviews.TotalPages > 1)
+        {
+            <div class="flex items-center justify-center gap-2">
+                @for (var pageNumber = 1; pageNumber <= Model.Reviews.TotalPages; pageNumber++)
+                {
+                    <a asp-page="/StoreOwner/Reviews/Index"
+                       asp-route-filter="@Model.Query.Filter"
+                       asp-route-pageNumber="@pageNumber"
+                       class="review-page-link @(pageNumber == Model.Reviews.PageNumber ? "is-active" : string.Empty)">
+                        @pageNumber
+                    </a>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="bg-white rounded-3xl border border-slate-100 shadow-card py-20 px-6 text-center">
+            <div class="w-20 h-20 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center mx-auto mb-6">
+                <span class="material-symbols-outlined text-5xl">forum</span>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900">No reviews in this view</h2>
+            <p class="text-slate-500 mt-3 max-w-lg mx-auto">Once buyers start reviewing your delivered orders, they will appear here so you can respond directly from Seller Center.</p>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <partial name="/Pages/Shared/_ReviewUiStyles.cshtml" />
+}
+

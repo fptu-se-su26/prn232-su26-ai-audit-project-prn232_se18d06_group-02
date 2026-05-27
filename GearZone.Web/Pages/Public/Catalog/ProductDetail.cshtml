@@ -1,0 +1,587 @@
+@page "/product/{slug}"
+@using GearZone.Web.Pages.Shared.Models
+@model GearZone.Web.Pages.Public.Catalog.ProductDetailModel
+@{
+    ViewData["Title"] = $"{Model.Product.Name} - GearZone";
+}
+
+<div class="flex-grow w-full max-w-[1280px] mx-auto px-4 lg:px-8 py-6">
+    <!-- Breadcrumbs -->
+    <nav class="flex flex-wrap gap-2 pb-6 text-sm">
+        <a class="text-slate-500 hover:text-primary dark:text-slate-400" href="/">Home</a>
+        <span class="text-slate-400">/</span>
+        <a class="text-slate-500 hover:text-primary dark:text-slate-400" href="/products/@Model.Product.CategorySlug">@Model.Product.CategoryName</a>
+        <span class="text-slate-400">/</span>
+        <span class="text-slate-900 font-medium dark:text-white">@Model.Product.Name</span>
+    </nav>
+
+    <partial name="/Pages/Public/Catalog/Partials/_ProductDetailContent.cshtml" model="Model.Product" view-data="ViewData" />
+
+    
+    <!-- Related Products -->
+    @if (Model.RelatedProducts.Any())
+    {
+        <div class="mt-20">
+            <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-8">Related Products</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                @foreach (var p in Model.RelatedProducts)
+                {
+                    <a href="/product/@p.Slug" class="bg-white dark:bg-surface-dark rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col">
+                        <div class="aspect-square w-full mb-4 rounded-md overflow-hidden bg-slate-50 dark:bg-slate-800 relative">
+                            <img src="@(string.IsNullOrEmpty(p.ImageUrl) ? "/images/placeholder.png" : p.ImageUrl)"
+                                 alt="@p.Name"
+                                 class="w-full h-full object-contain p-2" />
+                            @if (!p.IsInStock)
+                            {
+                                <div class="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                                    <span class="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">Out of Stock</span>
+                                </div>
+                            }
+                        </div>
+                        <h4 class="text-sm font-semibold text-slate-900 dark:text-white mb-2 line-clamp-2 h-10">@p.Name</h4>
+                        @if (p.ReviewCount > 0)
+                        {
+                            <div class="mb-3 inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1">
+                                <partial name="/Pages/Shared/_ReviewStars.cshtml"
+                                         model='new ReviewStarsViewModel
+                                         {
+                                             Rating = p.Rating,
+                                             SizePx = 13,
+                                             AriaLabel = $"{p.Rating:0.0} out of 5 stars"
+                                         }' />
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-300">@p.Rating.ToString("0.0")</span>
+                                <span class="text-xs text-slate-500">(@p.ReviewCount)</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="flex items-center gap-1 text-slate-400 mb-3">
+                                <partial name="/Pages/Shared/_ReviewStars.cshtml"
+                                         model='new ReviewStarsViewModel
+                                         {
+                                             Rating = 0,
+                                             SizePx = 13,
+                                             AriaLabel = "No reviews yet"
+                                         }' />
+                                <span class="text-xs font-medium">No reviews</span>
+                            </div>
+                        }
+                        <div class="mt-auto">
+                            <div class="flex flex-wrap items-baseline gap-2 mb-4">
+                                <span class="text-lg font-bold text-secondary">@p.BasePrice.ToString("N0") VND</span>
+                                <span class="text-xs text-slate-400 line-through">@((p.BasePrice * 1.15m).ToString("N0")) VND</span>
+                            </div>
+                            <button class="w-full py-2 rounded-lg border border-primary text-primary text-xs font-bold hover:bg-primary/5 transition-colors flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-sm">add_shopping_cart</span>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <partial name="/Pages/Shared/_ReviewUiStyles.cshtml" />
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = document.getElementById('product-root');
+            if(!root) return;
+            
+            const variants = JSON.parse(root.getAttribute('data-variants') || '[]');
+            const groups = Array.from(document.querySelectorAll('.attribute-group'));
+            const variantChips = Array.from(document.querySelectorAll('.variant-chip'));
+            
+            let selectedOptions = {};
+            let selectedVariantId = null;
+
+            function setActionState(button, disabled) {
+                if (!button) return;
+                button.disabled = disabled;
+                button.classList.toggle('opacity-50', disabled);
+                button.classList.toggle('cursor-not-allowed', disabled);
+            }
+
+            function setActiveOptionButton(button) {
+                if (!button) return;
+
+                const group = button.closest('.attribute-group');
+                if (!group) return;
+
+                group.querySelectorAll('.variant-option').forEach(b => {
+                    b.classList.remove('border-2', 'border-primary', 'bg-primary/5', 'text-primary', 'relative');
+                    b.classList.add('border', 'border-slate-200');
+
+                    const check = b.querySelector('.checkmark-icon');
+                    if (check) check.remove();
+                });
+
+                button.classList.remove('border', 'border-slate-200');
+                button.classList.add('border-2', 'border-primary', 'bg-primary/5', 'text-primary', 'relative');
+                button.insertAdjacentHTML('beforeend', '<span class="checkmark-icon absolute -top-2 -right-2 bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm material-symbols-outlined text-xs p-1">check</span>');
+            }
+
+            function updateVariantChipState(activeVariantId) {
+                variantChips.forEach(chip => {
+                    const isActive = activeVariantId && chip.getAttribute('data-variant-id') === String(activeVariantId);
+                    chip.classList.toggle('border-2', !!isActive);
+                    chip.classList.toggle('border-primary', !!isActive);
+                    chip.classList.toggle('bg-primary/5', !!isActive);
+                    chip.classList.toggle('text-primary', !!isActive);
+                    chip.classList.toggle('border', !isActive);
+                    chip.classList.toggle('border-slate-200', !isActive);
+                });
+            }
+
+            function findVariantById(variantId) {
+                if (!variantId) return null;
+                return variants.find(v => String(v.Id) === String(variantId)) ?? null;
+            }
+
+            function findMatchingVariantByOptions() {
+                if (Object.keys(selectedOptions).length !== groups.length) return null;
+
+                const selectedIds = Object.values(selectedOptions).map(Number);
+                return variants.find(v => 
+                    selectedIds.every(id => v.SelectedOptionIds.includes(id)) && 
+                    v.SelectedOptionIds.length === selectedIds.length
+                ) ?? null;
+            }
+
+            function getCurrentVariant() {
+                const selectedByChip = findVariantById(selectedVariantId);
+                if (selectedByChip) return selectedByChip;
+
+                const selectedByAttributes = findMatchingVariantByOptions();
+                if (selectedByAttributes) return selectedByAttributes;
+
+                if (variants.length === 1) {
+                    return variants[0];
+                }
+
+                return null;
+            }
+
+            function syncOptionsFromVariant(variant) {
+                if (!variant || groups.length === 0) return;
+
+                selectedOptions = {};
+
+                groups.forEach(group => {
+                    const attrId = group.getAttribute('data-attribute-id');
+                    const buttons = Array.from(group.querySelectorAll('.variant-option'));
+                    const matchedButton = buttons.find(button => {
+                        const optionId = Number(button.getAttribute('data-option-id'));
+                        return variant.SelectedOptionIds.includes(optionId);
+                    });
+
+                    if (matchedButton) {
+                        setActiveOptionButton(matchedButton);
+                        selectedOptions[attrId] = matchedButton.getAttribute('data-option-id');
+                    } else {
+                        buttons.forEach(button => {
+                            button.classList.remove('border-2', 'border-primary', 'bg-primary/5', 'text-primary', 'relative');
+                            button.classList.add('border', 'border-slate-200');
+                            const check = button.querySelector('.checkmark-icon');
+                            if (check) check.remove();
+                        });
+                    }
+                });
+            }
+
+            function updateUI() {
+                const variant = getCurrentVariant();
+                const warningEl = document.getElementById('selection-warning');
+                const addToCartBtn = document.getElementById('add-to-cart-btn');
+                const buyNowBtn = document.getElementById('buy-now-btn');
+                const stockContainer = document.getElementById('stock-container');
+                const oosContainer = document.getElementById('out-of-stock-container');
+                const hasCompleteSelection = groups.length > 0 && Object.keys(selectedOptions).length === groups.length;
+                
+                if (hasCompleteSelection && !variant) {
+                    warningEl.classList.remove('hidden');
+                    setActionState(addToCartBtn, true);
+                    setActionState(buyNowBtn, true);
+                } else {
+                    warningEl.classList.add('hidden');
+                }
+
+                if (variant) {
+                    selectedVariantId = variant.Id;
+                    updateVariantChipState(selectedVariantId);
+
+                    // Update URL silently
+                    const url = new URL(window.location);
+                    url.searchParams.set('variantId', variant.Id);
+                    window.history.replaceState({}, '', url);
+
+                    // Update Price
+                    const newPrice = variant.Price;
+                    document.getElementById('display-price').textContent = newPrice.toLocaleString('vi-VN') + ' VND';
+                    const originalPrice = newPrice * 1.15;
+                    const displayOriginalElement = document.getElementById('display-original-price');
+                    if(displayOriginalElement) displayOriginalElement.textContent = originalPrice.toLocaleString('vi-VN') + ' VND';
+                    
+                    // Update Stock
+                    const qtyInput = document.getElementById('qty-input');
+                    if (variant.StockQuantity > 0) {
+                        stockContainer.classList.remove('hidden');
+                        oosContainer.classList.add('hidden');
+                        document.getElementById('display-stock').textContent = `In Stock (${variant.StockQuantity} units available)`;
+                        setActionState(addToCartBtn, false);
+                        setActionState(buyNowBtn, false);
+                        qtyInput.setAttribute('data-max-stock', variant.StockQuantity);
+                        
+                        // If current value exceeds new max, reset it
+                        if (parseInt(qtyInput.value) > variant.StockQuantity) {
+                            qtyInput.value = variant.StockQuantity;
+                        }
+                    } else {
+                        stockContainer.classList.add('hidden');
+                        oosContainer.classList.remove('hidden');
+                        setActionState(addToCartBtn, true);
+                        setActionState(buyNowBtn, true);
+                        qtyInput.setAttribute('data-max-stock', 0);
+                        qtyInput.value = 1;
+                    }
+                } else {
+                    updateVariantChipState(null);
+                    setActionState(addToCartBtn, variants.length > 0);
+                    setActionState(buyNowBtn, variants.length > 0);
+                }
+            }
+
+            function resolveVariantId() {
+                const variant = getCurrentVariant();
+                if (variant) {
+                    return variant.Id;
+                }
+
+                document.getElementById('selection-warning').classList.remove('hidden');
+                return null;
+            }
+
+            function resolveQuantity() {
+                const qtyInput = document.getElementById('qty-input');
+                const quantity = parseInt(qtyInput.value);
+                const maxStock = parseInt(qtyInput.getAttribute('data-max-stock') || '9999');
+
+                if (quantity > maxStock) {
+                    window.showToast?.('warning', `Only ${maxStock} items available in stock.`);
+                    return null;
+                }
+
+                return quantity;
+            }
+
+            // Click handlers
+            document.querySelectorAll('.variant-option').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const button = e.currentTarget;
+                    const group = button.closest('.attribute-group');
+                    const attrId = group.getAttribute('data-attribute-id');
+                    const optId = button.getAttribute('data-option-id');
+                    setActiveOptionButton(button);
+
+                    selectedOptions[attrId] = optId;
+                    const matchedVariant = findMatchingVariantByOptions();
+                    selectedVariantId = matchedVariant ? matchedVariant.Id : null;
+                    
+                    updateUI();
+                });
+            });
+
+            variantChips.forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const variantId = chip.getAttribute('data-variant-id');
+                    const variant = findVariantById(variantId);
+                    if (!variant) return;
+
+                    selectedVariantId = variant.Id;
+                    syncOptionsFromVariant(variant);
+                    updateUI();
+                });
+            });
+
+            // Initialize from URL if present
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialVariantId = urlParams.get('variantId');
+            if (initialVariantId) {
+                const initialVariant = findVariantById(initialVariantId);
+                if (initialVariant) {
+                    selectedVariantId = initialVariant.Id;
+                    syncOptionsFromVariant(initialVariant);
+                    updateUI();
+                } else if (variants.length > 0) {
+                    selectedVariantId = variants[0].Id;
+                    syncOptionsFromVariant(variants[0]);
+                    updateUI();
+                }
+            } else if (variants.length > 0) {
+                selectedVariantId = variants[0].Id;
+                syncOptionsFromVariant(variants[0]);
+                updateUI();
+            } else {
+                updateUI(); // In case there are no variants
+            }
+
+            // Add to Cart
+            const addToCartBtn = document.getElementById('add-to-cart-btn');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', async () => {
+                   const variantId = resolveVariantId();
+                   if (!variantId) return;
+
+                   const quantity = resolveQuantity();
+                   if (quantity === null) return;
+
+                   const success = await addToCart(variantId, quantity, addToCartBtn);
+                   
+                   if (success) {
+                       document.getElementById('qty-input').value = 1;
+                   }
+                });
+            }
+
+            const buyNowBtn = document.getElementById('buy-now-btn');
+            if (buyNowBtn) {
+                buyNowBtn.addEventListener('click', async () => {
+                    const variantId = resolveVariantId();
+                    if (!variantId) return;
+
+                    const quantity = resolveQuantity();
+                    if (quantity === null) return;
+
+                    const result = await addToCart(variantId, quantity, buyNowBtn, true);
+                    if (!result) return;    
+
+                    const cartItemId = result.cartItemId;
+                    if (!cartItemId) {
+                        window.location.href = '/Cart/Index';
+                        return;
+                    }
+
+                    window.location.href = `/Checkout?SelectedCartItemIds=${encodeURIComponent(cartItemId)}`;
+                });
+            }
+        });
+
+
+        // Product comparison logic (Product Detail)
+        (function() {
+            const compareBtn = document.querySelector('.compare-detail-btn');
+            const compareText = document.getElementById('compare-text');
+
+            if (!compareBtn) {
+                return;
+            }
+
+            const productId = compareBtn.dataset.productId;
+            const categoryId = String(compareBtn.dataset.categoryId || '');
+
+            function normalizeCompareList(items) {
+                if (!Array.isArray(items) || items.length === 0) {
+                    return [];
+                }
+
+                const uniqueItems = [];
+                const seenIds = new Set();
+                const lockedCategoryId = String(items[0].categoryId || '');
+
+                items.forEach(item => {
+                    if (!item || !item.id || seenIds.has(item.id) || String(item.categoryId || '') !== lockedCategoryId) {
+                        return;
+                    }
+
+                    seenIds.add(item.id);
+                    uniqueItems.push({
+                        id: item.id,
+                        name: item.name,
+                        image: item.image,
+                        categoryId: String(item.categoryId || '')
+                    });
+                });
+
+                return uniqueItems.slice(0, 4);
+            }
+
+            function updateBtnState() {
+                const compareList = normalizeCompareList(JSON.parse(localStorage.getItem('gearzone_compare_list') || '[]'));
+                localStorage.setItem('gearzone_compare_list', JSON.stringify(compareList));
+
+                if (compareList.some(p => p.id === productId)) {
+                    compareText.innerText = 'Added to comparison';
+                    compareBtn.classList.add('text-primary');
+                } else {
+                    compareText.innerText = 'Compare this product';
+                    compareBtn.classList.remove('text-primary');
+                }
+            }
+
+            updateBtnState();
+
+            compareBtn.addEventListener('click', () => {
+                let compareList = normalizeCompareList(JSON.parse(localStorage.getItem('gearzone_compare_list') || '[]'));
+                const exists = compareList.some(p => p.id === productId);
+
+                if (exists) {
+                    compareList = compareList.filter(p => p.id !== productId);
+                    window.showToast?.('info', 'Product removed from comparison list.');
+                } else {
+                    if (compareList.length > 0 && String(compareList[0].categoryId || '') !== categoryId) {
+                        const shouldClear = confirm('Comparison only works for products in the same category. Clear the current list and start a new comparison?');
+                        if (!shouldClear) {
+                            updateBtnState();
+                            return;
+                        }
+
+                        compareList = [];
+                    }
+
+                    if (compareList.length >= 4) {
+                        window.showToast?.('warning', 'You can only compare up to 4 products.');
+                        return;
+                    }
+
+                    compareList.push({
+                        id: productId,
+                        name: compareBtn.dataset.productName,
+                        image: compareBtn.dataset.productImage,
+                        categoryId: categoryId
+                    });
+
+                    window.showToast?.('success', 'Product added to comparison list!');
+
+                    if (compareList.length >= 2) {
+                        setTimeout(() => {
+                            const ids = compareList.map(p => p.id).join(',');
+                            if (confirm('You have 2 or more products in your list. View comparison now?')) {
+                                window.location.href = `/compare?categoryId=${categoryId}&ids=${ids}`;
+                            }
+                        }, 500);
+                    }
+                }
+
+                localStorage.setItem('gearzone_compare_list', JSON.stringify(compareList));
+                updateBtnState();
+            });
+        })();
+        function updateQty(change) {
+            const input = document.getElementById('qty-input');
+            const maxStock = parseInt(input.getAttribute('data-max-stock') || '1');
+            let val = parseInt(input.value) + change;
+            
+            if (val < 1) val = 1;
+            if (val > maxStock) {
+                if (maxStock > 0) {
+                    window.showToast?.('warning', `Maximum available stock: ${maxStock}`);
+                }
+                val = Math.max(1, maxStock);
+            }
+            
+            input.value = val;
+        }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let reviewPanelController = null;
+
+            async function loadReviewPanel(targetUrl, pushState) {
+                const currentPanel = document.querySelector('[data-review-panel]');
+                if (!currentPanel) {
+                    return;
+                }
+
+                const browserUrl = new URL(targetUrl, window.location.origin);
+                const requestUrl = new URL(browserUrl.toString());
+                requestUrl.searchParams.set('handler', 'ReviewPanel');
+
+                if (reviewPanelController) {
+                    reviewPanelController.abort();
+                }
+
+                const controller = new AbortController();
+                reviewPanelController = controller;
+                const preservedHeight = currentPanel.offsetHeight;
+                currentPanel.style.minHeight = `${preservedHeight}px`;
+                currentPanel.classList.add('is-review-loading');
+
+                try {
+                    const response = await fetch(requestUrl.toString(), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: controller.signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Review panel request failed with ${response.status}`);
+                    }
+
+                    const html = await response.text();
+                    const fragment = document.createRange().createContextualFragment(html.trim());
+                    const nextPanel = fragment.firstElementChild;
+                    if (!nextPanel) {
+                        throw new Error('Review panel response did not contain a root element');
+                    }
+
+                    nextPanel.classList.add('review-panel-enter');
+                    nextPanel.style.minHeight = `${preservedHeight}px`;
+                    currentPanel.replaceWith(nextPanel);
+
+                    requestAnimationFrame(() => {
+                        nextPanel.classList.add('review-panel-enter-active');
+                        nextPanel.style.minHeight = '';
+                    });
+
+                    window.setTimeout(() => {
+                        nextPanel.classList.remove('review-panel-enter', 'review-panel-enter-active');
+                    }, 220);
+
+                    if (pushState) {
+                        window.history.pushState({ reviewPanel: true }, '', browserUrl);
+                    }
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        return;
+                    }
+
+                    console.error('Review panel update failed', error);
+                    window.location.href = browserUrl.toString();
+                } finally {
+                    if (reviewPanelController === controller) {
+                        reviewPanelController = null;
+                    }
+                }
+            }
+
+            document.addEventListener('click', (event) => {
+                const reviewLink = event.target.closest('[data-review-link]');
+                if (!reviewLink) {
+                    return;
+                }
+
+                if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) {
+                    return;
+                }
+
+                event.preventDefault();
+                loadReviewPanel(reviewLink.href, true);
+            });
+
+            window.addEventListener('popstate', () => {
+                if (document.querySelector('[data-review-panel]')) {
+                    loadReviewPanel(window.location.href, false);
+                }
+            });
+        });
+    </script>
+}
+
+
+
+
+

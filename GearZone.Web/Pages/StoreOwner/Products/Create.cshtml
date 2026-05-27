@@ -1,0 +1,917 @@
+@page "/storeowner/products/create"
+@model GearZone.Web.Pages.StoreOwner.Products.CreateModel
+@{
+    ViewData["Title"] = "Add New Product";
+    ViewData["ActivePage"] = "Products";
+    ViewData["PageHeader"] = "Add New Product";
+    ViewData["Breadcrumb"] = new string[] { "Products", "Add New Product" };
+    Layout = "_StoreOwnerLayout";
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <form method="post" enctype="multipart/form-data" id="createProductForm">
+        <div asp-validation-summary="ModelOnly" class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium"></div>
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Add New Product</h1>
+                <p class="text-sm text-gray-500 mt-1">Create a new product card for your store catalog.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a asp-page="./Index" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Discard</a>
+                <button type="submit" name="Input.IsDraft" value="true" class="px-5 py-2.5 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors">Save as Draft</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- Basic Information -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="material-symbols-outlined text-primary">info</span>
+                        <h2 class="text-lg font-bold text-gray-900">Basic Information</h2>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                            <input asp-for="Input.Name" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition-all bg-gray-50/50" placeholder="e.g., ASUS ROG Strix GeForce RTX 4090 OC Edition" required>
+                            <span asp-validation-for="Input.Name" class="text-xs text-red-500"></span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                <select asp-for="Input.CategoryId" asp-items="Model.CategoryOptions" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition-all bg-gray-50/50" required>
+                                    <option value="">Select Category</option>
+                                </select>
+                                <span asp-validation-for="Input.CategoryId" class="text-xs text-red-500"></span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                                <select asp-for="Input.BrandId" asp-items="Model.BrandOptions" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition-all bg-gray-50/50" required>
+                                    <option value="">Select Brand</option>
+                                </select>
+                                <span asp-validation-for="Input.BrandId" class="text-xs text-red-500"></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea asp-for="Input.Description" rows="6" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition-all bg-gray-50/50" placeholder="Enter detailed product description..."></textarea>
+                            <span asp-validation-for="Input.Description" class="text-xs text-red-500"></span>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Base Price (VND)</label>
+                            <input asp-for="Input.BasePrice" type="number" step="0.01" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition-all bg-gray-50/50" placeholder="0" required>
+                            <span asp-validation-for="Input.BasePrice" class="text-xs text-red-500"></span>
+                            <p class="text-xs text-gray-400 mt-1">This is the default price if variants don't specify one.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Images -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="material-symbols-outlined text-primary">image</span>
+                        <h2 class="text-lg font-bold text-gray-900">Product Images</h2>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Primary Image (Thumbnail)</label>
+                        <label class="relative block aspect-[4/3] rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/60 hover:border-primary/50 transition-colors cursor-pointer overflow-hidden">
+                            <input type="file" name="Input.Images" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer primary-image-input" data-preview="#primaryPreview" accept="image/*">
+                            <div id="primaryPreview" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
+                                <span class="material-symbols-outlined text-4xl">photo_camera</span>
+                                <p class="text-sm font-medium">Click to upload primary image</p>
+                                <p class="text-xs">This will be used as the thumbnail.</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Additional Images</label>
+                            <span class="text-xs text-gray-400">Max 4 images</span>
+                        </div>
+                        <div id="additionalImagesContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-4" data-max="4" data-input-name="Input.Images">
+                            <label class="image-slot relative aspect-square rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/60 hover:border-primary/50 transition-colors cursor-pointer overflow-hidden">
+                                <input type="file" name="Input.Images" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer image-slot-input" accept="image/*">
+                                <div class="image-slot-content absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-1">
+                                    <span class="material-symbols-outlined text-2xl">add_photo_alternate</span>
+                                    <span class="text-xs font-medium">Add image</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <!-- Product Specifications -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-3 gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">list_alt</span>
+                            <h2 class="text-lg font-bold text-gray-900">Category Specifications</h2>
+                        </div>
+                        <button type="button" id="btnAddSpecAttribute" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors">
+                            <span class="material-symbols-outlined text-[16px]">add</span>
+                            Add Spec
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-6">Choose a category and the system will load the spec template for that product type. You only need to fill in the values.</p>
+
+                    <!-- Inline Add Spec Form -->
+                    <div id="inlineAddSpecForm" class="hidden bg-primary/5 p-4 rounded-xl border border-primary/20 mb-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-primary uppercase mb-1">Spec Name *</label>
+                                <input type="text" id="newSpecName" class="w-full px-3 py-2 border border-primary/20 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="e.g. GPU Architecture">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-primary uppercase mb-1">Unit (Optional)</label>
+                                <input type="text" id="newSpecUnit" class="w-full px-3 py-2 border border-primary/20 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="e.g. MHz, GB">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-primary uppercase mb-1">Value Type (Optional)</label>
+                                <input type="text" id="newSpecValueType" class="w-full px-3 py-2 border border-primary/20 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="e.g. Number, String">
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" id="btnCancelAddSpec" class="px-4 py-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors uppercase tracking-wider">Cancel</button>
+                            <button type="button" id="btnSaveNewSpec" class="px-5 py-2 text-xs font-bold text-white bg-primary rounded-lg hover:bg-primary-dark transition-all shadow-md shadow-primary/20 uppercase tracking-wider">Save Specification</button>
+                        </div>
+                    </div>
+
+                    <div id="specsContainer" class="space-y-3">
+                        @if (Model.Input.Specifications.Any())
+                        {
+                            @for (int i = 0; i < Model.Input.Specifications.Count; i++)
+                            {
+                                <div class="spec-row grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-gray-50/50 p-4 rounded-lg border border-gray-100">
+                                    <input type="hidden" name="Input.Specifications[@i].AttributeId" value="@Model.Input.Specifications[i].AttributeId" />
+                                    <input type="hidden" name="Input.Specifications[@i].Unit" value="@Model.Input.Specifications[i].Unit" />
+                                    <input type="hidden" name="Input.Specifications[@i].ValueType" value="@Model.Input.Specifications[i].ValueType" />
+                                        @{
+                                            var valueType = Model.Input.Specifications[i].ValueType;
+                                            var valuePlaceholder = string.IsNullOrWhiteSpace(valueType)
+                                                ? $"Enter {Model.Input.Specifications[i].Key}"
+                                                : $"Enter {Model.Input.Specifications[i].Key} ({valueType})";
+                                            var valueText = Model.Input.Specifications[i].Value;
+                                            if (!string.IsNullOrWhiteSpace(valueType) && string.Equals(valueText, valueType, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                valueText = string.Empty;
+                                            }
+                                        }
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Specification</label>
+                                            <input name="Input.Specifications[@i].Key" value="@Model.Input.Specifications[i].Key" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 font-medium" />
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center justify-between">
+                                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Value</label>
+                                                @if (!string.IsNullOrWhiteSpace(valueType))
+                                                {
+                                                    <span class="text-[10px] font-semibold text-gray-400 uppercase">Type: @valueType</span>
+                                                }
+                                            </div>
+                                            <div class="relative">
+                                                <input name="Input.Specifications[@i].Value" value="@valueText" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary bg-white @(string.IsNullOrWhiteSpace(Model.Input.Specifications[i].Unit) ? string.Empty : "pr-16")" placeholder="@valuePlaceholder" />
+                                                @if (!string.IsNullOrWhiteSpace(Model.Input.Specifications[i].Unit))
+                                                {
+                                                    <span class="absolute inset-y-0 right-3 flex items-center text-xs font-bold text-gray-400 uppercase">@Model.Input.Specifications[i].Unit</span>
+                                                }
+                                            </div>
+                                        </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div id="emptySpecState" class="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-5 text-sm text-gray-400">
+                                Select a category to load the specification template.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Variants & Pricing -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">sell</span>
+                            <h2 class="text-lg font-bold text-gray-900">Variants & Pricing</h2>
+                        </div>
+                        <button type="button" id="btnAddVariant" class="text-primary text-sm font-bold flex items-center gap-1 hover:underline">
+                            <span class="material-symbols-outlined text-[18px]">add</span> Add Variant
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Variant Name</th>
+                                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">SKU</th>
+                                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Price (VND)</th>
+                                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Stock</th>
+                                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden" id="variantAttributesHeader">Attributes</th>
+                                    <th class="px-1 py-3"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="variantsContainer" class="divide-y divide-gray-100">
+                                @for (int i = 0; i < Model.Input.Variants.Count; i++)
+                                {
+                                    <tr class="variant-row">
+                                        <td class="py-3 px-1">
+                                            <input name="Input.Variants[@i].VariantName" value="@Model.Input.Variants[i].VariantName" class="variant-name-input w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50" placeholder="Auto from attributes" readonly required>
+                                        </td>
+                                        <td class="py-3 px-1">
+                                            <input name="Input.Variants[@i].Sku" value="@Model.Input.Variants[i].Sku" class="variant-sku-input w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50" placeholder="Auto from attributes" readonly required>
+                                        </td>
+                                        <td class="py-3 px-1">
+                                            <input name="Input.Variants[@i].Price" value="@Model.Input.Variants[i].Price" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="0" required>
+                                        </td>
+                                        <td class="py-3 px-1">
+                                            <input name="Input.Variants[@i].StockQuantity" value="@Model.Input.Variants[i].StockQuantity" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="0" required>
+                                        </td>
+                                        <td class="py-3 px-1 variant-attributes-cell @(Model.Input.Variants[i].Attributes.Any() ? "" : "hidden")">
+                                            <div class="flex flex-col gap-2 attributes-wrapper">
+                                                @for (int j = 0; j < Model.Input.Variants[i].Attributes.Count; j++)
+                                                {
+                                                    <div class="pre-selected-attribute">
+                                                        <input type="hidden" class="pre-selected-attr-id" value="@Model.Input.Variants[i].Attributes[j].AttributeId" />
+                                                        <input type="hidden" class="pre-selected-opt-id" value="@Model.Input.Variants[i].Attributes[j].OptionId" />
+                                                    </div>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-1 text-center">
+                                            <button type="button" class="text-gray-400 hover:text-red-600 btnRemoveRow">
+                                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-6">
+                
+                <!-- Publishing Status -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-sm font-bold text-gray-900 mb-4">Publishing Status</h3>
+                    
+                    <div class="space-y-4">
+                        <label class="flex items-center justify-between p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                            <div class="flex items-center gap-3">
+                                <input type="radio" asp-for="Input.IsDraft" value="true" class="w-4 h-4 text-primary focus:ring-primary border-gray-300">
+                                <span class="text-sm font-medium text-gray-700">Draft</span>
+                            </div>
+                            <span class="material-symbols-outlined text-gray-400 text-[20px]">draft</span>
+                        </label>
+                        
+                        <label class="flex items-center justify-between p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                            <div class="flex items-center gap-3">
+                                <input type="radio" asp-for="Input.IsDraft" value="false" class="w-4 h-4 text-primary focus:ring-primary border-gray-300" checked>
+                                <span class="text-sm font-medium text-gray-700">Active</span>
+                            </div>
+                            <span class="material-symbols-outlined text-gray-400 text-[20px]">public</span>
+                        </label>
+                    </div>
+
+                    <div class="mt-6 pt-6 border-t border-gray-100">
+                        <button type="submit" class="w-full py-3 px-4 bg-primary text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                             <span class="material-symbols-outlined text-[20px]">publish</span>
+                             Publish Product
+                        </button>
+                        <p class="text-center text-xs text-gray-400 mt-4 underline cursor-not-allowed">Preview Product Page</p>
+                    </div>
+                </div>
+
+                <!-- Seller Tip -->
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="p-2 bg-white rounded-lg text-primary shadow-sm">
+                            <span class="material-symbols-outlined">lightbulb</span>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-blue-900 mb-1">Seller Tip</h4>
+                            <p class="text-xs text-blue-700 leading-relaxed">
+                                Adding at least 3 high-quality images increases sales conversion by up to 25%. Ensure your main image has a white background.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function() {
+            const $form = $('#createProductForm');
+
+            // Custom validation settings for immediate feedback
+            const validator = $form.validate();
+            if (validator) {
+                validator.settings.onfocusout = function(element) {
+                    $(element).valid();
+                };
+            }
+
+            function reparseValidation() {
+                $form.removeData("validator").removeData("unobtrusiveValidation");
+                $.validator.unobtrusive.parse($form);
+                
+                // Re-apply immediate feedback settings
+                const newValidator = $form.validate();
+                newValidator.settings.onfocusout = function(element) {
+                    $(element).valid();
+                };
+            }
+            // Show validation errors as toasts
+            @if (!ModelState.IsValid)
+            {
+                foreach (var modelState in ModelState.Values)
+                {
+                    foreach (var error in modelState.Errors)
+                    {
+                        <text>window.showToast?.('error', @Json.Serialize(error.ErrorMessage));</text>
+                    }
+                }
+            }
+
+            // Client-side validation toast for main form
+            $form.on('invalid-form.validate', function(event, validator) {
+                const firstError = validator.errorList[0];
+                if (firstError) {
+                    window.showToast?.('warning', `Form is missing info: ${firstError.message}`);
+                    $(firstError.element).focus();
+                }
+            });
+
+            // Fix the Add Spec button not working
+            $('#btnAddSpecAttribute').click(function() {
+                $('#inlineAddSpecForm').removeClass('hidden').addClass('flex flex-col');
+            });
+
+            $('#btnCancelAddSpec').click(function() {
+                $('#inlineAddSpecForm').addClass('hidden').removeClass('flex flex-col');
+                $('#newSpecName, #newSpecUnit, #newSpecValueType').val('');
+            });
+
+            $('#btnSaveNewSpec').click(function() {
+                createSpecificationAttribute();
+            });
+
+            function renderSpecifications(specs) {
+                const container = $('#specsContainer');
+                
+                // Collect current values to preserve them if they exist in the new list
+                let currentValues = {};
+                container.find('.spec-row').each(function() {
+                    const key = $(this).find('input[name*=".Key"]').val();
+                    const val = $(this).find('input[name*=".Value"]').val();
+                    if (key) currentValues[key] = val;
+                });
+
+                container.empty();
+
+                if (!specs || specs.length === 0) {
+                    container.append(`
+                        <div id="emptySpecState" class="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-5 text-sm text-gray-400">
+                            This category does not have product-level specifications yet.
+                        </div>
+                    `);
+                    return;
+                }
+
+                specs.forEach(function(spec, index) {
+                    const unit = spec.unit || '';
+                    const valueType = spec.valueType || '';
+                    let value = currentValues[spec.key] || spec.value || ''; // PRESERVE TYPED VALUE
+                    if (valueType && value && value.toLowerCase() === valueType.toLowerCase()) {
+                        value = '';
+                    }
+                    const inputPadding = unit ? 'pr-16' : '';
+                    const placeholder = valueType
+                        ? `Enter ${spec.key || 'value'} (${valueType})`
+                        : `Enter ${spec.key || 'value'}`;
+                    const valueTypeHint = valueType
+                        ? `<span class="text-[10px] font-semibold text-gray-400 uppercase">Type: ${valueType}</span>`
+                        : '';
+                    container.append(`
+                        <div class="spec-row grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-gray-50/50 p-4 rounded-lg border border-gray-100">
+                            <input type="hidden" name="Input.Specifications[${index}].AttributeId" value="${spec.attributeId || 0}" />
+                            <input type="hidden" name="Input.Specifications[${index}].Unit" value="${unit}" />
+                            <input type="hidden" name="Input.Specifications[${index}].ValueType" value="${spec.valueType || ''}" />
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Specification</label>
+                                <input name="Input.Specifications[${index}].Key" value="${spec.key || ''}" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 font-medium" />
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Value</label>
+                                    ${valueTypeHint}
+                                </div>
+                                <div class="relative">
+                                    <input name="Input.Specifications[${index}].Value" value="${value}" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary bg-white ${inputPadding}" placeholder="${placeholder}" data-val="true" data-val-required="${spec.key} is required" required />
+                                    ${unit ? `<span class="absolute inset-y-0 right-3 flex items-center text-xs font-bold text-gray-400 uppercase">${unit}</span>` : ''}
+                                </div>
+                                <span class="field-validation-valid text-[10px] text-red-500 font-medium" data-valmsg-for="Input.Specifications[${index}].Value" data-valmsg-replace="true"></span>
+                            </div>
+                        </div>
+                    `);
+                });
+                reparseValidation();
+            }
+
+            async function createSpecificationAttribute() {
+                const categoryId = $('#Input_CategoryId').val();
+                if (!categoryId) {
+                    window.showToast?.('warning', 'Please select a category first.');
+                    return;
+                }
+
+                const name = $('#newSpecName').val();
+                if (!name || !name.trim()) {
+                    window.showToast?.('warning', 'Specification name is required.');
+                    $('#newSpecName').focus();
+                    return;
+                }
+
+                const unit = $('#newSpecUnit').val() || '';
+                const valueType = $('#newSpecValueType').val() || '';
+                const token = $('input[name="__RequestVerificationToken"]').val();
+
+                const saveBtn = $('#btnSaveNewSpec');
+                const originalText = saveBtn.text();
+                saveBtn.prop('disabled', true).text('Saving...');
+
+                try {
+                    const response = await $.ajax({
+                        url: '?handler=CreateSpecificationAttribute',
+                        type: 'POST',
+                        data: {
+                            categoryId: categoryId,
+                            name: name.trim(),
+                            unit: unit.trim(),
+                            valueType: valueType.trim()
+                        },
+                        headers: { 'RequestVerificationToken': token }
+                    });
+
+                    if (!response || !response.success) {
+                        window.showToast?.('warning', response?.message || 'Could not create specification.');
+                        return;
+                    }
+
+                    window.showToast?.('success', 'Specification added to this category.');
+                    $('#btnCancelAddSpec').click(); // Hide and clear form
+                    loadCategorySpecifications(categoryId);
+                } catch (err) {
+                    window.showToast?.('error', 'Could not create specification.');
+                } finally {
+                    saveBtn.prop('disabled', false).text(originalText);
+                }
+            }
+            function loadCategorySpecifications(categoryId) {
+                if (!categoryId) {
+                    renderSpecifications([]);
+                    return;
+                }
+
+                $.get('?handler=Specifications&categoryId=' + categoryId, function(data) {
+                    renderSpecifications(data || []);
+                });
+            }
+
+            let currentCategoryAttributes = [];
+
+            function generateAttributesHtml(variantIndex, selectedOptions = {}) {
+                if (!currentCategoryAttributes || currentCategoryAttributes.length === 0) return '';
+                let html = '';
+                currentCategoryAttributes.forEach(function(attr, attrIndex) {
+                    const selectedValue = selectedOptions[attr.id] || "";
+                    html += `
+                        <div class="flex flex-col">
+                            <input type="hidden" name="Input.Variants[${variantIndex}].Attributes[${attrIndex}].AttributeId" value="${attr.id}" />
+                            <input type="hidden" name="Input.Variants[${variantIndex}].Attributes[${attrIndex}].AttributeName" value="${attr.name}" />
+                            <select name="Input.Variants[${variantIndex}].Attributes[${attrIndex}].OptionId" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs bg-gray-50 focus:ring-primary focus:border-primary" required>
+                                <option value="">Select ${attr.name}</option>`;
+
+                    attr.options.forEach(function(opt) {
+                        const isSelected = opt.id == selectedValue ? 'selected' : '';
+                        html += `<option value="${opt.id}" ${isSelected}>${opt.value}</option>`;
+                    });
+
+                    html += `
+                            </select>
+                        </div>
+                    `;
+                });
+                return html;
+            }
+
+            function normalizeSkuPart(value, maxLength = 8) {
+                return (value || '')
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '')
+                    .replace(/--+/g, '-')
+                    .slice(0, maxLength);
+            }
+
+            function generateVariantIdentity($row, index) {
+                const selectedValues = [];
+                $row.find('.attributes-wrapper select').each(function() {
+                    const txt = $(this).find('option:selected').text();
+                    if ($(this).val() && txt && !txt.startsWith('Select ')) {
+                        selectedValues.push(txt.trim());
+                    }
+                });
+
+                const variantName = selectedValues.length > 0 ? selectedValues.join(' / ') : `Variant ${index + 1}`;
+                const productPrefix = normalizeSkuPart($('#Input_Name').val(), 12) || 'PRODUCT';
+                const skuParts = selectedValues.map(v => normalizeSkuPart(v, 8)).filter(Boolean);
+                const variantSku = skuParts.length > 0 ? `${productPrefix}-${skuParts.join('-')}` : `${productPrefix}-VAR${index + 1}`;
+
+                $row.find('.variant-name-input').val(variantName);
+                $row.find('.variant-sku-input').val(variantSku);
+            }
+
+            function regenerateAllVariantIdentity() {
+                $('#variantsContainer .variant-row').each(function(index) {
+                    generateVariantIdentity($(this), index);
+                });
+            }
+
+            function buildVariantCombinationKey($row) {
+                const pairs = [];
+                $row.find('.attributes-wrapper select').each(function() {
+                    const optionId = $(this).val();
+                    const attrId = $(this).closest('div').find('input[name*="AttributeId"]').val();
+                    if (attrId && optionId) {
+                        pairs.push(`${attrId}:${optionId}`);
+                    }
+                });
+                pairs.sort();
+                return pairs.join('|');
+            }
+
+            function validateUniqueVariantCombinations(showToast = false) {
+                const seen = new Set();
+                let duplicated = false;
+
+                $('#variantsContainer .variant-row').each(function() {
+                    const key = buildVariantCombinationKey($(this));
+                    if (!key) return;
+                    if (seen.has(key)) {
+                        duplicated = true;
+                    }
+                    seen.add(key);
+                });
+
+                if (duplicated && showToast) {
+                    window.showToast?.('warning', 'Duplicate variant attributes are not allowed. Please choose a unique attribute combination for each variant.');
+                }
+                return !duplicated;
+            }
+
+            function refreshAllVariantAttributes() {
+                if (currentCategoryAttributes.length > 0) {
+                    $('#variantAttributesHeader').removeClass('hidden');
+                    $('.variant-attributes-cell').removeClass('hidden');
+
+                    $('.variant-row').each(function(index) {
+                        const wrapper = $(this).find('.attributes-wrapper');
+                        
+                        // Extract current/pre-selected values
+                        let selected = {};
+                        wrapper.find('select').each(function() {
+                            const attrId = $(this).closest('div').find('input[name*="AttributeId"]').val();
+                            selected[attrId] = $(this).val();
+                        });
+                        
+                        // Check for pre-selected hidden fields (on reload)
+                        wrapper.find('.pre-selected-attribute').each(function() {
+                            const attrId = $(this).find('.pre-selected-attr-id').val();
+                            const optId = $(this).find('.pre-selected-opt-id').val();
+                            if (attrId && optId) selected[attrId] = optId;
+                        });
+
+                        let attrsHtml = generateAttributesHtml(index, selected);
+                        wrapper.html(attrsHtml);
+                    });
+                    regenerateAllVariantIdentity();
+                } else {
+                    $('#variantAttributesHeader').addClass('hidden');
+                    $('.variant-attributes-cell').addClass('hidden');
+                    $('.attributes-wrapper').empty();
+                    regenerateAllVariantIdentity();
+                }
+            }
+
+            $('#Input_CategoryId').change(function() {
+                var categoryId = $(this).val();
+                loadCategorySpecifications(categoryId);
+
+                if (!categoryId) {
+                    currentCategoryAttributes = [];
+                    refreshAllVariantAttributes();
+                    return;
+                }
+
+                $.get('?handler=Attributes&categoryId=' + categoryId, function(data) {
+                    currentCategoryAttributes = data || [];
+                    refreshAllVariantAttributes();
+                });
+            });
+
+            if ($('#Input_CategoryId').val()) {
+                const initialCatId = $('#Input_CategoryId').val();
+                loadCategorySpecifications(initialCatId);
+                
+                // Initial load of attributes for re-post or direct entry
+                $.get('?handler=Attributes&categoryId=' + initialCatId, function(data) {
+                    currentCategoryAttributes = data || [];
+                    refreshAllVariantAttributes();
+                });
+            }
+
+            $('#btnAddVariant').click(function() {
+                let index = $('#variantsContainer .variant-row').length;
+                let attrHtml = generateAttributesHtml(index);
+                let hideClass = (currentCategoryAttributes.length > 0) ? '' : 'hidden';
+
+                let html = `
+                    <tr class="variant-row animate-fadeIn">
+                        <td class="py-3 px-1">
+                            <input name="Input.Variants[${index}].VariantName" class="variant-name-input w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50" placeholder="Auto from attributes" readonly
+                                data-val="true" data-val-required="Variant name is required" required>
+                            <span class="field-validation-valid text-xs text-red-500" data-valmsg-for="Input.Variants[${index}].VariantName" data-valmsg-replace="true"></span>
+                        </td>
+                        <td class="py-3 px-1">
+                            <input name="Input.Variants[${index}].Sku" class="variant-sku-input w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50" placeholder="Auto from attributes" readonly
+                                data-val="true" data-val-required="SKU is required" required>
+                            <span class="field-validation-valid text-xs text-red-500" data-valmsg-for="Input.Variants[${index}].Sku" data-valmsg-replace="true"></span>
+                        </td>
+                        <td class="py-3 px-1">
+                            <input name="Input.Variants[${index}].Price" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="0" 
+                                data-val="true" data-val-required="Price is required" data-val-range="Price must be > 0" data-val-range-min="0" required>
+                            <span class="field-validation-valid text-xs text-red-500" data-valmsg-for="Input.Variants[${index}].Price" data-valmsg-replace="true"></span>
+                        </td>
+                        <td class="py-3 px-1">
+                            <input name="Input.Variants[${index}].StockQuantity" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="0" 
+                                data-val="true" data-val-required="Stock is required" data-val-range="Stock must be >= 0" data-val-range-min="0" required>
+                            <span class="field-validation-valid text-xs text-red-500" data-valmsg-for="Input.Variants[${index}].StockQuantity" data-valmsg-replace="true"></span>
+                        </td>
+                        <td class="py-3 px-1 variant-attributes-cell ${hideClass}">
+                            <div class="flex flex-col gap-2 attributes-wrapper">
+                                ${attrHtml}
+                            </div>
+                        </td>
+                        <td class="py-3 px-1 text-center">
+                            <button type="button" class="text-gray-400 hover:text-red-600 btnRemoveVariantRow">
+                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                            </button>
+                        </td>
+                    </tr>`;
+                $('#variantsContainer').append(html);
+                regenerateAllVariantIdentity();
+                reparseValidation();
+            });
+
+            $(document).on('click', '.btnRemoveVariantRow, #variantsContainer .btnRemoveRow', function() {
+                $(this).closest('.variant-row').remove();
+                $('#variantsContainer .variant-row').each(function(index) {
+                    $(this).find('input, select').each(function() {
+                        const name = $(this).attr('name');
+                        if (name) {
+                            $(this).attr('name', name.replace(/\[\d+\]/, `[${index}]`));
+                        }
+                    });
+                });
+                refreshAllVariantAttributes();
+                reparseValidation();
+            });
+
+            $(document).on('change', '#variantsContainer .attributes-wrapper select', function() {
+                const $row = $(this).closest('.variant-row');
+                const index = $row.index();
+                generateVariantIdentity($row, index);
+                validateUniqueVariantCombinations(false);
+            });
+
+            $('#Input_Name').on('input', function() {
+                regenerateAllVariantIdentity();
+            });
+
+            $form.on('submit', function(e) {
+                if (!validateUniqueVariantCombinations(true)) {
+                    e.preventDefault();
+                }
+            });
+
+            $('#Input_CategoryId, #Input_BrandId').removeClass('w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50/50');
+
+            new TomSelect('#Input_CategoryId', {
+                create: true,
+                placeholder: 'Search/Type new Category...',
+                allowEmptyOption: true,
+                render: {
+                    option_create: function(data, escape) {
+                        return '<div class="create px-4 py-2 text-primary font-bold bg-primary/5 hover:bg-primary/10 flex items-center gap-2 cursor-pointer border-t border-slate-100"><span class="material-symbols-outlined text-[18px]">add</span> Add Category: <strong>' + escape(data.input) + '</strong></div>';
+                    },
+                    no_results: function(data, escape) {
+                        return '<div class="no-results px-4 py-2 text-slate-400 text-sm">No results found for "' + escape(data.input) + '"</div>';
+                    }
+                },
+                onChange: function(value) {
+                    $('#Input_CategoryId').val(value).trigger('change');
+                },
+                onOptionAdd: function(value, data) {
+                    if (isNaN(value)) {
+                        const self = this;
+                        const token = $('input[name="__RequestVerificationToken"]').val();
+
+                        $.ajax({
+                            url: '?handler=CreateCategory',
+                            type: 'POST',
+                            data: { name: value },
+                            headers: { "RequestVerificationToken": token },
+                            success: function(response) {
+                                if (response.success) {
+                                    self.updateOption(value, { value: response.id, text: response.name });
+                                    self.addItem(response.id);
+                                    self.removeItem(value);
+                                } else {
+                                    window.showToast?.('error', response.message || 'Failed to create category');
+                                    self.removeOption(value);
+                                }
+                            },
+                            error: function() {
+                                window.showToast?.('error', 'An error occurred while creating the category');
+                                self.removeOption(value);
+                            }
+                        });
+                    }
+                }
+            });
+
+            new TomSelect('#Input_BrandId', {
+                create: true,
+                placeholder: 'Search/Type new Brand...',
+                allowEmptyOption: true,
+                render: {
+                    option_create: function(data, escape) {
+                        return '<div class="create px-4 py-2 text-primary font-bold bg-primary/5 hover:bg-primary/10 flex items-center gap-2 cursor-pointer border-t border-slate-100"><span class="material-symbols-outlined text-[18px]">add</span> Add Brand: <strong>' + escape(data.input) + '</strong></div>';
+                    },
+                    no_results: function(data, escape) {
+                        return '<div class="no-results px-4 py-2 text-slate-400 text-sm">No results found for "' + escape(data.input) + '"</div>';
+                    }
+                },
+                onOptionAdd: function(value, data) {
+                    if (isNaN(value)) {
+                        const self = this;
+                        const token = $('input[name="__RequestVerificationToken"]').val();
+
+                        $.ajax({
+                            url: '?handler=CreateBrand',
+                            type: 'POST',
+                            data: { name: value },
+                            headers: { "RequestVerificationToken": token },
+                            success: function(response) {
+                                if (response.success) {
+                                    self.updateOption(value, { value: response.id, text: response.name });
+                                    self.addItem(response.id);
+                                    self.removeItem(value);
+                                } else {
+                                    window.showToast?.('error', response.message || 'Failed to create brand');
+                                    self.removeOption(value);
+                                }
+                            },
+                            error: function() {
+                                window.showToast?.('error', 'An error occurred while creating the brand');
+                                self.removeOption(value);
+                            }
+                        });
+                    }
+                }
+            });
+
+            function wirePrimaryPreview() {
+                $('.primary-image-input').each(function () {
+                    const input = $(this);
+                    const previewSelector = input.data('preview');
+                    const preview = $(previewSelector);
+
+                    input.on('change', function () {
+                        const file = this.files && this.files[0];
+                        if (!file) return;
+
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            preview.html(`<img src="${e.target.result}" class="w-full h-full object-cover" />`);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                });
+            }
+
+            function createImageSlot(inputName) {
+                return $(`
+                    <label class="image-slot relative aspect-square rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/60 hover:border-primary/50 transition-colors cursor-pointer overflow-hidden">
+                        <input type="file" name="${inputName}" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer image-slot-input" accept="image/*">
+                        <div class="image-slot-content absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-1">
+                            <span class="material-symbols-outlined text-2xl">add_photo_alternate</span>
+                            <span class="text-xs font-medium">Add image</span>
+                        </div>
+                    </label>
+                `);
+            }
+
+            function ensureEmptySlot(container) {
+                const max = Number(container.data('max')) || 0;
+                const inputName = container.data('input-name');
+                const slots = container.find('.image-slot');
+                const hasEmpty = slots.filter(function () { return !$(this).hasClass('is-filled'); }).length > 0;
+
+                if (!hasEmpty && slots.length < max) {
+                    container.append(createImageSlot(inputName));
+                }
+            }
+
+            $(document).on('change', '.image-slot-input', function () {
+                const file = this.files && this.files[0];
+                if (!file) return;
+
+                const slot = $(this).closest('.image-slot');
+                const container = slot.closest('[data-max]');
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    slot.addClass('is-filled');
+                    slot.find('.image-slot-content').html(`<img src="${e.target.result}" class="w-full h-full object-cover" />`);
+                    ensureEmptySlot(container);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            wirePrimaryPreview();
+            ensureEmptySlot($('#additionalImagesContainer'));
+
+            regenerateAllVariantIdentity();
+            reparseValidation();
+        });
+    </script>
+    <style>
+        @@keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* Highlight invalid fields */
+        input.input-validation-error, select.input-validation-error, textarea.input-validation-error {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
+        
+        input.input-validation-error:focus, select.input-validation-error:focus, textarea.input-validation-error:focus {
+            ring-color: #ef4444 !important;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+        }
+
+        .field-validation-error {
+            display: block;
+            margin-top: 0.25rem;
+            font-weight: 500;
+        }
+
+        /* TomSelect validation styling */
+        .ts-wrapper.input-validation-error .ts-control,
+        select.input-validation-error + .ts-wrapper .ts-control {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+            box-shadow: 0 0 0 1px #ef4444 !important;
+        }
+    </style>
+}
+
+
+
+

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>195a3d30-b091-4d3e-9b16-5706b58e66e6</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Pages\Admin\Businesses\**" />
+    <Content Remove="Pages\Admin\Businesses\**" />
+    <EmbeddedResource Remove="Pages\Admin\Businesses\**" />
+    <None Remove="Pages\Admin\Businesses\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GearZone.Application\GearZone.Application.csproj" />
+    <ProjectReference Include="..\GearZone.Infrastructure\GearZone.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Middlewares\" />
+    <Folder Include="Pages\Admin\Users\Models\" />
+    <Folder Include="Pages\Cart\Models\" />
+    <Folder Include="Pages\Checkout\" />
+    <Folder Include="Pages\Public\Auth\Models\" />
+    <Folder Include="Pages\Public\Home\" />
+    <Folder Include="Pages\Public\Stores\" />
+    <Folder Include="Pages\Public\Products\Models\" />
+    <Folder Include="Pages\Seller\Dashboard\" />
+    <Folder Include="Pages\Seller\Inventory\" />
+    <Folder Include="Pages\Seller\Orders\" />
+    <Folder Include="Pages\Seller\Store\" />
+    <Folder Include="Pages\Seller\Products\" />
+    <Folder Include="wwwroot\assets\images\" />
+    <Folder Include="wwwroot\assets\icons\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.16" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.16">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

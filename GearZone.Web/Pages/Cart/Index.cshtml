@@ -1,0 +1,423 @@
+@page
+@model GearZone.Web.Pages.Cart.IndexModel
+@{
+    ViewData["Title"] = "Shopping Cart - GearZone";
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            Your Shopping Cart 
+            <span class="text-lg font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full cart-total-count">
+                (@(Model.Cart?.StoreGroups.Sum(g => g.Items.Count) ?? 0) items)
+            </span>
+        </h1>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- Left Column: Cart Items -->
+        <div class="lg:col-span-8 space-y-6" id="cart-container">
+            @if (Model.Cart?.StoreGroups == null || !Model.Cart.StoreGroups.Any())
+            {
+                <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center text-slate-500 dark:text-slate-400">
+                    Your cart is empty.
+                    <div class="mt-4">
+                         <a href="/products" class="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-medium transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                            Continue Shopping
+                        </a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @foreach (var storeGroup in Model.Cart.StoreGroups)
+                {
+                    <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden cart-store-group" data-store-id="@storeGroup.StoreId">
+                        <!-- Store Header -->
+                        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-[#1a202c]">
+                            <div class="flex items-center gap-4">
+                                <input type="checkbox" checked class="size-5 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer store-checkbox" />
+                                <div class="flex items-center gap-3">
+                                    <a href="#" class="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors">@storeGroup.StoreName</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Items -->
+                        @foreach (var item in storeGroup.Items)
+                        {
+                            <div class="p-6 flex gap-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-700 last:border-0 cart-item" 
+                                 data-item-id="@item.Id" 
+                                 data-price="@item.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" 
+                                 data-stock="@item.StockQuantity">
+                                
+                                <div class="flex items-start pt-2">
+                                    <input type="checkbox" checked class="size-5 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer item-checkbox" />
+                                </div>
+                                
+                                <div class="size-24 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" alt="@item.ProductName" class="w-full h-full object-cover mix-blend-multiply dark:mix-blend-normal">
+                                    }
+                                    else
+                                    {
+                                       <div class="w-full h-full flex items-center justify-center text-slate-400">
+                                            <span class="material-symbols-outlined text-4xl">inventory_2</span>
+                                       </div>
+                                    }
+                                </div>
+                                
+                                <div class="flex-1 min-w-0 flex flex-col justify-between">
+                                    <div class="flex justify-between items-start gap-4">
+                                        <div>
+                                            <a href="/product/@item.ProductSlug" class="text-base font-bold text-slate-900 dark:text-white hover:text-primary transition-colors line-clamp-2 leading-snug">@item.ProductName</a>
+                                            @if (!string.IsNullOrEmpty(item.VariantName))
+                                            {
+                                                <div class="mt-1 flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                                    <span>Variant: @item.VariantName</span>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <div class="text-lg font-bold text-slate-900 dark:text-white item-line-price">@item.Price.ToString("N0")₫</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex justify-between items-end mt-4">
+                                        <div class="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 h-9">
+                                            <button class="w-8 h-full flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-primary rounded-l-lg transition-colors btn-decrease-qty">
+                                                <span class="material-symbols-outlined text-[18px]">remove</span>
+                                            </button>
+                                            <input type="number" class="w-12 h-full border-none text-center text-sm font-medium focus:ring-0 bg-transparent text-slate-900 dark:text-white p-0 item-quantity" value="@item.Quantity" min="1" max="@item.StockQuantity" readonly />
+                                            <button class="w-8 h-full flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-primary rounded-r-lg transition-colors btn-increase-qty">
+                                                <span class="material-symbols-outlined text-[18px]">add</span>
+                                            </button>
+                                        </div>
+                                        <div class="flex gap-4">
+                                            <button class="text-slate-400 hover:text-red-500 flex items-center gap-1 text-sm font-medium transition-colors btn-remove-item">
+                                                <span class="material-symbols-outlined text-[18px]">delete</span>
+                                                <span class="hidden sm:inline">Delete</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Store Subtotal -->
+                        <div class="bg-slate-50 dark:bg-slate-800/30 px-6 py-3 flex justify-end items-center border-t border-slate-100 dark:border-slate-700">
+                            <div class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                Store Subtotal: <span class="text-primary font-bold ml-1 store-subtotal">0₫</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="flex justify-start">
+                    <a href="/products" class="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-medium transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                        Continue Shopping
+                    </a>
+                </div>
+            }
+        </div>
+
+        <!-- Right Column: Order Summary (Sticky) -->
+        <div class="lg:col-span-4 relative h-full">
+            <div class="sticky top-24 space-y-4">
+                <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-6">
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6">Order Summary</h2>
+                    
+                    <div class="space-y-4 text-sm text-slate-600 dark:text-slate-300">
+                        <div class="flex justify-between items-center">
+                            <span>Selected (<span id="summary-items-count">0</span> items)</span>
+                            <span class="font-medium text-slate-900 dark:text-white" id="summary-subtotal">0₫</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Shipping Fee</span>
+                            <span class="text-slate-500">Calculated at checkout</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-dashed border-slate-200 dark:border-slate-700 my-6"></div>
+                    
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="text-base font-semibold text-slate-900 dark:text-white">Total</span>
+                        <div class="text-right">
+                            <span class="block text-2xl font-bold text-secondary" id="summary-total">0₫</span>
+                            <span class="text-xs text-slate-400">(VAT Included)</span>
+                        </div>
+                    </div>
+                    
+                    <form method="get" id="checkout-form" action="/Checkout">
+                        <button type="submit" id="btn-checkout" disabled class="w-full bg-secondary hover:bg-orange-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg shadow-lg shadow-orange-500/20 transition-all transform hover:scale-[1.01] active:scale-[0.99] flex justify-center items-center gap-2 text-lg uppercase tracking-wider">
+                            CHECKOUT NOW
+                            <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                        </button>
+                    </form>
+
+                    <!-- Trust Badges -->
+                    <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 text-center">
+                        <p class="text-xs text-slate-400 mb-3 flex items-center justify-center gap-1">
+                            <span class="material-symbols-outlined text-[16px] text-green-600">lock</span>
+                            Secure Encrypted Payment
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Voucher Input Placeholder -->
+                <div class="bg-white dark:bg-[#1a202c] rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 opacity-50 cursor-not-allowed" title="This feature is under development">
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Have a coupon code?</label>
+                    <div class="flex gap-2 relative">
+                        <input type="text" disabled placeholder="Enter code" class="flex-1 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-600 rounded-lg text-sm disabled:cursor-not-allowed" />
+                        <button disabled class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-medium rounded-lg text-sm disabled:cursor-not-allowed">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+            };
+
+            const calculateTotals = () => {
+                let totalSelectedItems = 0;
+                let grandTotal = 0;
+                let absoluteTotalItems = 0;
+                let itemCount = 0;
+                const checkedItemIds = [];
+
+                document.querySelectorAll('.cart-store-group').forEach(storeGroup => {
+                    let storeSubtotal = 0;
+                    const items = storeGroup.querySelectorAll('.cart-item');
+                    let allStoreItemsChecked = true;
+                    let hasItems = false;
+
+                     items.forEach(item => {
+                        hasItems = true;
+                        itemCount++;
+                        const checkbox = item.querySelector('.item-checkbox');
+                        const price = parseFloat(item.dataset.price);
+                        const quantity = parseInt(item.querySelector('.item-quantity').value);
+                        const lineTotal = price * quantity;
+                        
+                        absoluteTotalItems += quantity;
+
+                        // Update individual item line price display
+                        const linePriceEl = item.querySelector('.item-line-price');
+                        if (linePriceEl) {
+                            linePriceEl.textContent = formatCurrency(lineTotal);
+                        }
+
+                        if (checkbox.checked) {
+                            storeSubtotal += lineTotal;
+                            totalSelectedItems += quantity;
+                            grandTotal += lineTotal;
+                            checkedItemIds.push(item.dataset.itemId);
+                        } else {
+                            allStoreItemsChecked = false;
+                        }
+                    });
+
+                    // Update store checkbox state
+                    const storeCheckbox = storeGroup.querySelector('.store-checkbox');
+                    if (hasItems) {
+                        storeCheckbox.checked = allStoreItemsChecked;
+                    }
+
+                    // Update store subtotal display for selected items
+                    storeGroup.querySelector('.store-subtotal').textContent = formatCurrency(storeSubtotal);
+                });
+
+                // Update summary
+                document.getElementById('summary-items-count').textContent = totalSelectedItems;
+                document.getElementById('summary-subtotal').textContent = formatCurrency(grandTotal);
+                document.getElementById('summary-total').textContent = formatCurrency(grandTotal);
+
+                // Update Header Cart Count
+                const headerCartCountEl = document.getElementById('header-cart-count');
+                if (headerCartCountEl) {
+                    headerCartCountEl.textContent = absoluteTotalItems;
+                    if (absoluteTotalItems > 0) {
+                        headerCartCountEl.classList.remove('hidden');
+                    } else {
+                        headerCartCountEl.classList.add('hidden');
+                    }
+                }
+
+                // Update H1 item count
+                const h1CountEl = document.querySelector('.cart-total-count');
+                if (h1CountEl) {
+                    h1CountEl.textContent = `(${itemCount} items)`;
+                }
+
+                // Update checkout button state and hidden input
+                const btnCheckout = document.getElementById('btn-checkout');
+                const form = document.getElementById('checkout-form');
+                
+                form.querySelectorAll('input[name="SelectedCartItemIds"]').forEach(el => el.remove());
+                
+                if (checkedItemIds.length > 0) {
+                    btnCheckout.removeAttribute('disabled');
+                    checkedItemIds.forEach(id => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'SelectedCartItemIds';
+                        input.value = id;
+                        form.appendChild(input);
+                    });
+                } else {
+                    btnCheckout.setAttribute('disabled', 'disabled');
+                }
+            };
+
+            // Store Checkbox Toggle
+            document.querySelectorAll('.store-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    const storeGroup = this.closest('.cart-store-group');
+                    storeGroup.querySelectorAll('.item-checkbox').forEach(itemCb => {
+                        itemCb.checked = isChecked;
+                    });
+                    calculateTotals();
+                });
+            });
+
+            // Item Checkbox Toggle
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.addEventListener('change', calculateTotals);
+            });
+
+            // Quantity Update API Call
+            const updateQuantityApi = async (cartItemId, newQuantity, btnEl) => {
+                try {
+                    btnEl.disabled = true;
+                    // TODO: Replace with fetch mapping if AntiForgery token is needed
+                    const response = await fetch('/api/cart/update-quantity', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value 
+                        },
+                        body: JSON.stringify({ cartItemId: cartItemId, quantity: newQuantity })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        window.showToast?.('error', data.error || 'Failed to update quantity');
+                        return false; // update failed
+                    }
+                    return true;
+                } catch (error) {
+                    window.showToast?.('error', 'Server connection error');
+                    return false;
+                } finally {
+                    btnEl.disabled = false;
+                }
+            };
+
+            // Remove Item API Call
+            const removeItemApi = async (cartItemId, btnEl) => {
+                 try {
+                    btnEl.disabled = true;
+                    const response = await fetch(`/api/cart/remove/${cartItemId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        window.showToast?.('error', data.error || 'Failed to remove item');
+                        return false;
+                    }
+                    window.showToast?.('success', data.message);
+                    return true;
+                } catch (error) {
+                    window.showToast?.('error', 'Server connection error');
+                    return false;
+                } finally {
+                    btnEl.disabled = false;
+                }
+            }
+
+
+            // Quantity Add/Minus
+            document.querySelectorAll('.btn-decrease-qty, .btn-increase-qty').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const isDecrease = this.classList.contains('btn-decrease-qty');
+                    const itemEl = this.closest('.cart-item');
+                    const inputEl = itemEl.querySelector('.item-quantity');
+                    const cartItemId = itemEl.dataset.itemId;
+                    const stock = parseInt(itemEl.dataset.stock);
+                    
+                    let currentQty = parseInt(inputEl.value);
+                    let newQty = isDecrease ? currentQty - 1 : currentQty + 1;
+
+                    if (newQty < 1) newQty = 1;
+                    if (newQty > stock) {
+                        window.showToast?.('warning', `Only ${stock} items available in stock`);
+                        newQty = stock;
+                        if(currentQty === stock) return;
+                    }
+                    
+                    if (newQty === currentQty) return;
+
+                    // Optimistic update
+                    inputEl.value = newQty;
+                    calculateTotals();
+
+                    const success = await updateQuantityApi(cartItemId, newQty, this);
+                    if (!success) {
+                        // Revert on fail
+                        inputEl.value = currentQty;
+                        calculateTotals();
+                    }
+                });
+            });
+
+            // Remove Item
+            document.querySelectorAll('.btn-remove-item').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const itemEl = this.closest('.cart-item');
+                    const cartItemId = itemEl.dataset.itemId;
+                    const nameEl = itemEl.querySelector('a[href^="/product/"]');
+                    const productName = nameEl ? nameEl.textContent.trim() : 'this item';
+
+                    window.showConfirmModal?.({
+                        title: 'Remove from Cart',
+                        message: `Are you sure you want to remove "${productName}" from your cart?`,
+                        confirmText: 'Remove',
+                        onConfirm: async () => {
+                            const success = await removeItemApi(cartItemId, this);
+                            if (success) {
+                                const storeGroup = itemEl.closest('.cart-store-group');
+                                itemEl.remove();
+                                
+                                // Check if store group is empty, remove it
+                                if(storeGroup.querySelectorAll('.cart-item').length === 0){
+                                    storeGroup.remove();
+                                }
+                                
+                                // Check if cart is completely empty
+                                if(document.querySelectorAll('.cart-item').length === 0){
+                                    location.reload(); // simple way to show empty cart state
+                                } else {
+                                    calculateTotals();
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+
+            // Initial calculation
+            calculateTotals();
+        });
+    </script>
+}

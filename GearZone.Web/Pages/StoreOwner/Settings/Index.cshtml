@@ -1,0 +1,309 @@
+@page "/storeowner/settings"
+@model GearZone.Web.Pages.StoreOwner.Settings.IndexModel
+@{
+    ViewData["Title"] = "Store Settings";
+    ViewData["PageHeader"] = "Store Settings";
+    ViewData["ActivePage"] = "Settings";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Settings" };
+    Layout = "_StoreOwnerLayout";
+}
+
+<div class="flex flex-col gap-6 relative pb-28 w-full max-w-[1440px] mx-auto">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Settings Menu Navigation -->
+        <div class="lg:col-span-1 flex flex-col gap-2">
+            <div class="bg-white rounded-xl shadow-card border border-slate-100 p-3 flex flex-col gap-1">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 text-primary font-bold transition-colors">
+                    <span class="material-symbols-outlined text-[20px] filled">storefront</span>
+                    General Info
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                    <span class="material-symbols-outlined text-[20px]">account_circle</span>
+                    Business Profile
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                    <span class="material-symbols-outlined text-[20px]">security</span>
+                    Security
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                    <span class="material-symbols-outlined text-[20px]">notifications_active</span>
+                    Notifications
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Settings Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
+                <div class="border-b border-slate-200 px-6 py-5 bg-slate-50/50">
+                    <h2 class="text-xl font-bold text-slate-900">General Information</h2>
+                    <p class="text-sm text-slate-500 mt-1">Update your store's basic details and public-facing information.</p>
+                </div>
+                
+                <div class="p-6">
+                    <form method="post" asp-page-handler="UpdateProfile" class="flex flex-col gap-6" id="settingsForm">
+                        <!-- Store Avatar/Logo -->
+                        <div class="flex items-start gap-6 pb-6 border-b border-slate-100">
+                            @if (!string.IsNullOrEmpty(Model.Store?.LogoUrl))
+                            {
+                                <div class="size-24 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden shadow-sm bg-cover bg-center" style="background-image: url('@Model.Store.LogoUrl')"></div>
+                            }
+                            else
+                            {
+                                <div class="size-24 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                                    <span class="material-symbols-outlined text-4xl text-slate-300">store</span>
+                                </div>
+                            }
+                            <div class="flex flex-col gap-2 mt-2">
+                                <h3 class="font-bold text-slate-900 text-sm">Store Logo</h3>
+                                <p class="text-xs text-slate-500">Recommended size: 512x512px. Max 2MB (JPG, PNG).</p>
+                                <div class="mt-2 flex gap-3">
+                                    <button type="button" class="px-3 py-1.5 bg-white border border-slate-300 rounded-md text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-sm">Change Layout</button>
+                                    <button type="button" class="px-3 py-1.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Inputs -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex flex-col gap-1.5 md:col-span-2">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Store Name</label>
+                                <input type="text" class="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-slate-100 text-slate-500" value="@(Model.Store?.StoreName)" disabled>
+                                <span class="text-[11px] text-slate-400">Contact admin to change store name.</span>
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Contact Phone <span class="text-red-500">*</span></label>
+                                <input type="tel" name="Phone" required class="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow" placeholder="+84 123 456 789" value="@(Model.Store?.Phone)">
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Support Email <span class="text-red-500">*</span></label>
+                                <input type="email" name="Email" required class="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow" placeholder="support@mystore.com" value="@(Model.Store?.Email)">
+                            </div>
+
+                            <div class="flex flex-col gap-1.5 md:col-span-2">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Store Description</label>
+                                <textarea name="Description" rows="4" class="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow resize-none" placeholder="Tell customers what your store is about...">@(Model.Store?.Description)</textarea>
+                            </div>
+
+                            <div class="flex flex-col gap-1.5 md:col-span-2 mt-4 pt-4 border-t border-slate-100">
+                                <h3 class="font-bold text-slate-900 text-lg">Location & Map</h3>
+                                <p class="text-sm text-slate-500 mb-2">Pinpoint your exact store location so shipping fees can be calculated correctly.</p>
+                            </div>
+                            
+                            <div class="flex flex-col gap-1.5 md:col-span-2">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Address Search</label>
+                                <div class="relative">
+                                    <input type="text" id="mapSearchInput" class="w-full px-4 py-2 pl-10 border border-slate-300 rounded-lg text-sm bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow" placeholder="Search for your address or drop a pin on the map...">
+                                    <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400">search</span>
+                                </div>
+                                <div id="mapSearchResults" class="absolute z-10 w-full mt-11 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                            </div>
+                            
+                            <!-- Hidden Coordinate inputs -->
+                            <input type="hidden" name="Latitude" id="Latitude" value="@(Model.Store?.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
+                            <input type="hidden" name="Longitude" id="Longitude" value="@(Model.Store?.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
+
+                            <div class="md:col-span-2 h-[400px] w-full rounded-xl border border-slate-200 overflow-hidden relative">
+                                <div id="storeSettingsMap" class="w-full h-full"></div>
+                                <div class="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg shadow border border-slate-100 text-xs font-medium text-slate-600">
+                                    <span id="coordDisplay">Drag pin to set location</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Detailed Address</label>
+                                <input type="text" name="AddressLine" id="AddressLine" class="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow" placeholder="House number, street name" value="@(Model.Store?.AddressLine)">
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-widest">Province/City</label>
+                                <input type="text" name="Province" id="Province" class="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow" placeholder="Hanoi" value="@(Model.Store?.Province)">
+                            </div>
+                        </div>
+
+                        <div class="pt-6 border-t border-slate-100 flex justify-end gap-3 mt-4">
+                            <button type="button" onclick="window.location.reload();" class="px-5 py-2.5 rounded-lg text-slate-600 bg-white border border-slate-300 font-bold hover:bg-slate-50 transition-colors text-sm shadow-sm">Discard Changes</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-lg bg-primary text-white font-bold hover:bg-primary-dark transition-colors text-sm shadow-md shadow-primary/20 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[18px]">save</span>
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js@1.0.9/dist/goong-js.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@@goongmaps/goong-js@1.0.9/dist/goong-js.css" rel="stylesheet" />
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // MapTiler Key using Goong's standard token for JS maps
+            goongjs.accessToken = '@Model.GoongMapKey'; 
+
+            const map = new goongjs.Map({
+                container: 'storeSettingsMap',
+                style: 'https://tiles.goong.io/assets/goong_map_web.json',
+                center: [105.83991, 21.02800], // Default Hanoi
+                zoom: 12
+            });
+
+            let marker = new goongjs.Marker({
+                draggable: true,
+                color: '#f97316' // Primary color
+            });
+
+            const latInput = document.getElementById('Latitude');
+            const lngInput = document.getElementById('Longitude');
+            const coordDisplay = document.getElementById('coordDisplay');
+            const addressInput = document.getElementById('AddressLine');
+            const provinceInput = document.getElementById('Province');
+
+            // Initialize marker if coordinates exist
+            const initialLat = parseFloat(latInput.value);
+            const initialLng = parseFloat(lngInput.value);
+            
+            if (!isNaN(initialLat) && !isNaN(initialLng)) {
+                marker.setLngLat([initialLng, initialLat]).addTo(map);
+                map.setCenter([initialLng, initialLat]);
+                map.setZoom(15);
+                updateCoordDisplay(initialLat, initialLng);
+            }
+
+            // Handle marker drag
+            marker.on('dragend', function() {
+                const lngLat = marker.getLngLat();
+                updateCoordinates(lngLat.lat, lngLat.lng);
+                reverseGeocode(lngLat.lat, lngLat.lng);
+            });
+
+            // Handle map click
+            map.on('click', function(e) {
+                marker.setLngLat(e.lngLat).addTo(map);
+                updateCoordinates(e.lngLat.lat, e.lngLat.lng);
+                reverseGeocode(e.lngLat.lat, e.lngLat.lng);
+            });
+
+            function updateCoordinates(lat, lng) {
+                latInput.value = lat;
+                lngInput.value = lng;
+                updateCoordDisplay(lat, lng);
+            }
+
+            function updateCoordDisplay(lat, lng) {
+                coordDisplay.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            }
+
+            // Helper to extract province from Goong result
+            function extractProvince(result) {
+                let province = '';
+                if (result.address_components) {
+                    province = result.address_components.find(c => c.types.includes('administrative_area_level_1') || c.types.includes('city') || c.types.includes('province'))?.long_name || '';
+                }
+                
+                if (!province && result.formatted_address) {
+                    const parts = result.formatted_address.split(',').map(p => p.trim());
+                    if (parts.length > 0) {
+                        const lastPart = parts[parts.length - 1];
+                        if (lastPart.toLowerCase() === 'vietnam' || lastPart.toLowerCase() === 'việt nam') {
+                           province = parts.length > 1 ? parts[parts.length - 2] : lastPart;
+                        } else {
+                           province = lastPart;
+                        }
+                    }
+                }
+                return province;
+            }
+
+            // Reverse Geocoding via Goong REST API
+            function reverseGeocode(lat, lng) {
+                const apiKey = '@Model.GoongApiKey'; // REST API Key
+                fetch(`https://rsapi.goong.io/Geocode?latlng=${lat},${lng}&api_key=${apiKey}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.results && data.results.length > 0) {
+                            const result = data.results[0];
+                            addressInput.value = result.formatted_address;
+                            provinceInput.value = extractProvince(result);
+                        }
+                    });
+            }
+
+            // Autocomplete Search
+            const searchInput = document.getElementById('mapSearchInput');
+            const searchResults = document.getElementById('mapSearchResults');
+            let searchTimeout;
+
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value;
+                if (!query) {
+                    searchResults.innerHTML = '';
+                    searchResults.classList.add('hidden');
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    const apiKey = '@Model.GoongApiKey'; // REST API Key
+                    fetch(`https://rsapi.goong.io/Place/AutoComplete?input=${encodeURIComponent(query)}&api_key=${apiKey}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'OK') {
+                                searchResults.innerHTML = '';
+                                data.predictions.forEach(prediction => {
+                                    const div = document.createElement('div');
+                                    div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 flex flex-col gap-1';
+                                    div.innerHTML = `
+                                        <span class="font-bold text-sm text-slate-800">${prediction.structured_formatting.main_text}</span>
+                                        <span class="text-xs text-slate-500">${prediction.structured_formatting.secondary_text}</span>
+                                    `;
+                                    div.addEventListener('click', () => {
+                                        selectPlace(prediction.place_id, prediction.description);
+                                    });
+                                    searchResults.appendChild(div);
+                                });
+                                searchResults.classList.remove('hidden');
+                            }
+                        });
+                }, 300);
+            });
+
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.classList.add('hidden');
+                }
+            });
+
+            function selectPlace(placeId, description) {
+                const apiKey = '@Model.GoongApiKey'; // REST API Key
+                fetch(`https://rsapi.goong.io/Place/Detail?place_id=${placeId}&api_key=${apiKey}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'OK') {
+                            const location = data.result.geometry.location;
+                            const result = data.result;
+                            
+                            map.setCenter([location.lng, location.lat]);
+                            map.setZoom(15);
+                            marker.setLngLat([location.lng, location.lat]).addTo(map);
+                            
+                            updateCoordinates(location.lat, location.lng);
+                            
+                            searchInput.value = description;
+                            addressInput.value = result.formatted_address;
+                            provinceInput.value = extractProvince(result);
+                            
+                            searchResults.classList.add('hidden');
+                        }
+                    });
+            }
+        });
+    </script>
+}

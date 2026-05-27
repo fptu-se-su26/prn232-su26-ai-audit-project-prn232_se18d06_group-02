@@ -1,0 +1,344 @@
+@page
+@model GearZone.Web.Pages.Checkout.PayOSCheckoutModel
+@{
+    ViewData["Title"] = "Pay with PayOS - GearZone";
+}
+
+<style>
+    .payos-wrap { max-width: 900px; margin: 32px auto; padding: 0 16px; }
+    .payos-card { display: grid; grid-template-columns: 1fr 1fr; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,.12); border: 1px solid #e2e8f0; }
+    @@media (max-width: 640px) { .payos-card { grid-template-columns: 1fr; } }
+
+    .qr-side { background: #fff; border-right: 1px solid #e2e8f0; color: #1e293b; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px; gap: 14px; }
+    .qr-side h2 { margin: 0; font-size: 1rem; font-weight: 700; color: #1e293b; }
+    .qr-side .order-code { font-size: .78rem; color: #94a3b8; background: #f1f5f9; border-radius: 20px; padding: 3px 14px; }
+    .timer-wrap { display: flex; align-items: center; gap: 7px; background: #f1f5f9; border-radius: 999px; padding: 7px 18px; color: #1e293b; }
+    .timer-wrap .icon { font-size: 1.1rem; color: #64748b; }
+    #countdown-timer { font-family: monospace; font-size: 1.4rem; font-weight: 800; letter-spacing: .06em; color: #f97316; }
+    .qr-expire-note { font-size: .72rem; color: #94a3b8; }
+
+    .info-side { background: #fff; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
+    .dark .info-side { background: #1a202c; }
+    .info-side h3 { margin: 0 0 4px; font-size: 1rem; font-weight: 700; color: #1e293b; }
+    .dark .info-side h3 { color: #f1f5f9; }
+    .bank-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: .87rem; }
+    .dark .bank-row { border-color: #2d3748; }
+    .bank-row:last-child { border-bottom: none; }
+    .bank-label { color: #94a3b8; min-width: 110px; }
+    .bank-value { font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+    .dark .bank-value { color: #f1f5f9; }
+    .copy-btn { cursor: pointer; background: none; border: none; padding: 0; color: #3b82f6; transition: color .15s; }
+    .copy-btn:hover { color: #1d4ed8; }
+    .amount-value { font-size: 1.2rem; font-weight: 800; color: #f97316; }
+    .note-text { font-size: .72rem; color: #94a3b8; text-align: center; }
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-cancel { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; font-size: .85rem; font-weight: 600; border: 1.5px solid #ef4444; color: #ef4444; background: transparent; cursor: pointer; transition: background .15s; }
+    .btn-cancel:hover { background: #fef2f2; }
+    .btn-payos { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; font-size: .85rem; font-weight: 600; border: 1.5px solid #3b82f6; color: #3b82f6; background: transparent; cursor: pointer; transition: background .15s; }
+    .btn-payos:hover { background: #eff6ff; }
+</style>
+
+<div class="payos-wrap">
+    <form id="payos-cancel-form" method="post" asp-page-handler="Cancel" class="hidden">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="orderId" value="@Model.OrderId" />
+    </form>
+
+    <div class="payos-card">
+        <div class="qr-side">
+            <h2>Scan QR Code to Pay</h2>
+            <span class="order-code">Order code: @Model.OrderCode</span>
+
+            @if (!string.IsNullOrEmpty(Model.QrCode))
+            {
+                <div id="qrcode"></div>
+            }
+            else
+            {
+                <a href="@Model.CheckoutUrl" target="_blank" style="color:#64748b;font-size:.85rem;">Open PayOS page</a>
+            }
+
+            <div class="timer-wrap">
+                <span class="material-symbols-outlined icon">timer</span>
+                <span id="countdown-timer">10:00</span>
+            </div>
+            <span class="qr-expire-note">Order will be cancelled when timer expires</span>
+        </div>
+
+        <div class="info-side">
+            <div>
+                <h3>Bank Transfer Details</h3>
+
+                <div class="bank-row">
+                    <span class="bank-label">Bank</span>
+                    <span class="bank-value">@Model.Bin</span>
+                </div>
+                <div class="bank-row">
+                    <span class="bank-label">Account Number</span>
+                    <span class="bank-value">
+                        @Model.AccountNumber
+                        <button class="copy-btn" onclick="copyText('@Model.AccountNumber')" title="Copy">
+                            <span class="material-symbols-outlined" style="font-size:1rem;">content_copy</span>
+                        </button>
+                    </span>
+                </div>
+                <div class="bank-row">
+                    <span class="bank-label">Account Name</span>
+                    <span class="bank-value">@Model.AccountName</span>
+                </div>
+                <div class="bank-row" style="padding-top:14px;">
+                    <span class="bank-label">Amount</span>
+                    <span class="bank-value">
+                        <span class="amount-value">@(string.IsNullOrEmpty(Model.Amount) ? "-" : long.Parse(Model.Amount).ToString("N0") + " VND")</span>
+                        <button class="copy-btn" onclick="copyText('@Model.Amount')" title="Copy">
+                            <span class="material-symbols-outlined" style="font-size:1rem;">content_copy</span>
+                        </button>
+                    </span>
+                </div>
+                <div class="bank-row">
+                    <span class="bank-label">Transfer Note</span>
+                    <span class="bank-value">
+                        @Model.Description
+                        <button class="copy-btn" onclick="copyText('@Model.Description')" title="Copy">
+                            <span class="material-symbols-outlined" style="font-size:1rem;">content_copy</span>
+                        </button>
+                    </span>
+                </div>
+            </div>
+
+            <div>
+                <p class="note-text">Please enter the exact transfer note so your order is confirmed automatically.</p>
+                <div class="btn-row">
+                    <button class="btn-cancel" onclick="cancelOrder()">
+                        <span class="material-symbols-outlined" style="font-size:1rem;">cancel</span>
+                        Cancel Order
+                    </button>
+                    @if (!string.IsNullOrEmpty(Model.CheckoutUrl))
+                    {
+                        <button class="btn-payos" onclick="openPayOS()">
+                            <span class="material-symbols-outlined" style="font-size:1rem;">open_in_new</span>
+                            Open PayOS
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="cancel-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.2);">
+        <span class="material-symbols-outlined" style="font-size:3rem;color:#ef4444;">warning</span>
+        <h3 style="margin:8px 0;color:#1e293b;">Cancel Order?</h3>
+        <p style="color:#64748b;font-size:.87rem;margin-bottom:20px;">The order will be cancelled and stock will be restored.</p>
+        <div style="display:flex;gap:10px;">
+            <button onclick="closeCancelModal()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:600;color:#64748b;">Go Back</button>
+            <button onclick="confirmCancel()" style="flex:1;padding:10px;border-radius:8px;background:#ef4444;color:#fff;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">Confirm Cancel</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        var qrValue = '@Html.Raw(Model.QrCode)';
+        var expireAt = @Model.ExpireAtUnix;
+        var timerEl = document.getElementById("countdown-timer");
+        var orderId = '@Model.OrderId';
+        var cancelUrl = '/checkout/payment-cancel?orderId=' + orderId;
+        var successUrl = orderId ? ('/checkout/success?orderId=' + orderId) : '/';
+        var paymentStatusUrl = orderId ? ('/api/orders/' + orderId + '/payment-status') : '';
+        var payosUrl = '@Html.Raw(Model.CheckoutUrl)';
+        var payosPopup = null;
+        var popupMonitor = null;
+        var paymentPoller = null;
+        var isRedirectingAfterPayment = false;
+
+        if (qrValue && document.getElementById("qrcode")) {
+            new QRCode(document.getElementById("qrcode"), {
+                text: qrValue,
+                width: 195,
+                height: 195,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        var tick = setInterval(function () {
+            var rem = expireAt - Date.now();
+            if (rem <= 0) {
+                clearInterval(tick);
+                if (paymentPoller) {
+                    clearInterval(paymentPoller);
+                }
+                window.location.href = cancelUrl;
+                return;
+            }
+
+            var m = Math.floor(rem / 60000);
+            var s = Math.floor((rem % 60000) / 1000);
+            timerEl.textContent = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+            if (rem < 120000) {
+                timerEl.style.color = '#fca5a5';
+            }
+        }, 500);
+
+        function copyText(t) {
+            navigator.clipboard.writeText(t).then(() => {
+                window.showToast?.('success', 'Copied.');
+            });
+        }
+
+        function cancelOrder() {
+            document.getElementById('cancel-modal').style.display = 'flex';
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancel-modal').style.display = 'none';
+        }
+
+        function stopPaymentMonitors() {
+            if (popupMonitor) {
+                clearInterval(popupMonitor);
+            }
+            if (paymentPoller) {
+                clearInterval(paymentPoller);
+            }
+            clearInterval(tick);
+        }
+
+        function openPayOS() {
+            if (payosPopup && !payosPopup.closed) {
+                payosPopup.focus();
+                return;
+            }
+
+            payosPopup = window.open(payosUrl, 'payos_popup', 'width=700,height=700,top=100,left=200');
+            popupMonitor = setInterval(function () {
+                if (!payosPopup || payosPopup.closed) {
+                    clearInterval(popupMonitor);
+                    return;
+                }
+
+                try {
+                    var href = payosPopup.location.href;
+                    if (href && href.indexOf(window.location.host) !== -1) {
+                        clearInterval(popupMonitor);
+                        payosPopup.close();
+                        window.location.href = href;
+                    }
+                } catch (e) {
+                    // Still on PayOS domain.
+                }
+            }, 800);
+        }
+
+        async function checkPaymentStatus() {
+            if (!paymentStatusUrl || isRedirectingAfterPayment) {
+                return;
+            }
+
+            try {
+                const response = await fetch(paymentStatusUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const payload = await response.json();
+                const status = (payload?.status || '').toString().toLowerCase();
+
+                if (status === 'paid') {
+                    isRedirectingAfterPayment = true;
+                    stopPaymentMonitors();
+                    if (payosPopup && !payosPopup.closed) {
+                        payosPopup.close();
+                    }
+                    window.showToast?.('success', 'Payment successful. Redirecting to your order...');
+                    window.setTimeout(function () {
+                        window.location.href = successUrl;
+                    }, 900);
+                    return;
+                }
+
+                if (status === 'cancelled') {
+                    isRedirectingAfterPayment = true;
+                    stopPaymentMonitors();
+                    if (payosPopup && !payosPopup.closed) {
+                        payosPopup.close();
+                    }
+                    window.location.href = cancelUrl;
+                }
+            } catch (error) {
+                console.warn('Payment status polling failed.', error);
+            }
+        }
+
+        async function performCancelRequest() {
+            const cancelForm = document.getElementById('payos-cancel-form');
+            const formData = new FormData(cancelForm);
+            const action = cancelForm.getAttribute('action') || window.location.pathname + '?handler=Cancel';
+
+            const response = await fetch(action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (error) {
+                payload = null;
+            }
+
+            if (!response.ok || !payload?.success || !payload?.redirectUrl) {
+                throw new Error(payload?.message || 'Unable to cancel the order.');
+            }
+
+            return payload.redirectUrl;
+        }
+
+        if (paymentStatusUrl) {
+            paymentPoller = setInterval(checkPaymentStatus, 3000);
+            window.setTimeout(checkPaymentStatus, 1200);
+        }
+
+        async function confirmCancel() {
+            const confirmButton = document.querySelector('#cancel-modal button[onclick="confirmCancel()"]');
+            const originalMarkup = confirmButton?.innerHTML;
+
+            try {
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                    confirmButton.textContent = 'Cancelling...';
+                    confirmButton.style.opacity = '0.75';
+                }
+
+                window.showToast?.('info', 'Cancelling your order...');
+
+                if (payosPopup && !payosPopup.closed) {
+                    payosPopup.close();
+                }
+
+                stopPaymentMonitors();
+                const redirectUrl = await performCancelRequest();
+                window.location.href = redirectUrl;
+            } catch (error) {
+                console.error('Cancel order failed.', error);
+                window.showToast?.('error', error?.message || 'Unable to cancel the order right now.');
+                if (confirmButton) {
+                    confirmButton.disabled = false;
+                    confirmButton.innerHTML = originalMarkup;
+                    confirmButton.style.opacity = '1';
+                }
+            }
+        }
+    </script>
+}

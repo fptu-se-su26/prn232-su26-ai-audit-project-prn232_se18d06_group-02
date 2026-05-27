@@ -1,0 +1,180 @@
+<style>
+    .buyer-chat-widget {
+        position: fixed;
+        right: 18px;
+        bottom: 0;
+        z-index: 70;
+        pointer-events: none;
+    }
+
+    .buyer-chat-widget > * {
+        pointer-events: auto;
+    }
+
+    .buyer-chat-widget__overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.18);
+        z-index: -1;
+    }
+
+    .buyer-chat-widget__drawer {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: min(800px, calc(100vw - 32px));
+        height: min(540px, calc(100vh - 132px));
+        overflow: hidden;
+        border: 1px solid #e8e8e8;
+        border-radius: 0.5rem 0.5rem 0 0;
+        background: #ffffff;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.12);
+        transform: translateY(10px);
+        opacity: 0;
+        transition: bottom 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+    }
+
+    .buyer-chat-widget.is-open .buyer-chat-widget__drawer {
+        bottom: 0;
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .buyer-chat-widget__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid #efefef;
+        padding: 0.65rem 0.9rem;
+        background: #ffffff;
+    }
+
+    .buyer-chat-widget__brand {
+        display: inline-flex;
+        height: 2rem;
+        width: 2rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        background: #fff1ed;
+        color: #ee4d2d;
+    }
+
+    .buyer-chat-widget__action {
+        display: inline-flex;
+        height: 1.9rem;
+        width: 1.9rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.35rem;
+        color: #888;
+        transition: background-color 0.16s ease, color 0.16s ease;
+    }
+
+    .buyer-chat-widget__action:hover {
+        background: #f6f6f6;
+        color: #333;
+    }
+
+    .buyer-chat-widget__body {
+        height: calc(100% - 52px);
+        min-height: 0;
+        background: #ffffff;
+    }
+
+    .buyer-chat-widget__bubble {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border: 0;
+        border-radius: 0.35rem 0.35rem 0 0;
+        background: #ee4d2d;
+        color: #ffffff;
+        padding: 0.74rem 0.92rem;
+        font-size: 0.94rem;
+        font-weight: 700;
+        box-shadow: 0 4px 14px rgba(238, 77, 45, 0.26);
+        transition: background-color 0.16s ease, transform 0.16s ease, opacity 0.14s ease, visibility 0.14s ease;
+    }
+
+    .buyer-chat-widget__bubble:hover {
+        transform: translateY(-1px);
+        background: #d93c1c;
+    }
+
+    .buyer-chat-widget__label {
+        letter-spacing: 0.01em;
+    }
+
+    .buyer-chat-widget__badge {
+        position: absolute;
+        top: -0.45rem;
+        right: -0.4rem;
+        display: inline-flex;
+        min-height: 1.2rem;
+        min-width: 1.2rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        background: #ffffff;
+        padding: 0 0.35rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #ee4d2d;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+    }
+
+    .buyer-chat-widget.is-open .buyer-chat-widget__bubble {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px);
+        pointer-events: none;
+    }
+
+    @@media (min-width: 1024px) {
+        .buyer-chat-widget:not(.is-open) .buyer-chat-widget__drawer {
+            bottom: 54px;
+        }
+
+        .buyer-chat-widget__overlay {
+            display: none !important;
+        }
+    }
+
+    @@media (max-width: 1023.98px) {
+        .buyer-chat-widget {
+            right: 16px;
+            bottom: 16px;
+        }
+
+        .buyer-chat-widget__overlay {
+            z-index: 0;
+        }
+
+        .buyer-chat-widget__drawer {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            border: 0;
+            border-radius: 0;
+            transform: translateY(100%);
+            box-shadow: none;
+        }
+
+        .buyer-chat-widget.is-open .buyer-chat-widget__drawer {
+            transform: translateY(0);
+        }
+
+        .buyer-chat-widget__bubble {
+            border-radius: 9999px;
+            padding: 0.9rem 1rem;
+        }
+
+        .buyer-chat-widget.is-open .buyer-chat-widget__bubble {
+            transform: translateY(8px);
+        }
+    }
+</style>

@@ -1,0 +1,482 @@
+@page "/admin/dashboard"
+@model GearZone.Web.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Platform Overview";
+    ViewData["PageHeader"] = "Platform Overview";
+    ViewData["ActivePage"] = "Dashboard";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard" };
+    Layout = "_AdminLayout";
+}
+
+@section Styles {
+    <style>
+        .chart-grid {
+            background-image: linear-gradient(to right, #f3f4f6 1px, transparent 1px),
+                              linear-gradient(to bottom, #f3f4f6 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+}
+
+<form id="filter-form" method="get" class="flex flex-wrap items-center justify-between gap-3 mb-2">
+    <!-- Left: Time filter + custom date range -->
+    <div class="flex items-center gap-3 flex-wrap">
+        <!-- Time Range Selector -->
+        <div class="relative" id="time-filter-wrapper">
+            <select id="time-range-select" name="Query.Period"
+                    class="pl-10 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary w-44"
+                    onchange="handlePeriodChange(this.value)">
+                <option value="today" selected="@(Model.Query.Period == "today" ? "selected" : null)">Today</option>
+                <option value="week" selected="@(Model.Query.Period == "week" ? "selected" : null)">This Week</option>
+                <option value="month" selected="@(Model.Query.Period == "month" ? "selected" : null)">This Month</option>
+                <option value="year" selected="@(Model.Query.Period == "year" ? "selected" : null)">This Year</option>
+                <option value="custom" selected="@(Model.Query.Period == "custom" ? "selected" : null)">Custom Range</option>
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-primary pointer-events-none">calendar_today</span>
+            <span class="material-symbols-outlined absolute right-2 top-2.5 text-[20px] text-slate-400 pointer-events-none">expand_more</span>
+        </div>
+
+        <!-- Custom Date Range (hidden by default) -->
+        <div id="custom-date-range"
+             class="@(Model.Query.Period == "custom" ? "flex" : "hidden") items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
+            <span class="text-xs text-slate-400 font-medium">From</span>
+            <input type="date" id="date-from" name="Query.StartDate"
+                   value="@Model.Query.StartDate?.ToString("yyyy-MM-dd")"
+                   class="text-sm text-slate-700 border-0 outline-none bg-transparent cursor-pointer focus:ring-0 w-32" />
+            <span class="text-slate-300 text-base">&#8594;</span>
+            <span class="text-xs text-slate-400 font-medium">To</span>
+            <input type="date" id="date-to" name="Query.EndDate"
+                   value="@Model.Query.EndDate?.ToString("yyyy-MM-dd")"
+                   class="text-sm text-slate-700 border-0 outline-none bg-transparent cursor-pointer focus:ring-0 w-32" />
+            <button type="submit"
+                    class="ml-1 px-3 py-1 bg-primary text-white text-xs font-semibold rounded-md hover:bg-blue-700 transition-colors">
+                Apply
+            </button>
+        </div>
+    </div>
+
+    <!-- Right: Export actions -->
+    <div class="flex items-center gap-2">
+        <button type="button" class="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+            <span class="material-symbols-outlined text-[18px] text-slate-500">picture_as_pdf</span>
+            Export PDF
+        </button>
+        <button type="button" class="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200">
+            <span class="material-symbols-outlined text-[18px]">download</span>
+            Export Excel
+        </button>
+    </div>
+</form>
+
+<div class="space-y-6">
+    <!-- Section 1: KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Card 1 -->
+        <div class="bg-white p-5 rounded-xl border border-border-light shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start">
+                <p class="text-slate-500 text-sm font-medium">Gross Revenue</p>
+                <span class="material-symbols-outlined text-slate-400 text-[20px]">payments</span>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-text-heading">@Model.DashboardData.KpiCards.GrossRevenue.ToString("C0", new System.Globalization.CultureInfo("vi-VN"))</h3>
+                <p class="@(Model.DashboardData.KpiCards.RevenueGrowth >= 0 ? "text-emerald-600" : "text-red-600") text-sm font-medium flex items-center gap-1 mt-1">
+                    <span class="material-symbols-outlined text-[16px]">@(Model.DashboardData.KpiCards.RevenueGrowth >= 0 ? "trending_up" : "trending_down")</span>
+                    @(Model.DashboardData.KpiCards.RevenueGrowth >= 0 ? "+" : "")@Model.DashboardData.KpiCards.RevenueGrowth.ToString("N1")%
+                </p>
+            </div>
+        </div>
+        <!-- Card 2 -->
+        <div class="bg-white p-5 rounded-xl border border-border-light shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start">
+                <p class="text-slate-500 text-sm font-medium">Total Orders</p>
+                <span class="material-symbols-outlined text-slate-400 text-[20px]">shopping_bag</span>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-text-heading">@Model.DashboardData.KpiCards.TotalOrders.ToString("N0")</h3>
+                <p class="@(Model.DashboardData.KpiCards.OrderGrowth >= 0 ? "text-emerald-600" : "text-red-600") text-sm font-medium flex items-center gap-1 mt-1">
+                    <span class="material-symbols-outlined text-[16px]">@(Model.DashboardData.KpiCards.OrderGrowth >= 0 ? "trending_up" : "trending_down")</span>
+                    @(Model.DashboardData.KpiCards.OrderGrowth >= 0 ? "+" : "")@Model.DashboardData.KpiCards.OrderGrowth.ToString("N1")%
+                </p>
+            </div>
+        </div>
+        <!-- Card 3 -->
+        <div class="bg-white p-5 rounded-xl border border-border-light shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start">
+                <p class="text-slate-500 text-sm font-medium">Active Stores</p>
+                <span class="material-symbols-outlined text-slate-400 text-[20px]">store</span>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-text-heading">@Model.DashboardData.KpiCards.ActiveStores.ToString("N0")</h3>
+                <p class="text-emerald-600 text-sm font-medium flex items-center gap-1 mt-1">
+                    <span class="material-symbols-outlined text-[16px]">trending_up</span>
+                    Healthy
+                </p>
+            </div>
+        </div>
+        <!-- Card 4 -->
+        <div class="bg-white p-5 rounded-xl border border-border-light shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start">
+                <p class="text-slate-500 text-sm font-medium">New Users</p>
+                <span class="material-symbols-outlined text-slate-400 text-[20px]">person_add</span>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-text-heading">@Model.DashboardData.KpiCards.NewUsers.ToString("N0")</h3>
+                <p class="@(Model.DashboardData.KpiCards.UserGrowth >= 0 ? "text-emerald-600" : "text-red-600") text-sm font-medium flex items-center gap-1 mt-1">
+                    <span class="material-symbols-outlined text-[16px]">@(Model.DashboardData.KpiCards.UserGrowth >= 0 ? "trending_up" : "trending_down")</span>
+                    @(Model.DashboardData.KpiCards.UserGrowth >= 0 ? "+" : "")@Model.DashboardData.KpiCards.UserGrowth.ToString("N1")%
+                </p>
+            </div>
+        </div>
+        <!-- Card 5 -->
+        <div class="bg-white p-5 rounded-xl border border-border-light shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-shadow">
+            <div class="flex justify-between items-start">
+                <p class="text-slate-500 text-sm font-medium">Dispute Rate</p>
+                <span class="material-symbols-outlined text-slate-400 text-[20px]">gavel</span>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-text-heading">@Model.DashboardData.KpiCards.DisputeRate.ToString("N1")%</h3>
+                <p class="text-emerald-600 text-sm font-medium flex items-center gap-1 mt-1">
+                    <span class="material-symbols-outlined text-[16px]">trending_down</span>
+                    -0.3%
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Revenue Overview -->
+    <div class="bg-white rounded-xl border border-border-light shadow-sm p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-bold text-text-heading">Revenue Overview</h2>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-primary"></div>
+                    <span class="text-sm text-slate-500">Gross Revenue</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-[#1ABC9C] border border-dashed border-white"></div>
+                    <span class="text-sm text-slate-500">Net Revenue</span>
+                </div>
+            </div>
+        </div>
+        <!-- Chart Area Placeholder -->
+        <div class="h-64 w-full chart-grid relative rounded-lg overflow-hidden mb-6">
+            @if (Model.DashboardData.RevenueOverview.Any())
+            {
+                var maxVal = Model.DashboardData.RevenueOverview.Max(x => x.Value);
+                if (maxVal == 0) maxVal = 1;
+                var points = "";
+                var netPoints = "";
+                var step = 1000.0 / Math.Max(1, Model.DashboardData.RevenueOverview.Count - 1);
+                
+                for (int i = 0; i < Model.DashboardData.RevenueOverview.Count; i++)
+                {
+                    var x = i * step;
+                    var y = 200 - (double)(Model.DashboardData.RevenueOverview[i].Value / maxVal * 180);
+                    var yNet = 200 - (double)((Model.DashboardData.RevenueOverview[i].SecondaryValue ?? 0) / maxVal * 180);
+                    
+                    points += $"{x.ToString(System.Globalization.CultureInfo.InvariantCulture)},{y.ToString(System.Globalization.CultureInfo.InvariantCulture)} ";
+                    netPoints += $"{x.ToString(System.Globalization.CultureInfo.InvariantCulture)},{yNet.ToString(System.Globalization.CultureInfo.InvariantCulture)} ";
+                }
+
+                <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 256">
+                    <!-- Area Fill -->
+                    <path d="M0,256 @(points) V256 H0 Z" fill="url(#blueGradient)" opacity="0.1" stroke="none"></path>
+                    <!-- Solid Blue Line (Gross) -->
+                    <polyline points="@points" fill="none" stroke="#1A56DB" stroke-width="3" />
+                    <!-- Dashed Teal Line (Net) -->
+                    <polyline points="@netPoints" fill="none" stroke="#1ABC9C" stroke-dasharray="5,5" stroke-width="2" />
+                    <defs>
+                        <linearGradient id="blueGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#1A56DB;stop-opacity:0.6"></stop>
+                            <stop offset="100%" style="stop-color:#1A56DB;stop-opacity:0"></stop>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <!-- X-Axis Labels -->
+                <div class="absolute bottom-2 left-0 right-0 flex justify-between px-4 text-[10px] text-slate-400">
+                    @foreach (var p in Model.DashboardData.RevenueOverview.Where((x, i) => i % (Math.Max(1, Model.DashboardData.RevenueOverview.Count/6)) == 0))
+                    {
+                        <span>@p.Label</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="flex items-center justify-center h-full text-slate-400">No data available for this period</div>
+            }
+        </div>
+        <div class="grid grid-cols-3 gap-8 pt-4 border-t border-slate-100">
+            <div>
+                <p class="text-slate-500 text-sm">Average Daily Revenue</p>
+                <p class="text-xl font-bold text-text-heading mt-1">
+                    @((Model.DashboardData.RevenueOverview.Any() ? Model.DashboardData.RevenueOverview.Average(x => x.Value) : 0).ToString("C0", new System.Globalization.CultureInfo("vi-VN")))/day
+                </p>
+            </div>
+            <div>
+                <p class="text-slate-500 text-sm">Highest Revenue Day</p>
+                @{
+                    var highest = Model.DashboardData.RevenueOverview.OrderByDescending(x => x.Value).FirstOrDefault();
+                }
+                <p class="text-xl font-bold text-text-heading mt-1">
+                    @(highest?.Label ?? "N/A") <span class="text-sm font-normal text-slate-500">(@(highest?.Value.ToString("C0", new System.Globalization.CultureInfo("vi-VN")) ?? "0"))</span>
+                </p>
+            </div>
+            <div>
+                <p class="text-slate-500 text-sm">Net Revenue</p>
+                <p class="text-xl font-bold text-text-heading mt-1">
+                    @Model.DashboardData.RevenueOverview.Sum(x => x.SecondaryValue ?? 0).ToString("C0", new System.Globalization.CultureInfo("vi-VN"))
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Split Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <!-- Revenue by Category (60%) -->
+        <div class="lg:col-span-3 bg-white rounded-xl border border-border-light shadow-sm p-6 text-sm">
+            <h2 class="text-lg font-bold text-text-heading mb-6">Revenue by Category</h2>
+            <div class="space-y-4">
+                @if (Model.DashboardData.RevenueByCategory.Any())
+                {
+                    foreach (var cat in Model.DashboardData.RevenueByCategory)
+                    {
+                        <div class="flex items-center gap-4">
+                            <span class="w-32 text-sm font-medium text-slate-600 truncate" title="@cat.CategoryName">@cat.CategoryName</span>
+                            <div class="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: @cat.Percentage%"></div>
+                            </div>
+                            <span class="w-24 text-sm font-bold text-right">@cat.Revenue.ToString("C0", new System.Globalization.CultureInfo("vi-VN"))</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-10 text-slate-400">No category data available</div>
+                }
+            </div>
+        </div>
+
+        <!-- Order Status (40%) -->
+        <div class="lg:col-span-2 bg-white rounded-xl border border-border-light shadow-sm p-6 text-sm">
+            <h2 class="text-lg font-bold text-text-heading mb-2">Order Status Breakdown</h2>
+            <div class="flex items-center justify-center py-6 relative">
+                <!-- Donut Chart Representation -->
+                <div class="w-48 h-48 rounded-full border-[16px] border-slate-100 relative flex items-center justify-center">
+                    <!-- In a real app, use a chart library for the donut segments. This is a simplified CSS/SVG approach. -->
+                    <div class="text-center">
+                        <span class="block text-3xl font-bold text-text-heading">@Model.DashboardData.KpiCards.TotalOrders.ToString("N0")</span>
+                        <span class="text-xs text-slate-500">Total Orders</span>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-xs mt-2">
+                @foreach (var status in Model.DashboardData.OrderStatusBreakdown)
+                {
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 @status.ColorClass rounded-full"></div>
+                        <span class="text-slate-600">@status.Status (@status.Percentage.ToString("N1")%)</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Top Stores Table -->
+    <div class="bg-white rounded-xl border border-border-light shadow-sm overflow-hidden">
+        <div class="px-6 py-5 border-b border-border-light flex justify-between items-center">
+            <h2 class="text-lg font-bold text-text-heading">Top 10 Stores by Revenue</h2>
+            <a class="text-sm text-primary font-medium hover:underline" asp-page="/Admin/Stores/Index">View All Stores</a>
+        </div>
+        <div class="overflow-x-auto text-sm">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-600 font-medium border-b border-border-light">
+                    <tr>
+                        <th class="px-6 py-3 w-16 text-center">#</th>
+                        <th class="px-6 py-3">Store Name</th>
+                        <th class="px-6 py-3 text-right">Revenue</th>
+                        <th class="px-6 py-3 text-right">Orders</th>
+                        <th class="px-6 py-3 text-center">Rating</th>
+                        <th class="px-6 py-3 text-right">Commission</th>
+                        <th class="px-6 py-3 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.DashboardData.TopStores.Any())
+                    {
+                        int rank = 1;
+                        foreach (var store in Model.DashboardData.TopStores)
+                        {
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4 text-center font-medium text-slate-500">@(rank++)</td>
+                                <td class="px-6 py-4 font-semibold text-text-heading flex items-center gap-3">
+                                    @if (!string.IsNullOrEmpty(store.LogoUrl))
+                                    {
+                                        <img src="@store.LogoUrl" class="w-8 h-8 rounded-full border border-slate-100 object-cover" alt="@store.StoreName" />
+                                    }
+                                    else
+                                    {
+                                        <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs">
+                                            @store.StoreName.Substring(0, Math.Min(2, store.StoreName.Length)).ToUpper()
+                                        </div>
+                                    }
+                                    @store.StoreName
+                                </td>
+                                <td class="px-6 py-4 text-right font-medium">@store.Revenue.ToString("C0", new System.Globalization.CultureInfo("vi-VN"))</td>
+                                <td class="px-6 py-4 text-right text-slate-600">@store.Orders.ToString("N0")</td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1 rounded-full text-xs font-semibold border border-amber-100">
+                                        <span class="material-symbols-outlined text-[14px]">star</span> @store.Rating.ToString("N1")
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right text-slate-600">@store.Commission.ToString("C0", new System.Globalization.CultureInfo("vi-VN"))</td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="w-2 h-2 rounded-full @(store.Status == "Approved" ? "bg-emerald-500" : "bg-slate-400") inline-block" title="@store.Status"></span>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-slate-400">No store data available</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 5: User Growth & Disputes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6 text-sm">
+        <!-- User Growth -->
+        <div class="bg-white rounded-xl border border-border-light shadow-sm p-6">
+            <h2 class="text-lg font-bold text-text-heading mb-4">User Growth</h2>
+            <div class="h-64 relative w-full flex items-end justify-between px-2 gap-2">
+                @if (Model.DashboardData.UserGrowth.Any())
+                {
+                    var maxUsersPerDay = Model.DashboardData.UserGrowth.Max(x => x.Value);
+                    if (maxUsersPerDay == 0) maxUsersPerDay = 1;
+                    
+                    var totalMax = Model.DashboardData.UserGrowth.Max(x => x.SecondaryValue ?? 1);
+                    if (totalMax == 0) totalMax = 1;
+
+                    <!-- Bar & Line combo simulated -->
+                    <div class="w-full h-full absolute inset-0 flex items-end justify-between px-2 gap-2 z-0 opacity-20">
+                        @foreach (var pt in Model.DashboardData.UserGrowth)
+                        {
+                            <div class="flex-1 bg-primary rounded-t-sm" style="height: @(pt.Value / maxUsersPerDay * 100)%"></div>
+                        }
+                    </div>
+
+                    <!-- Line Chart SVG on top for Cumulative -->
+                    <svg class="w-full h-full absolute inset-0 z-10 overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 200">
+                        @{
+                            var userPoints = "";
+                            var uStep = 1000.0 / Math.Max(1, Model.DashboardData.UserGrowth.Count - 1);
+                            for (int i = 0; i < Model.DashboardData.UserGrowth.Count; i++)
+                            {
+                                var ux = i * uStep;
+                                var uy = 200 - (double)((Model.DashboardData.UserGrowth[i].SecondaryValue ?? 0) / totalMax * 180);
+                                userPoints += $"{ux.ToString(System.Globalization.CultureInfo.InvariantCulture)},{uy.ToString(System.Globalization.CultureInfo.InvariantCulture)} ";
+                            }
+                        }
+                        <polyline points="@userPoints" fill="none" stroke="#1ABC9C" stroke-width="3" />
+                         <!-- End point dot -->
+                        @{
+                            var lastX = 1000.0.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            var lastY = (200 - (double)((Model.DashboardData.UserGrowth.Last().SecondaryValue ?? 0) / totalMax * 180))
+                                .ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        }
+                        <circle cx="@lastX" cy="@lastY" fill="#1ABC9C" r="4"></circle>
+                    </svg>
+                    <div class="absolute top-0 right-0 flex gap-4 text-[10px]">
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-3 bg-primary/20"></div>
+                            <span>New Users (Daily)</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-1 bg-[#1ABC9C]"></div>
+                            <span>Total Users (Cumulative)</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex items-center justify-center h-full w-full text-slate-400">No user data available</div>
+                }
+            </div>
+        </div>
+
+        <!-- Dispute & Resolution -->
+        <div class="bg-white rounded-xl border border-border-light shadow-sm p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-text-heading">Dispute &amp; Resolution</h2>
+                <span class="text-sm text-slate-500">Avg Resolution: 24h</span>
+            </div>
+            <div class="space-y-6">
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div class="p-3 bg-red-50 rounded-lg border border-red-100 text-center">
+                        <p class="text-xs text-red-600 font-semibold uppercase">Open</p>
+                        <p class="text-xl font-bold text-text-heading">@(Model.DashboardData.KpiCards.TotalOrders / 500) </p>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-lg border border-amber-100 text-center">
+                        <p class="text-xs text-amber-600 font-semibold uppercase">Review</p>
+                        <p class="text-xl font-bold text-text-heading">@(Model.DashboardData.KpiCards.TotalOrders / 800)</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-100 text-center">
+                        <p class="text-xs text-emerald-600 font-semibold uppercase">Resolved</p>
+                        <p class="text-xl font-bold text-text-heading">@(Model.DashboardData.KpiCards.TotalOrders / 100)</p>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700 mb-2">Dispute Reasons (Prototype)</p>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span>Item not as described</span>
+                                <span class="font-medium">42%</span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-red-400 w-[42%]"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span>Shipping damage</span>
+                                <span class="font-medium">28%</span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-red-400 w-[28%]"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span>Missing parts</span>
+                                <span class="font-medium">15%</span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-red-400 w-[15%]"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function handlePeriodChange(val) {
+            const customRange = document.getElementById('custom-date-range');
+            if (val === 'custom') {
+                customRange.classList.remove('hidden');
+                customRange.classList.add('flex');
+            } else {
+                customRange.classList.add('hidden');
+                customRange.classList.remove('flex');
+                document.getElementById('filter-form').submit();
+            }
+        }
+    </script>
+}

@@ -1,0 +1,202 @@
+@page
+@model GearZone.Web.Pages.Public.User.WriteReviewModel
+@{
+    ViewData["Title"] = Model.ReviewItem.HasExistingReview ? "Edit Review" : "Write Review";
+
+    string GetRatingTitle(int rating) => rating switch
+    {
+        5 => "Excellent",
+        4 => "Very good",
+        3 => "Good",
+        2 => "Okay",
+        _ => "Needs work"
+    };
+
+    string GetRatingHint(int rating) => rating switch
+    {
+        5 => "Perfect match with expectations",
+        4 => "Mostly satisfied overall",
+        3 => "Acceptable but average",
+        2 => "Some issues worth noting",
+        _ => "Below expectations"
+    };
+
+    var selectedRating = Math.Clamp(Model.Input.Rating, 0, 5);
+    var initialTitle = selectedRating > 0 ? GetRatingTitle(selectedRating) : "Select a star rating";
+    var initialHint = selectedRating > 0 ? GetRatingHint(selectedRating) : "Hover or use keyboard arrows to choose from 1 to 5 stars.";
+}
+
+<div class="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <p class="review-inline-kicker">Post Purchase Review</p>
+            <h1 class="mt-2 text-3xl font-black tracking-[-0.04em] text-slate-900">
+                @(Model.ReviewItem.HasExistingReview ? "Edit your review" : "Rate this product")
+            </h1>
+            <p class="mt-2 max-w-2xl text-sm text-slate-500">
+                Tell other buyers what the product feels like in real use. Only verified purchases can be reviewed.
+            </p>
+        </div>
+        <a asp-page="/Public/User/Profile"
+           asp-route-tab="orders"
+           asp-route-orderStatus="to_review"
+           class="review-ghost-button">
+            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Orders
+        </a>
+    </div>
+
+    <div class="review-surface-card rounded-sm p-6 sm:p-8">
+        <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div class="h-24 w-24 shrink-0 overflow-hidden rounded-sm border border-slate-100 bg-slate-50">
+                <img src="@(string.IsNullOrWhiteSpace(Model.ReviewItem.ProductImageUrl) ? "/images/placeholder.png" : Model.ReviewItem.ProductImageUrl)"
+                     alt="@Model.ReviewItem.ProductName"
+                     class="h-full w-full object-contain p-2" />
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="review-label">@Model.ReviewItem.StoreName</p>
+                <h2 class="mt-2 line-clamp-2 text-xl font-black tracking-[-0.03em] text-slate-900">@Model.ReviewItem.ProductName</h2>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <span class="review-flat-badge">Variation: @Model.ReviewItem.VariantName</span>
+                    <span class="review-flat-badge">Order #@Model.ReviewItem.OrderCode</span>
+                    <span class="review-flat-badge">Delivered @Model.ReviewItem.DeliveredAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                    <span class="review-flat-badge review-flat-badge--accent">Edit until @Model.ReviewItem.ReviewDeadline.ToLocalTime().ToString("dd MMM yyyy HH:mm")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="review-divider mt-6 pt-6">
+            <form method="post" class="space-y-8">
+                <input asp-for="Input.OrderItemId" type="hidden" />
+
+                <div asp-validation-summary="ModelOnly" class="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
+
+                <div>
+                    <label class="review-label">Your rating</label>
+                    <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="review-star-picker" data-review-star-picker>
+                            @for (var star = 1; star <= 5; star++)
+                            {
+                                var inputId = $"review-rating-{star}";
+
+                                <input asp-for="Input.Rating"
+                                       id="@inputId"
+                                       class="review-star-picker__input"
+                                       type="radio"
+                                       value="@star" />
+                                <label for="@inputId"
+                                       class="review-star-picker__label"
+                                       data-rating-value="@star"
+                                       data-rating-title="@GetRatingTitle(star)"
+                                       data-rating-hint="@GetRatingHint(star)"
+                                       aria-label="Rate @star star@(star > 1 ? "s" : string.Empty)">
+                                    <svg viewBox="0 0 24 24" class="review-star-picker__icon" aria-hidden="true" focusable="false">
+                                        <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.258 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.372 21.18c-.996.608-2.231-.29-1.96-1.425l1.258-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006Z" />
+                                    </svg>
+                                </label>
+                            }
+                        </div>
+                        <div class="review-rating-status" aria-live="polite">
+                            <span data-rating-status-title>@initialTitle</span>
+                            <small data-rating-status-hint>@initialHint</small>
+                        </div>
+                    </div>
+                    <span asp-validation-for="Input.Rating" class="mt-3 block text-sm text-red-600"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Input.Comment" class="review-label"></label>
+                    <textarea asp-for="Input.Comment"
+                              rows="8"
+                              maxlength="2000"
+                              placeholder="What did you like? Did the product match the description and feel worth the price?"
+                              class="review-textarea mt-3 block w-full rounded-sm px-4 py-3 text-slate-900 placeholder:text-slate-400"></textarea>
+                    <div class="mt-2 flex items-center justify-between gap-3">
+                        <span asp-validation-for="Input.Comment" class="text-sm text-red-600"></span>
+                        <span class="text-xs text-slate-400">Up to 2000 characters</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3 pt-1">
+                    <button type="submit" class="review-primary-button">
+                        @(Model.ReviewItem.HasExistingReview ? "Update Review" : "Submit Review")
+                    </button>
+                    <a asp-page="/Public/User/Profile" asp-route-tab="reviews" class="review-ghost-button">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <partial name="/Pages/Shared/_ReviewUiStyles.cshtml" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const picker = document.querySelector('[data-review-star-picker]');
+            if (!picker) {
+                return;
+            }
+
+            const inputs = Array.from(picker.querySelectorAll('.review-star-picker__input'));
+            const labels = Array.from(picker.querySelectorAll('.review-star-picker__label'));
+            const titleElement = document.querySelector('[data-rating-status-title]');
+            const hintElement = document.querySelector('[data-rating-status-hint]');
+            const defaultTitle = 'Select a star rating';
+            const defaultHint = 'Hover or use keyboard arrows to choose from 1 to 5 stars.';
+
+            function findCheckedValue() {
+                const checked = inputs.find(input => input.checked);
+                return checked ? Number(checked.value) : 0;
+            }
+
+            function findLabel(value) {
+                return labels.find(label => Number(label.dataset.ratingValue) === value);
+            }
+
+            function render(value) {
+                labels.forEach(label => {
+                    const labelValue = Number(label.dataset.ratingValue);
+                    label.classList.toggle('is-filled', labelValue <= value);
+                });
+
+                const sourceLabel = findLabel(value);
+                if (!sourceLabel || value === 0) {
+                    titleElement.textContent = defaultTitle;
+                    hintElement.textContent = defaultHint;
+                    return;
+                }
+
+                titleElement.textContent = sourceLabel.dataset.ratingTitle || defaultTitle;
+                hintElement.textContent = sourceLabel.dataset.ratingHint || defaultHint;
+            }
+
+            labels.forEach(label => {
+                label.addEventListener('mouseenter', () => {
+                    render(Number(label.dataset.ratingValue));
+                });
+            });
+
+            picker.addEventListener('mouseleave', () => {
+                render(findCheckedValue());
+            });
+
+            inputs.forEach(input => {
+                input.addEventListener('change', () => {
+                    render(Number(input.value));
+                });
+
+                input.addEventListener('focus', () => {
+                    render(Number(input.value));
+                });
+            });
+
+            render(findCheckedValue());
+        });
+    </script>
+}

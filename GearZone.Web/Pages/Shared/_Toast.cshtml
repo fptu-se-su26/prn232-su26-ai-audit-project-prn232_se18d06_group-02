@@ -1,0 +1,35 @@
+@if (TempData["SuccessMessage"] != null)
+{
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            window.toast.success('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["SuccessMessage"]?.ToString()))');
+        });
+    </script>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            window.toast.error('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["ErrorMessage"]?.ToString()))');
+        });
+    </script>
+}
+
+@if (TempData["InfoMessage"] != null)
+{
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            window.toast.info('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["InfoMessage"]?.ToString()))');
+        });
+    </script>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            window.toast.warning('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["WarningMessage"]?.ToString()))');
+        });
+    </script>
+}

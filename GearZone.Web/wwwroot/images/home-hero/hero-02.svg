@@ -1,0 +1,38 @@
+<svg width="1600" height="520" viewBox="0 0 1600 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="520" fill="url(#bg)"/>
+  <rect x="834" y="82" width="636" height="318" rx="30" fill="url(#panel)" opacity="0.88"/>
+  <rect x="868" y="120" width="570" height="168" rx="24" fill="#0A1732"/>
+  <rect x="895" y="342" width="446" height="42" rx="21" fill="#0B2146"/>
+  <rect x="915" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="953" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="991" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="1029" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="1067" y="354" width="30" height="18" rx="4" fill="#FF7E29"/>
+  <rect x="1105" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="1143" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="1181" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="1219" y="354" width="30" height="18" rx="4" fill="#71A9FF"/>
+  <rect x="1272" y="334" width="90" height="52" rx="26" fill="#102A57"/>
+  <path d="M1367 202C1367 240 1336 271 1298 271C1260 271 1229 240 1229 202C1229 164 1260 133 1298 133C1336 133 1367 164 1367 202Z" fill="url(#ringGlow)" opacity="0.68"/>
+  <path d="M1298 150C1327 150 1350 173 1350 202C1350 231 1327 254 1298 254C1269 254 1246 231 1246 202C1246 173 1269 150 1298 150Z" stroke="#73D5FF" stroke-width="12"/>
+  <circle cx="1298" cy="202" r="18" fill="#0B1939"/>
+  <rect x="905" y="146" width="250" height="12" rx="6" fill="#DCEBFF" opacity="0.72"/>
+  <rect x="905" y="170" width="210" height="10" rx="5" fill="#83B5FF" opacity="0.56"/>
+  <path d="M142 400H432L478 430H96L142 400Z" fill="#122857" opacity="0.5"/>
+  <circle cx="1510" cy="72" r="88" fill="#FF7E29" opacity="0.08"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#061123"/>
+      <stop offset="0.45" stop-color="#0A275A"/>
+      <stop offset="1" stop-color="#0F67D7"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="834" y1="82" x2="1470" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A356B"/>
+      <stop offset="1" stop-color="#3978D4"/>
+    </linearGradient>
+    <radialGradient id="ringGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1298 202) rotate(90) scale(69)">
+      <stop stop-color="#66F1EB"/>
+      <stop offset="1" stop-color="#66F1EB" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

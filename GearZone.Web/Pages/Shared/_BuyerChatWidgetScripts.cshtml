@@ -1,0 +1,346 @@
+<partial name="/Pages/Shared/_ChatRuntimeScripts.cshtml" />
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const host = document.querySelector('[data-buyer-chat-widget]');
+        if (!host) {
+            return;
+        }
+
+        const overlay = host.querySelector('[data-chat-widget-overlay]');
+        const drawer = host.querySelector('[data-chat-widget-drawer]');
+        const shellHost = host.querySelector('[data-chat-widget-shell-host]');
+        const bootstrapUrl = host.dataset.bootstrapUrl || '/messages?handler=WidgetBootstrap';
+        const expandLink = host.querySelector('[data-chat-open-page]');
+        const storageKey = 'gearzone_buyer_chat_widget_state';
+        const isAuthenticated = host.dataset.authenticated === 'true';
+        const animationDurationMs = 200;
+
+        let controller = null;
+        let bootstrapAbortController = null;
+
+        function readState() {
+            try {
+                const parsed = JSON.parse(window.sessionStorage.getItem(storageKey) || '{}');
+                return {
+                    status: parsed.status || 'closed',
+                    activeConversationId: parsed.activeConversationId || '',
+                    filter: parsed.filter || 'all',
+                    searchTerm: parsed.searchTerm || '',
+                    counterpartScopeKey: parsed.counterpartScopeKey || '',
+                    productSlug: parsed.productSlug || '',
+                    launchStoreSlug: parsed.launchStoreSlug || '',
+                    loadedConversationPageCount: Number.parseInt(parsed.loadedConversationPageCount || '1', 10) || 1,
+                    loadedThreadPageCount: Number.parseInt(parsed.loadedThreadPageCount || '1', 10) || 1,
+                    mobileView: parsed.mobileView || 'list'
+                };
+            } catch (error) {
+                console.warn('Unable to read buyer chat widget state.', error);
+                return {
+                    status: 'closed',
+                    activeConversationId: '',
+                    filter: 'all',
+                    searchTerm: '',
+                    counterpartScopeKey: '',
+                    productSlug: '',
+                    launchStoreSlug: '',
+                    loadedConversationPageCount: 1,
+                    loadedThreadPageCount: 1,
+                    mobileView: 'list'
+                };
+            }
+        }
+
+        function writeState(nextState) {
+            const currentState = readState();
+            const mergedState = {
+                ...currentState,
+                ...nextState
+            };
+            window.sessionStorage.setItem(storageKey, JSON.stringify(mergedState));
+            updateExpandLink(mergedState);
+        }
+
+        function normalizeLaunchContext(source) {
+            return {
+                conversationId: source?.chatConversationId || source?.conversationId || '',
+                storeSlug: source?.chatStoreSlug || source?.storeSlug || '',
+                productSlug: source?.chatProductSlug || source?.productSlug || '',
+                filter: source?.chatFilter || source?.filter || '',
+                searchTerm: source?.chatSearchTerm || source?.searchTerm || '',
+                counterpartScopeKey: source?.chatCounterpartScopeKey || source?.counterpartScopeKey || ''
+            };
+        }
+
+        function getDefaultLaunchContext() {
+            const state = readState();
+            return {
+                conversationId: state.activeConversationId,
+                storeSlug: state.launchStoreSlug,
+                productSlug: state.productSlug,
+                filter: state.filter,
+                searchTerm: state.searchTerm,
+                counterpartScopeKey: state.counterpartScopeKey
+            };
+        }
+
+        function setWidgetBadges(value) {
+            const normalized = Number.parseInt(value || '0', 10) || 0;
+            document.querySelectorAll('[data-widget-chat-badge], [data-header-chat-badge]').forEach((badge) => {
+                badge.textContent = normalized > 99 ? '99+' : normalized;
+                badge.classList.toggle('hidden', normalized === 0);
+            });
+        }
+
+        function updateExpandLink(state) {
+            if (!expandLink) {
+                return;
+            }
+
+            const url = new URL(host.dataset.messagesUrl || '/messages', window.location.origin);
+            if (state.activeConversationId) {
+                url.searchParams.set('conversationId', state.activeConversationId);
+            }
+            if (state.filter && state.filter !== 'all') {
+                url.searchParams.set('filter', state.filter);
+            }
+            if (state.searchTerm) {
+                url.searchParams.set('searchTerm', state.searchTerm);
+            }
+            if (state.counterpartScopeKey) {
+                url.searchParams.set('counterpartScopeKey', state.counterpartScopeKey);
+            }
+            if (state.productSlug) {
+                url.searchParams.set('productSlug', state.productSlug);
+            }
+
+            expandLink.href = `${url.pathname}${url.search}`;
+        }
+
+        function openDrawer() {
+            drawer.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            drawer.setAttribute('aria-hidden', 'false');
+            requestAnimationFrame(() => {
+                host.classList.add('is-open');
+                controller?.scrollActiveThreadToLatest?.();
+            });
+            window.setTimeout(() => {
+                controller?.scrollActiveThreadToLatest?.();
+            }, animationDurationMs + 40);
+            writeState({ status: 'open' });
+        }
+
+        function hideDrawer(nextStatus) {
+            host.classList.remove('is-open');
+            drawer.setAttribute('aria-hidden', 'true');
+            window.setTimeout(() => {
+                if (!host.classList.contains('is-open')) {
+                    drawer.classList.add('hidden');
+                    overlay.classList.add('hidden');
+                }
+            }, animationDurationMs);
+            writeState({ status: nextStatus });
+        }
+
+        async function destroyController() {
+            if (!controller) {
+                return;
+            }
+
+            await controller.destroy();
+            controller = null;
+        }
+
+        async function bootstrapWidget(launchContext) {
+            if (!isAuthenticated) {
+                window.showLoginModal?.();
+                return false;
+            }
+
+            const context = {
+                ...getDefaultLaunchContext(),
+                ...launchContext
+            };
+
+            if ((launchContext?.storeSlug || launchContext?.conversationId || launchContext?.productSlug) && !context.counterpartScopeKey && context.storeSlug) {
+                context.counterpartScopeKey = context.storeSlug;
+            }
+
+            if (launchContext?.storeSlug || launchContext?.conversationId || launchContext?.productSlug) {
+                context.filter = 'all';
+                context.searchTerm = '';
+            }
+
+            if (bootstrapAbortController) {
+                bootstrapAbortController.abort();
+            }
+
+            const requestUrl = new URL(bootstrapUrl, window.location.origin);
+            if (context.conversationId) {
+                requestUrl.searchParams.set('conversationId', context.conversationId);
+            }
+            if (context.storeSlug) {
+                requestUrl.searchParams.set('storeSlug', context.storeSlug);
+            }
+            if (context.productSlug) {
+                requestUrl.searchParams.set('productSlug', context.productSlug);
+            }
+            if (context.filter && context.filter !== 'all') {
+                requestUrl.searchParams.set('filter', context.filter);
+            }
+            if (context.searchTerm) {
+                requestUrl.searchParams.set('searchTerm', context.searchTerm);
+            }
+            if (context.counterpartScopeKey) {
+                requestUrl.searchParams.set('counterpartScopeKey', context.counterpartScopeKey);
+            }
+
+            const abortController = new AbortController();
+            bootstrapAbortController = abortController;
+            host.classList.add('buyer-chat-widget--loading');
+
+            try {
+                const response = await fetch(requestUrl.toString(), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: abortController.signal
+                });
+
+                if (response.status === 401) {
+                    window.showLoginModal?.();
+                    return false;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Buyer chat widget bootstrap failed with ${response.status}`);
+                }
+
+                const targetUnavailable = response.headers.get('X-Requested-Target-Unavailable') === 'true';
+                if (targetUnavailable && (context.storeSlug || context.productSlug)) {
+                    window.showToast?.('error', 'This shop cannot be opened in chat right now.');
+                    return false;
+                }
+
+                const html = await response.text();
+                await destroyController();
+
+                shellHost.innerHTML = html;
+                const root = shellHost.querySelector('[data-chat-root]');
+                if (!root) {
+                    throw new Error('Buyer chat widget bootstrap did not return a chat root.');
+                }
+
+                controller = window.GearZoneChatRuntime.createChatController(root, {
+                    surface: 'widget',
+                    storageNamespace: storageKey,
+                    onStateChange: (state) => {
+                        writeState({
+                            ...state,
+                            status: readState().status === 'closed' ? 'open' : readState().status,
+                            launchStoreSlug: context.storeSlug || readState().launchStoreSlug,
+                            counterpartScopeKey: state.counterpartScopeKey || context.counterpartScopeKey || ''
+                        });
+                    },
+                    onUnreadCountChange: setWidgetBadges
+                });
+
+                openDrawer();
+                await controller.init();
+                await controller.scrollActiveThreadToLatest?.();
+                const state = controller.getState();
+                writeState({
+                    ...state,
+                    status: 'open',
+                    launchStoreSlug: context.storeSlug || '',
+                    counterpartScopeKey: state.counterpartScopeKey || context.counterpartScopeKey || ''
+                });
+                return true;
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Unable to open buyer chat widget', error);
+                    window.showToast?.('error', 'Unable to open chat right now.');
+                }
+                return false;
+            } finally {
+                if (bootstrapAbortController === abortController) {
+                    bootstrapAbortController = null;
+                }
+                host.classList.remove('buyer-chat-widget--loading');
+            }
+        }
+
+        async function ensureOpenForContext(context, forceBootstrap) {
+            const shouldBootstrap = forceBootstrap || !controller || !shellHost.firstElementChild;
+            if (shouldBootstrap) {
+                return bootstrapWidget(context);
+            }
+
+            openDrawer();
+            await controller?.scrollActiveThreadToLatest?.();
+            return true;
+        }
+
+        async function handleLaunchClick(event) {
+            const trigger = event.target.closest('[data-chat-launch]');
+            if (!trigger) {
+                return;
+            }
+
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (!isAuthenticated) {
+                window.showLoginModal?.();
+                return;
+            }
+
+            const isToggle = trigger.dataset.chatToggle === 'true';
+            const context = normalizeLaunchContext(trigger.dataset);
+            const hasExplicitContext = !!(context.conversationId || context.storeSlug || context.productSlug);
+
+            if (isToggle && host.classList.contains('is-open')) {
+                hideDrawer('minimized');
+                return;
+            }
+
+            if (hasExplicitContext) {
+                await bootstrapWidget(context);
+                return;
+            }
+
+            await ensureOpenForContext(getDefaultLaunchContext(), false);
+        }
+
+        async function handleWidgetChromeClick(event) {
+            const minimizeButton = event.target.closest('[data-chat-widget-minimize]');
+            if (minimizeButton) {
+                event.preventDefault();
+                hideDrawer('minimized');
+                return;
+            }
+
+            const closeButton = event.target.closest('[data-chat-widget-close]');
+            if (closeButton) {
+                event.preventDefault();
+                hideDrawer('closed');
+            }
+        }
+
+        overlay.addEventListener('click', () => hideDrawer('minimized'));
+        drawer.addEventListener('click', handleWidgetChromeClick);
+        document.addEventListener('click', handleLaunchClick);
+        window.addEventListener('beforeunload', () => {
+            if (controller) {
+                writeState(controller.getState());
+            }
+        });
+
+        const initialState = readState();
+        updateExpandLink(initialState);
+        if (initialState.status === 'open' && isAuthenticated) {
+            bootstrapWidget(getDefaultLaunchContext());
+        }
+    });
+</script>

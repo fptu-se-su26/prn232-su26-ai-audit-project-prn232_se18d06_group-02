@@ -1,0 +1,61 @@
+@using GearZone.Web.Pages.Shared.Models
+@model BuyerChatWidgetViewModel
+
+<div class="buyer-chat-widget"
+     data-buyer-chat-widget
+     data-authenticated="@(Model.IsAuthenticated ? "true" : "false")"
+     data-bootstrap-url="@Model.BootstrapUrl"
+     data-messages-url="@Model.MessagesUrl">
+    <div class="buyer-chat-widget__overlay hidden" data-chat-widget-overlay></div>
+
+    <section class="buyer-chat-widget__drawer hidden" data-chat-widget-drawer aria-hidden="true">
+        <header class="buyer-chat-widget__header">
+            <div class="flex items-center gap-3">
+                <div class="buyer-chat-widget__brand">
+                    <span class="material-symbols-outlined text-[18px]">chat</span>
+                </div>
+                <p class="text-[15px] font-semibold text-[#ee4d2d]">
+                    Chat
+                    <span class="ml-1 text-[13px] font-medium text-[#999]" data-chat-unread-badge>@Model.TotalUnreadCount</span>
+                </p>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <a href="@Model.MessagesUrl"
+                   class="buyer-chat-widget__action"
+                   data-chat-open-page
+                   title="Open full inbox">
+                    <span class="material-symbols-outlined text-[18px]">open_in_full</span>
+                </a>
+                <button type="button"
+                        class="buyer-chat-widget__action"
+                        data-chat-widget-minimize
+                        title="Minimize">
+                    <span class="material-symbols-outlined text-[18px]">remove</span>
+                </button>
+                <button type="button"
+                        class="buyer-chat-widget__action"
+                        data-chat-widget-close
+                        title="Close chat">
+                    <span class="material-symbols-outlined text-[18px]">close</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="buyer-chat-widget__body" data-chat-widget-shell-host></div>
+    </section>
+
+    <button type="button"
+            class="buyer-chat-widget__bubble"
+            data-chat-launch
+            data-chat-toggle="true"
+            data-chat-widget-launcher
+            aria-label="Open chat">
+        <span class="material-symbols-outlined text-[20px]">chat</span>
+        <span class="buyer-chat-widget__label">Chat</span>
+        <span class="buyer-chat-widget__badge @(Model.TotalUnreadCount > 0 ? string.Empty : "hidden")"
+              data-widget-chat-badge>
+            @(Model.TotalUnreadCount > 99 ? "99+" : Model.TotalUnreadCount.ToString())
+        </span>
+    </button>
+</div>

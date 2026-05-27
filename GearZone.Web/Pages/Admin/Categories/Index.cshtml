@@ -1,0 +1,328 @@
+@page "/admin/categories"
+@model GearZone.Web.Pages.Admin.Categories.IndexModel
+@{
+    ViewData["Title"] = "Category Management";
+    ViewData["PageHeader"] = "Category Management";
+    ViewData["ActivePage"] = "Categories";
+    ViewData["Breadcrumb"] = new string[] { "Dashboard", "Category Management" };
+    Layout = "_AdminLayout";
+}
+
+<div class="flex flex-col gap-6">
+    <!-- Filters & Actions Bar -->
+    <div class="bg-white p-4 rounded-xl shadow-card border border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-end">
+        <form method="get" class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto flex-1">
+            <!-- Search -->
+            <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <span class="material-symbols-outlined text-[20px]">search</span>
+                </span>
+                <input asp-for="Query.SearchTerm" class="form-input w-full rounded-lg border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary" placeholder="Search by name or slug..." type="text" />
+            </div>
+            <!-- Status Filter -->
+            <div class="w-full sm:w-40">
+                <select asp-for="Query.IsActive" class="form-select w-full rounded-lg border-slate-200 bg-slate-50 py-2.5 text-sm text-slate-900 focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+            <!-- Search Submit Button -->
+            <button type="submit" class="hidden">Search</button>
+            <!-- Reset Button -->
+            <a asp-page="/Admin/Categories/Index" class="flex items-center justify-center px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                <span class="material-symbols-outlined text-[20px]">restart_alt</span>
+            </a>
+        </form>
+        <!-- Add Button — now links to Create page -->
+        <a asp-page="/Admin/Categories/Create" class="w-full lg:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg font-medium shadow-sm shadow-blue-500/30 transition-all">
+            <span class="material-symbols-outlined text-[20px]">add</span>
+            <span>Add New Category</span>
+        </a>
+    </div>
+
+    <!-- Categories Table Card -->
+    <div class="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden flex flex-col">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 w-2/5">Name</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-1/5">Slug</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-[90px]">Level</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-[90px] text-right">Products</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-[110px] text-right hidden lg:table-cell">Revenue</th>
+                        <th class="py-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-[110px]">Status</th>
+                        <th class="py-4 pl-3 pr-6 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (Model.HierarchicalCategories.Any())
+                    {
+                        foreach (var root in Model.HierarchicalCategories)
+                        {
+                            <!-- Root Category Row -->
+                            <tr class="group hover:bg-slate-50 transition-all bg-white @(root.Children.Any() ? "cursor-pointer has-children" : "")"
+                                data-category-id="@root.Id"
+                                data-expanded="false">
+                                <td class="py-3.5 px-6">
+                                    <div class="flex items-center gap-2.5">
+                                        @if (root.Children.Any())
+                                        {
+                                            <span class="toggle-icon text-slate-400 flex-shrink-0 transition-transform duration-200"
+                                                  data-toggle-id="@root.Id">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="w-4 flex-shrink-0"></span>
+                                        }
+                                        <span class="material-symbols-outlined text-[20px] text-slate-400 flex-shrink-0">folder</span>
+                                        <span class="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors">@root.Name</span>
+                                    </div>
+                                </td>
+                                <td class="py-3.5 px-3">
+                                    <span class="text-xs text-slate-500 font-mono bg-slate-50 px-2 py-1 rounded-md">@root.Slug</span>
+                                </td>
+                                <td class="py-3.5 px-3">
+                                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">Root</span>
+                                </td>
+                                <td class="py-3.5 px-3 text-right">
+                                    <span class="text-sm font-medium text-slate-700">@root.ProductCount.ToString("N0")</span>
+                                </td>
+                                <td class="py-3.5 px-3 text-right hidden lg:table-cell">
+                                    <span class="text-sm font-medium text-slate-700">@root.Revenue.ToString("N0")</span>
+                                </td>
+                                <td class="py-3.5 px-3">
+                                    @if (root.IsDeleted)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+                                            <span class="size-1.5 rounded-full bg-red-600"></span> Deleted
+                                        </span>
+                                    }
+                                    else if (root.IsActive)
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                            <span class="size-1.5 rounded-full bg-green-600"></span> Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
+                                            <span class="size-1.5 rounded-full bg-slate-400"></span> Inactive
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3.5 pl-3 pr-6 text-right">
+                                    <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <a asp-page="/Admin/Categories/Edit" asp-route-id="@root.Id"
+                                           class="text-slate-400 hover:text-amber-500 transition-colors p-1.5 rounded-lg hover:bg-amber-50" title="Edit Category"
+                                           onclick="event.stopPropagation()">
+                                            <span class="material-symbols-outlined text-[20px]">edit</span>
+                                        </a>
+                                        <button class="delete-category-btn text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50"
+                                                title="Delete Category" data-id="@root.Id" data-name="@root.Name"
+                                                onclick="event.stopPropagation()">
+                                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Child Category Rows (hidden by default, toggled by JS) -->
+                            @foreach (var child in root.Children)
+                            {
+                                <tr class="child-category-row group hover:bg-indigo-50/30 transition-all bg-slate-50/40 hidden"
+                                    data-parent-id="@root.Id">
+                                    <td class="py-3 px-6">
+                                        <div class="flex items-center gap-2.5 pl-7">
+                                            <span class="text-slate-300 flex-shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                            <span class="material-symbols-outlined text-[18px] text-indigo-300 flex-shrink-0">folder_open</span>
+                                            <span class="text-sm font-medium text-slate-700 group-hover:text-indigo-700 transition-colors">@child.Name</span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-3">
+                                        <span class="text-xs text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded-md">@child.Slug</span>
+                                    </td>
+                                    <td class="py-3 px-3">
+                                        <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-600 ring-1 ring-inset ring-indigo-600/10">Sub 1</span>
+                                    </td>
+                                    <td class="py-3 px-3 text-right">
+                                        <span class="text-sm text-slate-600">@child.ProductCount.ToString("N0")</span>
+                                    </td>
+                                    <td class="py-3 px-3 text-right hidden lg:table-cell">
+                                        <span class="text-sm text-slate-600">@child.Revenue.ToString("N0")</span>
+                                    </td>
+                                    <td class="py-3 px-3">
+                                        @if (child.IsDeleted)
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+                                                <span class="size-1.5 rounded-full bg-red-600"></span> Deleted
+                                            </span>
+                                        }
+                                        else if (child.IsActive)
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                                <span class="size-1.5 rounded-full bg-green-600"></span> Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
+                                                <span class="size-1.5 rounded-full bg-slate-400"></span> Inactive
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="py-3 pl-3 pr-6 text-right">
+                                        <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <a asp-page="/Admin/Categories/Edit" asp-route-id="@child.Id"
+                                               class="text-slate-400 hover:text-amber-500 transition-colors p-1.5 rounded-lg hover:bg-amber-50" title="Edit Category">
+                                                <span class="material-symbols-outlined text-[20px]">edit</span>
+                                            </a>
+                                            <button class="delete-category-btn text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50"
+                                                    title="Delete Category" data-id="@child.Id" data-name="@child.Name">
+                                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-500">
+                                <div class="flex flex-col items-center justify-center space-y-3">
+                                    <span class="material-symbols-outlined text-4xl text-slate-300">search_off</span>
+                                    <p class="text-base font-medium">No categories found</p>
+                                    <p class="text-sm">Try adjusting your filters or search term.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Summary Footer -->
+        <div class="border-t border-slate-100 px-6 py-4 bg-slate-50/30 flex items-center justify-between gap-4">
+            <div class="text-sm text-slate-500">
+                Total: <span class="font-medium text-slate-900">@Model.TotalCount</span> categories
+                (<span class="font-medium text-blue-600">@Model.HierarchicalCategories.Count</span> root,
+                 <span class="font-medium text-indigo-600">@Model.HierarchicalCategories.Sum(c => c.Children.Count)</span> sub)
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Category Confirmation Form -->
+<form id="delete-category-form" method="post" asp-page-handler="Delete" class="hidden">
+    <input type="hidden" name="id" id="delete-category-id" />
+</form>
+
+<!-- Delete Category Modal -->
+<div id="delete-category-modal" class="fixed inset-0 z-[60] hidden">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div class="p-8 text-center space-y-4">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100">
+                    <span class="material-symbols-outlined text-red-600 text-3xl">delete_forever</span>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900">Delete Category</h3>
+                <p class="text-sm text-slate-500">Are you sure you want to soft-delete <strong id="delete-category-name" class="text-slate-800"></strong>?</p>
+                <p class="text-xs text-slate-400">Products in this category will not be deleted, but the category will be hidden from the storefront.</p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50/50 flex justify-end gap-3 rounded-b-3xl">
+                <button type="button" id="cancel-delete-btn"
+                        class="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-delete-btn"
+                        class="px-6 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition-all shadow-md shadow-red-600/20">
+                    Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ─── Expand / Collapse Category Children ───────────────────────────────
+        document.querySelectorAll('tr.has-children').forEach(rootRow => {
+            rootRow.addEventListener('click', function () {
+                const categoryId = this.getAttribute('data-category-id');
+                const isExpanded = this.getAttribute('data-expanded') === 'true';
+
+                // Toggle child rows
+                document.querySelectorAll(`.child-category-row[data-parent-id="${categoryId}"]`).forEach(childRow => {
+                    if (isExpanded) {
+                        childRow.classList.add('hidden');
+                    } else {
+                        childRow.classList.remove('hidden');
+                    }
+                });
+
+                // Rotate toggle icon: right (→) collapsed, down (↓) expanded
+                const icon = document.querySelector(`.toggle-icon[data-toggle-id="${categoryId}"]`);
+                if (icon) {
+                    icon.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
+                }
+
+                // Swap folder icon
+                const folderIcon = this.querySelector('td:first-child .material-symbols-outlined');
+                if (folderIcon) {
+                    folderIcon.textContent = isExpanded ? 'folder' : 'folder_open';
+                }
+
+                this.setAttribute('data-expanded', isExpanded ? 'false' : 'true');
+            });
+        });
+
+        // ─── Delete Modal ───────────────────────────────────────────────────────
+        const deleteModal = document.getElementById('delete-category-modal');
+        const deleteForm = document.getElementById('delete-category-form');
+        const deleteIdInput = document.getElementById('delete-category-id');
+        const deleteCategoryName = document.getElementById('delete-category-name');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+
+        document.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                deleteIdInput.value = id;
+                deleteCategoryName.textContent = '"' + name + '"';
+                deleteModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        cancelDeleteBtn.addEventListener('click', () => {
+            deleteModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        });
+
+        confirmDeleteBtn.addEventListener('click', () => {
+            deleteForm.submit();
+        });
+
+        // Close modal on backdrop click
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal.firstElementChild) {
+                deleteModal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        });
+    </script>
+}
