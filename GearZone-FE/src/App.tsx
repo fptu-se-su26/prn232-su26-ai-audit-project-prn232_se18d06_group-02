@@ -6,6 +6,9 @@ import HomePage from '@/pages/HomePage'
 import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
+import AdminDashboardPage from '@/pages/AdminDashboardPage'
+import AdminStoreApplicationDetailPage from '@/pages/AdminStoreApplicationDetailPage'
+import AdminStoreApplicationsPage from '@/pages/AdminStoreApplicationsPage'
 import StaffShellPage from '@/pages/StaffShellPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
@@ -40,7 +43,23 @@ export default function App() {
         path="/admin/dashboard"
         element={
           <RequireAuth roles={['Super Admin', 'Admin']}>
-            <Navigate to="/admin" replace />
+            <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-applications"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-applications/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationDetailPage />
           </RequireAuth>
         }
       />
