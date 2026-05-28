@@ -229,3 +229,29 @@
 | Representative | Date |
 |---|---|
 | Ho Huy Hoang | 2026-05-27 |
+
+---
+
+## 10. Current Session Update
+
+| Item | Detail |
+|---|---|
+| Date | 2026-05-28 |
+| Scope | FE-SHARED role shells for Customer, Store Owner, Admin, and Staff |
+| Backend Check | Scanned `GearZone.Web` controllers and identity seeding for role coverage |
+| Outcome | Shared shell frontend implemented in `GearZone-FE`; backend support confirmed for Customer, Store Owner, and Admin flows, while Staff remains shell-only |
+
+### What was done
+
+- Designed the role shell as a new frontend module for the current project.
+- Scanned the current backend for role-seeded identity and role-protected controllers.
+- Confirmed existing backend coverage for `Super Admin`, `Store Owner`, and customer-facing flows.
+- Did not find a dedicated backend controller group for `Staff`.
+- Implemented a shared shell layout with route aliases for `/admin/dashboard` and `/seller/dashboard`.
+- Updated login redirect behavior to send users to the appropriate role shell.
+- Built the frontend successfully after the changes.
+
+### Verification
+
+- `npm run build` in `GearZone-FE` completed successfully.
+- Backend audit was performed by source inspection, not by running live API calls.

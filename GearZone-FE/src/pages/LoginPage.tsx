@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { AuthCard } from '@/components/auth/AuthCard'
@@ -11,12 +11,13 @@ import { AuthSocialButton } from '@/components/auth/AuthSocialButton'
 import { AuthTextInput } from '@/components/auth/AuthTextInput'
 import { RegisterForm } from '@/components/auth/RegisterForm'
 import { useAuth } from '@/contexts/useAuth'
+import { getShellPath, resolveShellRole } from '@/lib/roleShell'
 
 const primaryButtonClassName =
   'auth-button-shadow w-full rounded-2xl bg-primary px-6 py-4 text-sm font-bold text-white transition-all duration-300 hover:bg-blue-700 active:scale-[0.98]'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
   const [isRegister, setIsRegister] = useState(false)
@@ -33,14 +34,20 @@ export default function LoginPage() {
   const [regPassword, setRegPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(getShellPath(resolveShellRole(user.role)), { replace: true })
+    }
+  }, [authLoading, navigate, user])
+
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
     setLoading(true)
 
     try {
-      await login(username, password, rememberMe)
-      navigate('/')
+      const result = await login(username, password, rememberMe)
+      navigate(getShellPath(resolveShellRole(result.role)), { replace: true })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {
