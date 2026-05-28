@@ -7,6 +7,8 @@ import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
 import StaffShellPage from '@/pages/StaffShellPage'
+import ProductBrowsePage from '@/pages/ProductBrowsePage'
+import SiteLayout from '@/components/layout/SiteLayout'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
   const { user, loading } = useAuth()
@@ -20,30 +22,33 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route element={<SiteLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductBrowsePage />} />
+        <Route path="/products/:slug" element={<ProductBrowsePage />} />
 
-      <Route path="/" element={<HomePage />} />
+        <Route path="/customer" element={<RequireAuth roles={['Customer']}><CustomerShellPage /></RequireAuth>} />
+        <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />
+        <Route path="/store-owner" element={<RequireAuth roles={['Store Owner']}><StoreOwnerShellPage /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth roles={['Super Admin', 'Admin']}><AdminShellPage /></RequireAuth>} />
 
-      <Route path="/customer" element={<RequireAuth roles={['Customer']}><CustomerShellPage /></RequireAuth>} />
-      <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />
-      <Route path="/store-owner" element={<RequireAuth roles={['Store Owner']}><StoreOwnerShellPage /></RequireAuth>} />
-      <Route path="/admin" element={<RequireAuth roles={['Super Admin', 'Admin']}><AdminShellPage /></RequireAuth>} />
-
-      <Route
-        path="/seller/dashboard"
-        element={
-          <RequireAuth roles={['Store Owner']}>
-            <Navigate to="/store-owner" replace />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/admin/dashboard"
-        element={
-          <RequireAuth roles={['Super Admin', 'Admin']}>
-            <Navigate to="/admin" replace />
-          </RequireAuth>
-        }
-      />
+        <Route
+          path="/seller/dashboard"
+          element={
+            <RequireAuth roles={['Store Owner']}>
+              <Navigate to="/store-owner" replace />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <RequireAuth roles={['Super Admin', 'Admin']}>
+              <Navigate to="/admin" replace />
+            </RequireAuth>
+          }
+        />
+      </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
