@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { authApi, type UserDto } from '@/api/auth'
-import { AuthContext, type AuthContextValue } from '@/contexts/auth-context'
+import { AuthContext, type AuthContextValue, type LoginResult } from '@/contexts/auth-context'
 
 interface AuthProviderProps {
   children: ReactNode
@@ -30,9 +30,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       user,
       loading,
-      login: async (username, password, rememberMe = false) => {
-        await authApi.login(username, password, rememberMe)
+      login: async (username, password, rememberMe = false): Promise<LoginResult> => {
+        const loginResult = await authApi.login(username, password, rememberMe)
         await refresh()
+        return loginResult
       },
       logout: async () => {
         await authApi.logout()

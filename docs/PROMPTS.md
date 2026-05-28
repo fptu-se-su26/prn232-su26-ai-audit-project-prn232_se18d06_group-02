@@ -221,3 +221,16 @@ Goong REST API: GET /direction with origin/destination lat-lng; parse routes[0].
 **Used in files:** GearZone.Infrastructure/External/*.cs, Settings/*.cs
 
 ---
+
+## Prompt 4 -- 2026-05-28
+
+**Tool:** Claude Code
+**Context:** GearZone-FE role-shell implementation in the current project
+
+**Prompt:**
+> Build a shared role-shell frontend for the current GearZone-FE project with separate experiences for Customer, Store Owner, Admin, and Staff. Keep the implementation aligned with the existing backend role model, verify which role-specific backend endpoints are already available, and document the work in `docs/PROMPTS.md`, `docs/AI_AUDIT_LOG.md`, `docs/CHANGELOG.md`, and `docs/REFLECTION.md`. If any backend capability is missing, call it out clearly.
+
+**AI Output Summary:**
+Created a shared role-shell frontend architecture, added role-aware routing and login redirects, and checked backend readiness by scanning API controllers and role seeding.
+
+**Used in files:** `GearZone-FE/src/lib/roleShell.ts`, `GearZone-FE/src/components/shell/RoleShell.tsx`, `GearZone-FE/src/pages/*.tsx`, `GearZone-FE/src/App.tsx`, `GearZone-FE/src/contexts/*`

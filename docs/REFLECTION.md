@@ -67,3 +67,15 @@ The team retains full understanding and ownership of every file in this branch.
 - Add unit tests for the service layer on this branch
 - Consider Specification pattern for more complex queries
 - Review AI suggestions against OWASP Top 10 for security-sensitive code paths
+
+---
+
+## Current Session Reflection -- 2026-05-28
+
+This feature was implemented as a new frontend module inside the current project, so the right approach was to build a shared shell architecture instead of trying to force everything into a single generic dashboard.
+
+Backend verification mattered here. Source inspection showed that role-seeded authentication and dedicated Admin and Seller APIs already exist, so the frontend shell could be wired safely around those routes. The Staff role is present in identity seeding, but there is no dedicated Staff controller group yet, so that part remains a frontend scaffold only.
+
+The login redirect change was necessary because the backend callback still routes Store Owner users to `/seller/dashboard` and Admin users to `/admin/dashboard`. Adding compatibility aliases kept the existing backend behavior working without forcing a backend change.
+
+The main lesson is that shared shell work should be implemented as a routing and layout problem first, then connected to backend capabilities only where the API contract is already real. That kept the change minimal, testable, and easy to verify with a successful production build.

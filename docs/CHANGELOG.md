@@ -74,3 +74,31 @@ GearZone.Infrastructure/External: Cloudinary file storage, PayOS payment/payout,
 
 ## Previous Releases
 See `main` branch CHANGELOG for project-level release history.
+
+---
+
+## [Unreleased] -- 2026-05-28
+
+### Scope
+GearZone-FE: FE-SHARED role shells for Customer, Store Owner, Admin, and Staff
+
+### Added
+- Shared role-shell configuration in `src/lib/roleShell.ts`
+- Reusable dashboard shell component in `src/components/shell/RoleShell.tsx`
+- Landing page for role selection in `src/pages/HomePage.tsx`
+- Role-specific shell pages for Customer, Store Owner, Admin, and Staff
+- Route guards and aliases for `/admin/dashboard` and `/seller/dashboard`
+- Role-aware login redirect based on authenticated user role
+
+### Changed
+- Updated auth context login to return the backend login payload so the UI can route by role
+- Replaced the placeholder home screen with a role-aware landing page
+
+### Verification
+- `npm run build` completed successfully in `GearZone-FE`
+
+### Backend audit result
+- Customer flows: supported by existing public/customer-facing controllers
+- Store Owner flows: supported by existing Seller controllers
+- Admin flows: supported by existing Admin controllers
+- Staff flows: no dedicated Staff controller group found; frontend shell is ready, backend contract still pending
