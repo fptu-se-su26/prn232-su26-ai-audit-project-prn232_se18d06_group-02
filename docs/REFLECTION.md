@@ -79,3 +79,13 @@ Backend verification mattered here. Source inspection showed that role-seeded au
 The login redirect change was necessary because the backend callback still routes Store Owner users to `/seller/dashboard` and Admin users to `/admin/dashboard`. Adding compatibility aliases kept the existing backend behavior working without forcing a backend change.
 
 The main lesson is that shared shell work should be implemented as a routing and layout problem first, then connected to backend capabilities only where the API contract is already real. That kept the change minimal, testable, and easy to verify with a successful production build.
+
+---
+
+## Buyer Experience UI Clone Reflection -- 2026-05-30
+
+Cloning 7 buyer pages across 3 PRs was efficient because both projects share the same stack: React + Vite + Tailwind CSS v4. The API client pattern was identical, so API modules cloned with zero adaptation.
+
+ProfilePage was the most complex page (212 lines) with tabbed interface, order list, address CRUD form. The key was reading the URL `?tab=` parameter to set the initial tab state.
+
+Pattern repeated across all 3 PRs: API module → Page component → Route registration → Docs update. This consistent rhythm made the clone predictable and reviewable. Small commits (19 total across 3 PRs) made each change easy to understand and review.

@@ -255,3 +255,30 @@
 
 - `npm run build` in `GearZone-FE` completed successfully.
 - Backend audit was performed by source inspection, not by running live API calls.
+
+---
+
+## 13. Profile Page UI Clone (DE180430)
+
+| Item | Detail |
+|---|---|
+| Date | 2026-05-30 |
+| Scope | Clone profile page UI from source project |
+| Pages | ProfilePage |
+| Branch | `feature/de180430-user-profile` |
+| Backend Check | Confirmed backend has UsersController with orders/addresses endpoints |
+| Outcome | ProfilePage cloned with ~95% UI fidelity, 4 small commits |
+
+### What was done
+
+- Created `usersApi` module: profile, orders, reviews, addresses CRUD
+- Implemented ProfilePage with profile header, tabbed interface
+- Orders tab: order list with status badges, track links for sub-orders
+- Addresses tab: address list, add new address form, delete
+
+### Verification
+
+- Pages use existing Tailwind CSS v4 classes and Material Symbols icons
+- API modules use existing `apiClient` with `unwrap` pattern
+- Routes protected by `RequireAuth` wrapper
+- All commits follow `[DE180430] type: description` convention

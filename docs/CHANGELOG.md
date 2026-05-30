@@ -102,3 +102,46 @@ GearZone-FE: FE-SHARED role shells for Customer, Store Owner, Admin, and Staff
 - Store Owner flows: supported by existing Seller controllers
 - Admin flows: supported by existing Admin controllers
 - Staff flows: no dedicated Staff controller group found; frontend shell is ready, backend contract still pending
+
+---
+
+## [feature/de180430-cart-checkout] -- 2026-05-30
+
+### Scope
+Clone buyer experience UI (cart, checkout, payment, order success) from source project
+
+### Added
+- `ProductCard` shared component
+- `cartApi`, `checkoutApi` modules
+- `CartPage`, `CheckoutPage`, `PayOSCheckoutPage`, `OrderSuccessPage`
+- Routes: `/cart`, `/checkout`, `/checkout/payos`, `/checkout/success/:orderId`
+
+---
+
+## [feature/de180430-order-tracking-review] -- 2026-05-30
+
+### Scope
+Clone order tracking + review UI from source project
+
+### Added
+- `ordersApi`, `reviewsApi` modules
+- `OrderTrackPage` with visual timeline UI
+- `WriteReviewPage` with star rating widget
+- Routes: `/orders/track/:subOrderId`, `/write-review/:orderItemId`
+
+---
+
+## [feature/de180430-user-profile] -- 2026-05-30
+
+### Scope
+Clone profile page UI from source project
+
+### Added
+- `usersApi` module: profile, orders, addresses CRUD
+- `ProfilePage` with tabbed interface (orders + addresses)
+- Route: `/profile`
+
+### Notes (all 3 PRs)
+- No backend code modified
+- All UI cloned from source project with ~95% fidelity
+- Commits follow `[DE180430] type: description` convention

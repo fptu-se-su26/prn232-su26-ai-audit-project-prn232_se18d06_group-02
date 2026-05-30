@@ -234,3 +234,24 @@ Goong REST API: GET /direction with origin/destination lat-lng; parse routes[0].
 Created a shared role-shell frontend architecture, added role-aware routing and login redirects, and checked backend readiness by scanning API controllers and role seeding.
 
 **Used in files:** `GearZone-FE/src/lib/roleShell.ts`, `GearZone-FE/src/components/shell/RoleShell.tsx`, `GearZone-FE/src/pages/*.tsx`, `GearZone-FE/src/App.tsx`, `GearZone-FE/src/contexts/*`
+
+---
+
+## Prompt 5 -- 2026-05-30
+
+**Tool:** Claude Code
+**Context:** Clone buyer experience UI from source project (GearZone `feature/react-tailwind-ui`) to destination
+
+**Prompt:**
+> Clone buyer pages (Cart, Checkout, PayOS, Order Success, Order Tracking, Write Review, Profile) from source React project to destination GearZone-FE. Split into 3 PRs with small commits. Only UI, no backend changes.
+
+**AI Output Summary (PR 1):**
+ProductCard, cartApi, checkoutApi, CartPage, CheckoutPage, PayOSCheckoutPage, OrderSuccessPage. 9 commits.
+
+**AI Output Summary (PR 2):**
+ordersApi, reviewsApi, OrderTrackPage, WriteReviewPage. 6 commits.
+
+**AI Output Summary (PR 3):**
+usersApi, ProfilePage. 4 commits.
+
+**Used in files:** `GearZone-FE/src/api/{cart,checkout,orders,reviews,users}.ts`, `GearZone-FE/src/pages/{Cart,Checkout,PayOSCheckout,OrderSuccess,OrderTrack,WriteReview,Profile}Page.tsx`, `GearZone-FE/src/App.tsx`
