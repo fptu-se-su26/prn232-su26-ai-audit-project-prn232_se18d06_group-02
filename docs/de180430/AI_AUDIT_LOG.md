@@ -13,3 +13,19 @@
 
 ## Usage Note
 For this feature, AI was used only as a lightweight review assistant near the end of the implementation. The page structure, component split, routing setup, and auth flow decisions were implemented manually and then verified with local tooling.
+
+---
+
+## Log #04
+- Date: 2026-05-30
+- Author: Nguyen Sinh Nhat (DE180430)
+- AI Tool: Claude Code
+- Purpose: Implement user profile page with order history and address management
+- Prompt Reference: PROMPTS.md#prompt-04
+- AI Output Summary: Generated ProfilePage with user avatar header, tab navigation, order list cards with sub-order track links, and address management form with validation
+- Human Decision: I reviewed the generated page manually, adjusted the tab URL parameter handling and address form layout to match the intended design
+- Applied To: `GearZone-FE/src/api/users.ts`, `GearZone-FE/src/pages/ProfilePage.tsx`, `GearZone-FE/src/App.tsx`
+- Verification: Confirmed changes manually and validated them with `pnpm build` in `GearZone-FE`
+
+## Usage Note
+AI assisted with generating the profile page layout and form structure. The URL parameter handling for tab state and address CRUD operations were designed and verified manually.

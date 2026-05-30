@@ -21,3 +21,19 @@ Author: Nguyen Sinh Nhat (DE180430)
 ### AI-assisted
 - Used Claude Code in a limited way to review the implemented frontend and highlight a few issues for manual verification
 - Final code changes and validation were performed manually by the author
+
+---
+
+## [2026-05-30] — User Profile Page
+Author: Nguyen Sinh Nhat (DE180430)
+
+### Added
+- Created Users API module with orders and addresses CRUD operations
+- Built ProfilePage with tabbed interface (My Orders, Addresses)
+- Order list with status badges, dates, and sub-order tracking links
+- Address management: view list, add new, delete
+- Registered route in App.tsx: /profile with ?tab URL parameter support
+
+### AI-assisted
+- Used Claude Code to generate the profile page layout and form structure
+- URL parameter handling for tab state and address CRUD operations were designed and verified manually

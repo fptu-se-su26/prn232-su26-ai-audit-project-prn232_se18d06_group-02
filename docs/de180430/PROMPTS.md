@@ -17,3 +17,23 @@ I implemented a React login and registration page in GearZone-FE and split the U
 
 ### Evaluation
 This prompt was specific enough to keep AI focused on the frontend auth feature instead of expanding into unrelated areas. The output was useful as a final review checklist, but the final implementation choices and verification were still done manually.
+
+---
+
+## Prompt #04
+
+- Date: 2026-05-30
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Build user profile page with orders and addresses
+
+### Prompt
+Build a user profile page with a tabbed interface showing order history (with status badges and tracking links) and address management (view, add, delete). Use Tailwind CSS and integrate with the existing users API for orders and addresses.
+
+### Expected Output
+- ProfilePage with user avatar header and tab navigation
+- Orders tab: order list with status badges, sub-order tracking links
+- Addresses tab: address list, add new address form, delete button
+
+### Evaluation
+AI generated the profile page with tabbed layout. I verified the URL parameter handling for tab state and the address CRUD operations manually.

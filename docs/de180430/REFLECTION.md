@@ -13,3 +13,16 @@ This process reinforced that AI is useful for catching small mistakes or missing
 - Frontend auth flow needs both UI validation and route validation, not just successful API calls
 - AI is more useful when the prompt is narrow and specific, especially for final review tasks
 - Manual verification is still necessary even when AI suggestions look correct at first glance
+
+---
+
+## Reflection - User Profile Page
+
+For this task, I implemented the user profile page with a tabbed interface for order history and address management. AI generated the initial profile page layout and address form structure, which I then reviewed and adjusted.
+
+The profile page required managing two separate data views (orders and addresses) within a single page. Using URL parameters for tab state allows deep linking to specific sections.
+
+### What I learned
+- The profile page required managing two separate data views within a single page
+- Using URL parameters for tab state allows deep linking to specific sections
+- The address form used a grid layout for responsive design
