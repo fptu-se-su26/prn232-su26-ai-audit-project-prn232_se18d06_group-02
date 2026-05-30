@@ -255,3 +255,31 @@
 
 - `npm run build` in `GearZone-FE` completed successfully.
 - Backend audit was performed by source inspection, not by running live API calls.
+
+---
+
+## 12. Order Tracking + Review UI Clone (DE180430)
+
+| Item | Detail |
+|---|---|
+| Date | 2026-05-30 |
+| Scope | Clone order tracking + review UI from source project |
+| Pages | OrderTrackPage, WriteReviewPage |
+| Branch | `feature/de180430-order-tracking-review` |
+| Backend Check | Confirmed backend has OrdersController, ReviewsController with matching endpoints |
+| Outcome | 2 pages cloned with ~95% UI fidelity, 6 small commits |
+
+### What was done
+
+- Created `ordersApi` module: payment status, tracking endpoints
+- Created `reviewsApi` module: get editor, submit review
+- Implemented OrderTrackPage with visual timeline UI and status badges
+- Implemented WriteReviewPage with star rating widget and comment form
+- Registered routes in App.tsx with RequireAuth protection
+
+### Verification
+
+- Pages use existing Tailwind CSS v4 classes and Material Symbols icons
+- API modules use existing `apiClient` with `unwrap` pattern
+- Routes protected by `RequireAuth` wrapper
+- All commits follow `[DE180430] type: description` convention

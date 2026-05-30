@@ -102,3 +102,23 @@ GearZone-FE: FE-SHARED role shells for Customer, Store Owner, Admin, and Staff
 - Store Owner flows: supported by existing Seller controllers
 - Admin flows: supported by existing Admin controllers
 - Staff flows: no dedicated Staff controller group found; frontend shell is ready, backend contract still pending
+
+---
+
+## [feature/de180430-order-tracking-review] -- 2026-05-30
+
+### Scope
+Clone order tracking + review UI from source project to GearZone-FE React SPA
+
+### Added
+- `ordersApi` module: payment status, track, trackLive operations
+- `reviewsApi` module: getEditor, submit operations
+- `OrderTrackPage`: order summary card, status badge, vertical tracking timeline
+- `WriteReviewPage`: star rating widget (1-5 with hover), comment textarea, character counter
+
+### Changed
+- `App.tsx`: added routes for `/orders/track/:subOrderId` and `/write-review/:orderItemId`
+
+### Notes
+- No backend code modified
+- 6 small commits following `[DE180430] type: description` convention

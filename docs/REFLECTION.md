@@ -79,3 +79,13 @@ Backend verification mattered here. Source inspection showed that role-seeded au
 The login redirect change was necessary because the backend callback still routes Store Owner users to `/seller/dashboard` and Admin users to `/admin/dashboard`. Adding compatibility aliases kept the existing backend behavior working without forcing a backend change.
 
 The main lesson is that shared shell work should be implemented as a routing and layout problem first, then connected to backend capabilities only where the API contract is already real. That kept the change minimal, testable, and easy to verify with a successful production build.
+
+---
+
+## Order Tracking + Review UI Clone Reflection -- 2026-05-30
+
+The order tracking page's visual timeline (connected dots with status colors) was the most complex UI element in this PR. The star rating widget in the review page was straightforward — simple hover state management with React useState.
+
+Both pages follow the same pattern as PR 1: API module → Page component → Route registration. This consistent pattern made the clone process fast and predictable.
+
+One adjustment: the OrderSuccessPage in PR 1 extracted orderId from the URL path instead of location.state, which is more user-friendly (shareable URLs). This pattern was carried forward to the tracking and review pages as well.
