@@ -21,3 +21,19 @@ Author: Nguyen Sinh Nhat (DE180430)
 ### AI-assisted
 - Used Claude Code in a limited way to review the implemented frontend and highlight a few issues for manual verification
 - Final code changes and validation were performed manually by the author
+
+---
+
+## [2026-05-30] — Order Tracking and Review
+Author: Nguyen Sinh Nhat (DE180430)
+
+### Added
+- Created Orders API module with payment status and tracking endpoints
+- Created Reviews API module with get editor and submit operations
+- Built OrderTrackPage with order summary card, status badge, vertical tracking timeline
+- Built WriteReviewPage with interactive star rating (1-5), comment textarea with character counter
+- Registered routes in App.tsx: /orders/track/:subOrderId, /write-review/:orderItemId
+
+### AI-assisted
+- Used Claude Code to generate the order tracking timeline CSS and star rating widget
+- API integration and route protection were verified manually

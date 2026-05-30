@@ -17,3 +17,22 @@ I implemented a React login and registration page in GearZone-FE and split the U
 
 ### Evaluation
 This prompt was specific enough to keep AI focused on the frontend auth feature instead of expanding into unrelated areas. The output was useful as a final review checklist, but the final implementation choices and verification were still done manually.
+
+---
+
+## Prompt #03
+
+- Date: 2026-05-30
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Build order tracking and product review UI
+
+### Prompt
+Build an order tracking page with a visual timeline showing status steps (Pending, Processing, Shipping, Delivered) and a product review page with a star rating widget and comment form. Use Tailwind CSS and integrate with the existing orders and reviews API.
+
+### Expected Output
+- OrderTrackPage with vertical timeline UI and status-based color coding
+- WriteReviewPage with interactive star rating (hover effect) and comment textarea
+
+### Evaluation
+AI generated both pages with consistent Tailwind styling. I verified the API integration and route protection manually.

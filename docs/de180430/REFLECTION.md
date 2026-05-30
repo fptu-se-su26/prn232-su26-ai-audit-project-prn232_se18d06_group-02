@@ -13,3 +13,16 @@ This process reinforced that AI is useful for catching small mistakes or missing
 - Frontend auth flow needs both UI validation and route validation, not just successful API calls
 - AI is more useful when the prompt is narrow and specific, especially for final review tasks
 - Manual verification is still necessary even when AI suggestions look correct at first glance
+
+---
+
+## Reflection - Order Tracking and Review
+
+For this task, I implemented the order tracking page with a visual timeline and the product review page with a star rating widget. AI generated the initial CSS for the timeline and the star rating component, which I then reviewed and adjusted.
+
+The order tracking timeline required careful CSS positioning for the connecting line between status dots. Using relative/absolute positioning kept the line aligned with each dot. The star rating widget used simple Unicode characters with React hover state for the preview effect.
+
+### What I learned
+- The order tracking timeline required careful CSS positioning for the connecting line between status dots
+- The star rating widget was built with simple Unicode characters and React hover state
+- Consistent Tailwind patterns across pages make the overall UI feel cohesive
