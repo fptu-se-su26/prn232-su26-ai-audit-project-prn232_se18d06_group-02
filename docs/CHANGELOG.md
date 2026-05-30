@@ -102,3 +102,28 @@ GearZone-FE: FE-SHARED role shells for Customer, Store Owner, Admin, and Staff
 - Store Owner flows: supported by existing Seller controllers
 - Admin flows: supported by existing Admin controllers
 - Staff flows: no dedicated Staff controller group found; frontend shell is ready, backend contract still pending
+
+---
+
+## [feature/de180430-cart-checkout] -- 2026-05-30
+
+### Scope
+Clone buyer experience UI (cart, checkout, payment, order success) from source project to GearZone-FE React SPA
+
+### Added
+- `ProductCard` shared component with product image, name, price, brand, store, rating, sale badge
+- `cartApi` module: get, add, updateQuantity, remove operations
+- `checkoutApi` module: getData, placeOrder, cancelPayment, applyVoucher, getSuccess operations
+- `CartPage`: shopping cart with item list, quantity controls, remove, order summary sidebar
+- `CheckoutPage`: delivery address selection, payment method (COD/PayOS), voucher code, order summary
+- `PayOSCheckoutPage`: QR code payment display, amount card, external payment link, cancel
+- `OrderSuccessPage`: order confirmation with item list, total, action buttons
+- Routes registered in App.tsx: `/cart`, `/checkout`, `/checkout/payos`, `/checkout/success/:orderId`
+
+### Changed
+- `App.tsx`: added imports and routes for cart/checkout pages
+
+### Notes
+- No backend code modified
+- All UI cloned from source project `GearZone` branch `feature/react-tailwind-ui` with ~95% fidelity
+- 9 small commits following `[DE180430] type: description` convention

@@ -234,3 +234,18 @@ Goong REST API: GET /direction with origin/destination lat-lng; parse routes[0].
 Created a shared role-shell frontend architecture, added role-aware routing and login redirects, and checked backend readiness by scanning API controllers and role seeding.
 
 **Used in files:** `GearZone-FE/src/lib/roleShell.ts`, `GearZone-FE/src/components/shell/RoleShell.tsx`, `GearZone-FE/src/pages/*.tsx`, `GearZone-FE/src/App.tsx`, `GearZone-FE/src/contexts/*`
+
+---
+
+## Prompt 5 -- 2026-05-30
+
+**Tool:** Claude Code
+**Context:** Clone buyer experience UI from source project (GearZone `feature/react-tailwind-ui`) to destination project
+
+**Prompt:**
+> Clone 7 buyer pages (Cart, Checkout, PayOS Checkout, Order Success, Order Tracking, Write Review, Profile) from source React project to destination GearZone-FE React SPA. Split into 3 PRs with small commits following `[DE180430] type: description` convention. Only UI, no backend changes. Follow README commit rules and update AI audit docs.
+
+**AI Output Summary (PR 1):**
+Created ProductCard shared component, cartApi and checkoutApi modules, CartPage, CheckoutPage, PayOSCheckoutPage, OrderSuccessPage. Registered routes in App.tsx. 9 small commits on branch `feature/de180430-cart-checkout`.
+
+**Used in files:** `GearZone-FE/src/components/ProductCard.tsx`, `GearZone-FE/src/api/cart.ts`, `GearZone-FE/src/api/checkout.ts`, `GearZone-FE/src/pages/CartPage.tsx`, `GearZone-FE/src/pages/CheckoutPage.tsx`, `GearZone-FE/src/pages/PayOSCheckoutPage.tsx`, `GearZone-FE/src/pages/OrderSuccessPage.tsx`, `GearZone-FE/src/App.tsx`

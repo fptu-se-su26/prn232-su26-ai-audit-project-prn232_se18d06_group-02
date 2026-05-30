@@ -255,3 +255,34 @@
 
 - `npm run build` in `GearZone-FE` completed successfully.
 - Backend audit was performed by source inspection, not by running live API calls.
+
+---
+
+## 11. Cart & Checkout UI Clone (DE180430)
+
+| Item | Detail |
+|---|---|
+| Date | 2026-05-30 |
+| Scope | Clone buyer experience UI from source project (GearZone `feature/react-tailwind-ui`) |
+| Pages | CartPage, CheckoutPage, PayOSCheckoutPage, OrderSuccessPage |
+| Branch | `feature/de180430-cart-checkout` |
+| Backend Check | Confirmed backend has CartController, CheckoutController, OrdersController with matching endpoints |
+| Outcome | 4 pages cloned with ~95% UI fidelity, 9 small commits following project conventions |
+
+### What was done
+
+- Cloned `ProductCard` shared component from source project
+- Created `cartApi` and `checkoutApi` modules compatible with existing `apiClient`
+- Implemented CartPage with item management (qty controls, remove, order summary)
+- Implemented CheckoutPage with address selection, payment method (COD/PayOS), voucher
+- Implemented PayOSCheckoutPage with QR code display and payment link
+- Implemented OrderSuccessPage with order confirmation and item list
+- Registered all routes in App.tsx with RequireAuth protection
+- No backend code modified — only UI cloned from source
+
+### Verification
+
+- Pages use existing Tailwind CSS v4 classes and Material Symbols icons
+- API modules use existing `apiClient` with `unwrap` pattern
+- Routes protected by `RequireAuth` wrapper matching existing auth patterns
+- All commits follow `[DE180430] type: description` convention

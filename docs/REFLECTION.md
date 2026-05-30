@@ -79,3 +79,17 @@ Backend verification mattered here. Source inspection showed that role-seeded au
 The login redirect change was necessary because the backend callback still routes Store Owner users to `/seller/dashboard` and Admin users to `/admin/dashboard`. Adding compatibility aliases kept the existing backend behavior working without forcing a backend change.
 
 The main lesson is that shared shell work should be implemented as a routing and layout problem first, then connected to backend capabilities only where the API contract is already real. That kept the change minimal, testable, and easy to verify with a successful production build.
+
+---
+
+## Cart & Checkout UI Clone Reflection -- 2026-05-30
+
+Cloning UI from a sibling project was efficient because both projects share the same tech stack: React + Vite + Tailwind CSS v4 + React Router DOM + Axios. The API client pattern (`apiClient` + `unwrap`) was identical, so the API modules could be cloned with zero adaptation.
+
+Key decisions:
+- Split into multiple PRs with small commits rather than one massive PR — this makes review easier and follows project conventions
+- Only clone UI pages, no backend changes — the backend already has CartController, CheckoutController, etc.
+- Adapted import paths from relative (`../api/cart`) to alias (`@/api/cart`) to match destination conventions
+- Extracted orderId from URL path in OrderSuccessPage instead of location.state for better URL semantics
+
+The main lesson: when cloning between projects with the same stack, the cost is in adapting imports, routes, and context references — not in rewriting the UI logic itself. Small, focused commits per component/API/page made the PR reviewable.
