@@ -7,6 +7,8 @@ import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
 import StaffShellPage from '@/pages/StaffShellPage'
+import OrderTrackPage from '@/pages/OrderTrackPage'
+import WriteReviewPage from '@/pages/WriteReviewPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
   const { user, loading } = useAuth()
@@ -27,6 +29,9 @@ export default function App() {
       <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />
       <Route path="/store-owner" element={<RequireAuth roles={['Store Owner']}><StoreOwnerShellPage /></RequireAuth>} />
       <Route path="/admin" element={<RequireAuth roles={['Super Admin', 'Admin']}><AdminShellPage /></RequireAuth>} />
+
+      <Route path="/orders/track/:subOrderId" element={<RequireAuth><OrderTrackPage /></RequireAuth>} />
+      <Route path="/write-review/:orderItemId" element={<RequireAuth><WriteReviewPage /></RequireAuth>} />
 
       <Route
         path="/seller/dashboard"
