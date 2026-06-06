@@ -1,5 +1,52 @@
 # CHANGELOG.md
 
+## [2026-06-06]
+Author: DE180417
+
+### Added
+- Built the new React Admin Store Management page in `GearZone-FE/src/pages/AdminStoresPage.tsx`
+- Added typed Store Management API support in `GearZone-FE/src/api/admin.ts` for active store listing, store stats, store detail, and store status updates
+- Added backend Store Management API coverage in `GearZone.Web/Controllers/Api/Admin/StoreManagementController.cs`, including active-store filtering and `GET /api/admin/stores/stats`
+- Registered protected React routes for `/admin/stores` and `/admin/stores/:id`
+- Built the new React Admin User Management page in `GearZone-FE/src/pages/AdminUsersPage.tsx`
+- Added typed User Management API support for user listing, role filtering, create, update, soft delete, and restore actions
+- Registered the protected React route `/admin/users`
+- Built the new React Admin Order Management list page in `GearZone-FE/src/pages/AdminOrdersPage.tsx`
+- Built the new React Admin Order Detail page in `GearZone-FE/src/pages/AdminOrderDetailPage.tsx`
+- Added typed Order Management API support for order list, payment/status filtering, sorting, pagination, and order detail loading
+- Registered protected React routes for `/admin/orders`, `/admin/orders/detail`, and `/admin/orders/:id`
+- Built the new React Admin Product Management list page in `GearZone-FE/src/pages/AdminProductsPage.tsx`
+- Built the new React Admin Product Detail page in `GearZone-FE/src/pages/AdminProductDetailPage.tsx`
+- Added typed Product Management API support for list, metadata, detail, approve, reject, suspend, delete, and bulk status actions
+- Registered protected React routes for `/admin/products` and `/admin/products/:id`
+- Added Product Management summary cards, search, status and brand quick filters, advanced filters, table sorting, pagination, row actions, and bulk actions
+- Added Product Detail gallery, product information, technical specifications, variants table, commercial insights, description, store profile summary, and sticky admin action bar
+
+### Changed
+- Expanded `GearZone-FE/src/api/admin.ts` so admin dashboard, stores, users, orders, and products share a typed API access layer
+- Updated admin routing in `GearZone-FE/src/App.tsx` so each management area has protected React routes
+- Kept admin navigation aligned with the existing sidebar labels for Stores, Users, Orders, and Product
+- Kept export controls as visual placeholders where no export API was included in the feature scope
+- Used route-level detail pages for orders and products so admin users can move from list rows into focused review screens
+- Kept product category attribute filtering out of the React screen until a dedicated API endpoint is available
+
+### Fixed
+- Recreated the local project database by applying the available Entity Framework database updates with `dotnet ef database update`
+- Fixed frontend TypeScript issues found while building the newly added admin management pages
+- Avoided stale table selections by clearing selected product rows after product list reloads and bulk actions
+- Kept state-changing product actions behind confirmation or reason modals before calling admin APIs
+
+### Verification
+- Ran `dotnet ef database update --project GearZone.Infrastructure\GearZone.Infrastructure.csproj --startup-project GearZone.Web\GearZone.Web.csproj`
+- Ran `dotnet build GearZone.sln`
+- Ran `npm run build` in `GearZone-FE`
+- Confirmed the backend development server was available at `http://localhost:5107`
+- Confirmed the frontend development server was available at `http://localhost:5173`
+
+### AI-assisted
+- Used Codex to help design, implement, review, and verify the new React admin management pages for stores, users, orders, and products
+- Final route behavior, API contracts, modal actions, filtering behavior, and build verification were reviewed manually by the author
+
 ## [2026-05-29]
 Author: DE180417
 
