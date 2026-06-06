@@ -18,12 +18,24 @@ public class StoreManagementController : BaseApiController
         _storeService = storeService;
     }
 
-    // GET /api/admin/stores
+    // GET /api/admin/stores?[query]
     [HttpGet]
-    public async Task<IActionResult> List()
+    public async Task<IActionResult> List([FromQuery] StoreApplicationQueryDto query)
     {
-        var stores = await _storeService.GetAllStoresAsync();
+        if (query.PageNumber < 1) query.PageNumber = 1;
+        if (query.PageSize < 1) query.PageSize = 10;
+        query.ExcludeStatuses = new List<StoreStatus> { StoreStatus.Draft, StoreStatus.Pending, StoreStatus.Rejected };
+
+        var stores = await _storeService.GetStoreApplicationsAsync(query);
         return OkResponse(stores);
+    }
+
+    // GET /api/admin/stores/stats
+    [HttpGet("stats")]
+    public async Task<IActionResult> Stats()
+    {
+        var stats = await _storeService.GetStoreApplicationStatsAsync();
+        return OkResponse(stats);
     }
 
     // GET /api/admin/stores/{id}
