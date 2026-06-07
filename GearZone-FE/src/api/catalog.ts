@@ -2,6 +2,7 @@ import apiClient, { unwrap } from '@/api/apiClient'
 import type {
   CatalogCategory,
   CatalogFilterSidebar,
+  ProductDetailResponse,
   CatalogProduct,
   PagedResult,
   ProductBrowseFilter,
@@ -65,4 +66,9 @@ export async function getProductSuggestions(query: string) {
     params: { query },
   })
   return unwrap<ProductSuggestion[]>(response)
+}
+
+export async function getProductDetail(slug: string) {
+  const response = await apiClient.get(`/products/${slug}`)
+  return unwrap<ProductDetailResponse>(response)
 }

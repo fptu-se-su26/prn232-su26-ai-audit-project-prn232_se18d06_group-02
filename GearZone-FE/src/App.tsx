@@ -8,6 +8,7 @@ import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
 import StaffShellPage from '@/pages/StaffShellPage'
 import ProductBrowsePage from '@/pages/ProductBrowsePage'
+import ProductDetailPage from '@/pages/ProductDetailPage'
 import SiteLayout from '@/components/layout/SiteLayout'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductBrowsePage />} />
         <Route path="/products/:slug" element={<ProductBrowsePage />} />
+        <Route path="/product/:slug" element={<ProductDetailPage />} />
 
         <Route path="/customer" element={<RequireAuth roles={['Customer']}><CustomerShellPage /></RequireAuth>} />
         <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />
