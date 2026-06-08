@@ -6,6 +6,15 @@ import HomePage from '@/pages/HomePage'
 import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
+import AdminDashboardPage from '@/pages/AdminDashboardPage'
+import AdminOrderDetailPage from '@/pages/AdminOrderDetailPage'
+import AdminOrdersPage from '@/pages/AdminOrdersPage'
+import AdminProductDetailPage from '@/pages/AdminProductDetailPage'
+import AdminProductsPage from '@/pages/AdminProductsPage'
+import AdminStoreApplicationDetailPage from '@/pages/AdminStoreApplicationDetailPage'
+import AdminStoreApplicationsPage from '@/pages/AdminStoreApplicationsPage'
+import AdminStoresPage from '@/pages/AdminStoresPage'
+import AdminUsersPage from '@/pages/AdminUsersPage'
 import StaffShellPage from '@/pages/StaffShellPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
@@ -40,7 +49,87 @@ export default function App() {
         path="/admin/dashboard"
         element={
           <RequireAuth roles={['Super Admin', 'Admin']}>
-            <Navigate to="/admin" replace />
+            <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-applications"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-applications/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/stores"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoresPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/stores/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminUsersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminOrdersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders/detail"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminOrderDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminOrderDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/products"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminProductsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/products/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminProductDetailPage />
           </RequireAuth>
         }
       />
