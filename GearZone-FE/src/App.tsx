@@ -16,6 +16,10 @@ import AdminStoreApplicationsPage from '@/pages/AdminStoreApplicationsPage'
 import AdminStoresPage from '@/pages/AdminStoresPage'
 import AdminUsersPage from '@/pages/AdminUsersPage'
 import StaffShellPage from '@/pages/StaffShellPage'
+import CartPage from '@/pages/CartPage'
+import CheckoutPage from '@/pages/CheckoutPage'
+import PayOSCheckoutPage from '@/pages/PayOSCheckoutPage'
+import OrderSuccessPage from '@/pages/OrderSuccessPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
   const { user, loading } = useAuth()
@@ -36,6 +40,11 @@ export default function App() {
       <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />
       <Route path="/store-owner" element={<RequireAuth roles={['Store Owner']}><StoreOwnerShellPage /></RequireAuth>} />
       <Route path="/admin" element={<RequireAuth roles={['Super Admin', 'Admin']}><AdminShellPage /></RequireAuth>} />
+
+      <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
+      <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+      <Route path="/checkout/payos" element={<RequireAuth><PayOSCheckoutPage /></RequireAuth>} />
+      <Route path="/checkout/success/:orderId" element={<RequireAuth><OrderSuccessPage /></RequireAuth>} />
 
       <Route
         path="/seller/dashboard"
