@@ -16,3 +16,20 @@ This task helped me understand the importance of building a complete user flow i
 - Header search suggestions improve the customer flow because users can jump to relevant product results quickly.
 - Dropdown and infinite scroll behavior should be tested in the browser, not only checked through TypeScript build output.
 - AI assistance is helpful for implementation speed, but manual verification is still necessary for UI accuracy and user experience.
+
+## Reflection - Customer Product Detail and Cart Flow
+
+For this stage, I continued the customer shopping flow by building a new product detail experience in the React frontend and connecting it to the current project APIs. I treated this work as a new implementation in `GearZone-FE`. The feature included product detail loading, variant handling, specifications, reviews, related products, `Add to Cart`, `Buy Now`, cart badge updates, product card cart actions from the browsing page, and fixes for brand filtering and detail-section scrolling.
+
+The most important lesson was that a shopping flow is only complete when the surrounding interactions also work together. A product detail page is not just the UI for product information. It also depends on authentication return flow, cart API behavior, stock validation, cart icon feedback, and correct navigation into checkout. Small missing links, such as a cart icon pointing to the wrong place or a header count not updating, can make a finished-looking feature feel broken to the user.
+
+Another useful observation was the difference between reusing business APIs and creating a new frontend layer. In this task, I reused the project’s existing backend APIs and shopping rules, but the React frontend work itself was still a new implementation. That distinction is important for AI audit documentation because the result should be described as a new FE feature built on the same domain logic.
+
+Manual testing remained necessary even after the code compiled successfully. Some issues only became visible through browser behavior, such as color mismatch with the FE theme, missing cart quantity display, non-working browse-page cart buttons, and section links scrolling to the wrong place because of sticky layout elements. AI helped move quickly, but the final correctness still depended on checking the real user flow end to end.
+
+### What I learned
+- Building a new frontend feature on top of existing APIs should be documented as new implementation work, even when it uses established backend logic.
+- Customer shopping flows need API integration, navigation, authentication, and feedback states to work together, not just the visual page.
+- Cart interactions should update visible UI signals immediately, otherwise users may think the action failed even when the backend succeeded.
+- Sticky headers and anchor navigation need explicit scroll offset handling in frontend pages.
+- AI is effective for accelerating implementation, but browser-based validation is still required to catch interaction gaps and user-perception problems.

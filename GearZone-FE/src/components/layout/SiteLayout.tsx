@@ -32,6 +32,31 @@ function findActiveSlug(categories: CatalogCategory[], pathname: string) {
   return slug
 }
 
+function readCartCount(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return 0
+
+  const data = 'data' in payload ? (payload as { data?: unknown }).data : payload
+  if (!data || typeof data !== 'object') return 0
+
+  const storeGroups = (data as { storeGroups?: unknown }).storeGroups
+  if (!Array.isArray(storeGroups)) return 0
+
+  return storeGroups.reduce((total, group) => {
+    if (!group || typeof group !== 'object') return total
+    const items = (group as { items?: unknown }).items
+    if (!Array.isArray(items)) return total
+
+    return (
+      total +
+      items.reduce((groupTotal, item) => {
+        if (!item || typeof item !== 'object') return groupTotal
+        const quantity = (item as { quantity?: unknown }).quantity
+        return groupTotal + (typeof quantity === 'number' ? quantity : 0)
+      }, 0)
+    )
+  }, 0)
+}
+
 export default function SiteLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -45,6 +70,7 @@ export default function SiteLayout() {
   const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [cartCount, setCartCount] = useState(0)
   const searchContainerRef = useRef<HTMLDivElement | null>(null)
   const mobileSearchContainerRef = useRef<HTMLDivElement | null>(null)
   const categoryCloseTimeoutRef = useRef<number | null>(null)
@@ -129,6 +155,54 @@ export default function SiteLayout() {
 
     return () => window.clearTimeout(timeoutId)
   }, [searchDraft])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCartCount() {
+      if (!user) {
+        setCartCount(0)
+        return
+      }
+
+      try {
+        const response = await fetch('/api/cart', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          if (!cancelled) setCartCount(0)
+          return
+        }
+
+        const payload = await response.json().catch(() => null)
+        if (!cancelled) {
+          setCartCount(readCartCount(payload))
+        }
+      } catch {
+        if (!cancelled) setCartCount(0)
+      }
+    }
+
+    void loadCartCount()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  useEffect(() => {
+    const handleCartCountUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ count?: number }>
+      const nextCount = customEvent.detail?.count
+      if (typeof nextCount === 'number') {
+        setCartCount(nextCount)
+      }
+    }
+
+    window.addEventListener('gearzone:cart-count-updated', handleCartCountUpdated)
+    return () => window.removeEventListener('gearzone:cart-count-updated', handleCartCountUpdated)
+  }, [])
 
   const activeParentSlug = useMemo(() => {
     for (const category of categories) {
@@ -287,9 +361,14 @@ export default function SiteLayout() {
             </div>
 
             <div className="flex flex-shrink-0 items-center gap-4">
-              <Link className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700" to="/products">
+              <a className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700" href="/Cart/Index">
                 <span className="material-symbols-outlined">shopping_cart</span>
-              </Link>
+                {cartCount > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-[#ff6b00] px-1 text-[10px] font-bold leading-5 text-white shadow-sm">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                ) : null}
+              </a>
 
               {user ? (
                 <div className="relative flex items-center gap-3 border-l border-slate-200 pl-4">

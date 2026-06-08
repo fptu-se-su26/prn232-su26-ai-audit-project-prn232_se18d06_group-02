@@ -83,3 +83,109 @@ export interface CompareProduct {
   image: string
   categoryId: string
 }
+
+export interface ProductAttributeOption {
+  optionId: number
+  value: string
+}
+
+export interface ProductAttributeSelection {
+  attributeId: number
+  name: string
+  options: ProductAttributeOption[]
+}
+
+export interface ProductVariantDetail {
+  id: string
+  sku: string
+  variantName: string
+  price: number
+  stockQuantity: number
+  selectedOptionIds: number[]
+}
+
+export interface ProductSpecification {
+  name: string
+  value: string
+}
+
+export interface ProductReviewBreakdown {
+  rating: number
+  count: number
+  percentage: number
+}
+
+export interface ProductReviewSummary {
+  averageRating: number
+  totalReviews: number
+  withCommentCount: number
+  breakdown: ProductReviewBreakdown[]
+}
+
+export interface ProductReviewItem {
+  id: string
+  orderItemId: string
+  buyerDisplayName: string
+  buyerAvatarUrl?: string | null
+  rating: number
+  comment?: string | null
+  variantName: string
+  createdAt: string
+  updatedAt?: string | null
+  sellerReplyContent?: string | null
+  sellerReplyAt?: string | null
+  sellerReplyUpdatedAt?: string | null
+}
+
+export interface EligibleReviewItem {
+  orderItemId: string
+  productId: string
+  storeId: string
+  productName: string
+  productSlug: string
+  productImageUrl?: string | null
+  variantName: string
+  storeName: string
+  orderCode: number
+  deliveredAt: string
+  reviewDeadline: string
+  hasExistingReview: boolean
+  reviewId?: string | null
+  existingRating?: number | null
+  existingComment?: string | null
+}
+
+export interface ProductDetail {
+  id: string
+  categoryId: number
+  name: string
+  slug: string
+  description: string
+  basePrice: number
+  soldCount: number
+  rating: number
+  reviewCount: number
+  brandName: string
+  brandSlug: string
+  categoryName: string
+  categorySlug: string
+  storeId: string
+  storeName: string
+  storeSlug: string
+  storeReviewCount: number
+  storeProductCount: number
+  storeCreatedAt: string
+  storeFollowerCount: number
+  imageUrls: string[]
+  attributeSelections: ProductAttributeSelection[]
+  variants: ProductVariantDetail[]
+  specifications: ProductSpecification[]
+  reviewSummary: ProductReviewSummary
+  eligibleReview?: EligibleReviewItem | null
+}
+
+export interface ProductDetailResponse {
+  product: ProductDetail
+  reviews: PagedResult<ProductReviewItem>
+  relatedProducts: CatalogProduct[]
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getCatalogCategories, getCatalogFilters, getProducts } from '@/api/catalog'
+import { useAuth } from '@/contexts/useAuth'
 import type {
   CatalogCategory,
   CatalogFilterSidebar,
@@ -134,11 +135,15 @@ function ProductCard({
   viewMode,
   selected,
   onCompareToggle,
+  onAddToCart,
+  adding,
 }: {
   product: CatalogProduct
   viewMode: 'grid' | 'list'
   selected: boolean
   onCompareToggle: (product: CatalogProduct, checked: boolean) => void
+  onAddToCart: (product: CatalogProduct) => void
+  adding: boolean
 }) {
   const isList = viewMode === 'list'
   const imageUrl = product.imageUrl || 'https://placehold.co/640x640/f8fafc/94a3b8?text=GearZone'
@@ -235,11 +240,14 @@ function ProductCard({
                   ? `${isList ? 'w-auto px-4 sm:px-6' : 'mt-2 w-full'} bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white`
                   : `${isList ? 'w-auto px-4 sm:px-6' : 'mt-2 w-full'} cursor-not-allowed bg-slate-200 text-slate-500`
               }`}
-              disabled={!product.isInStock}
+              disabled={!product.isInStock || adding}
+              onClick={() => onAddToCart(product)}
               type="button"
             >
-              <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
-              Add to Cart
+              <span className={`material-symbols-outlined text-[18px] ${adding ? 'animate-spin' : ''}`}>
+                {adding ? 'refresh' : 'shopping_cart'}
+              </span>
+              {adding ? 'Adding...' : 'Add to Cart'}
             </button>
           </div>
         </div>
@@ -250,6 +258,8 @@ function ProductCard({
 
 export default function ProductBrowsePage() {
   const { slug } = useParams()
+  const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [categories, setCategories] = useState<CatalogCategory[]>([])
   const [sidebar, setSidebar] = useState<CatalogFilterSidebar>({ brands: [], attributes: [] })
@@ -266,6 +276,8 @@ export default function ProductBrowsePage() {
   const [draftMinPrice, setDraftMinPrice] = useState(MIN_PRICE)
   const [draftMaxPrice, setDraftMaxPrice] = useState(MAX_PRICE)
   const [activePriceThumb, setActivePriceThumb] = useState<'min' | 'max'>('max')
+  const [addingProductId, setAddingProductId] = useState<string | null>(null)
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const hasLoadedOnceRef = useRef(false)
   const loadingMoreRef = useRef(false)
   const pageNumberRef = useRef(1)
@@ -472,6 +484,66 @@ export default function ProductBrowsePage() {
     const next = new URLSearchParams()
     if (search.trim()) next.set('search', search.trim())
     setSearchParams(next)
+  }
+
+  async function handleAddToCart(product: CatalogProduct) {
+    if (authLoading) return
+
+    if (!user) {
+      const returnUrl = `${window.location.pathname}${window.location.search}`
+      navigate(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
+      return
+    }
+
+    if (!product.defaultVariantId) {
+      setActionMessage({ type: 'error', text: 'This product does not have an available variant to add.' })
+      return
+    }
+
+    setActionMessage(null)
+    setAddingProductId(product.id)
+
+    try {
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          variantId: product.defaultVariantId,
+          quantity: 1,
+          isBuyNow: false,
+        }),
+      })
+
+      const redirectedToLogin = response.redirected || (response.status === 200 && response.url.toLowerCase().includes('login'))
+      if (response.status === 401 || redirectedToLogin) {
+        const returnUrl = `${window.location.pathname}${window.location.search}`
+        navigate(`/login?returnUrl=${encodeURIComponent(returnUrl)}`)
+        return
+      }
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message =
+          (payload && typeof payload.error === 'string' && payload.error) ||
+          'An error occurred while adding this product to your cart.'
+        setActionMessage({ type: 'error', text: message })
+        return
+      }
+
+      const nextCartCount = typeof payload?.cartCount === 'number' ? payload.cartCount : null
+      if (nextCartCount !== null) {
+        window.dispatchEvent(new CustomEvent('gearzone:cart-count-updated', { detail: { count: nextCartCount } }))
+      }
+
+      setActionMessage({ type: 'success', text: `"${product.name}" was added to your cart.` })
+    } catch {
+      setActionMessage({ type: 'error', text: 'Server connection error.' })
+    } finally {
+      setAddingProductId(null)
+    }
   }
 
   function handleMinPriceInput(value: number) {
@@ -888,6 +960,25 @@ export default function ProductBrowsePage() {
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">{error}</div>
             ) : null}
 
+            {actionMessage ? (
+              <div
+                className={`rounded-xl px-5 py-4 text-sm font-medium ${
+                  actionMessage.type === 'success'
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border border-rose-200 bg-rose-50 text-rose-700'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{actionMessage.text}</span>
+                  {actionMessage.type === 'success' ? (
+                    <a className="font-bold underline underline-offset-2" href="/Cart/Index">
+                      View cart
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {initialLoading ? (
               <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, index) => (
@@ -905,6 +996,8 @@ export default function ProductBrowsePage() {
                   >
                     {products.map((product) => (
                       <ProductCard
+                        adding={addingProductId === product.id}
+                        onAddToCart={handleAddToCart}
                         key={product.id}
                         onCompareToggle={toggleCompare}
                         product={product}
