@@ -63,6 +63,8 @@ namespace GearZone.Application.Features.Auth
             var user = await _userManager.GetUserAsync(principal);
             if (user == null) return null;
 
+            var roles = await _userManager.GetRolesAsync(user);
+
             return new UserDto
             {
                 Id = user.Id,
@@ -72,7 +74,9 @@ namespace GearZone.Application.Features.Auth
                 UserName = user.UserName,
                 AvatarUrl = user.AvatarUrl,
                 IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                Role = roles.FirstOrDefault(),
+                IsDeleted = user.IsDeleted
             };
         }
 

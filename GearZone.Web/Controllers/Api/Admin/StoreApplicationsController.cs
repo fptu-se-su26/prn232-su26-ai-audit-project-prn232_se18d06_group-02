@@ -28,6 +28,14 @@ public class StoreApplicationsController : BaseApiController
         return OkResponse(applications);
     }
 
+    // GET /api/admin/store-applications/stats
+    [HttpGet("stats")]
+    public async Task<IActionResult> Stats()
+    {
+        var stats = await _storeService.GetStoreApplicationStatsAsync();
+        return OkResponse(stats);
+    }
+
     // GET /api/admin/store-applications/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
