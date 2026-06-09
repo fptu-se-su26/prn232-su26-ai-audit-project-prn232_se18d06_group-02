@@ -1,8 +1,8 @@
 import apiClient, { unwrap } from './apiClient'
 
 export const checkoutApi = {
-  getData: () =>
-    apiClient.get('/checkout').then(res => unwrap(res)),
+  getData: (selectedCartItemIds?: string) =>
+    apiClient.get('/checkout', { params: selectedCartItemIds ? { selectedCartItemIds } : undefined }).then(res => unwrap(res)),
 
   placeOrder: (data: { addressId: string; paymentMethod: string; voucherCode?: string; note?: string }) =>
     apiClient.post('/checkout', data).then(res => unwrap(res)),

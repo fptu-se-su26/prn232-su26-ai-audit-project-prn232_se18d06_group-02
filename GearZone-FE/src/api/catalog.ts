@@ -7,6 +7,7 @@ import type {
   PagedResult,
   ProductBrowseFilter,
   ProductSuggestion,
+  StoreProfile,
 } from '@/types/catalog'
 
 function appendArray(params: URLSearchParams, key: string, values?: string[]) {
@@ -71,4 +72,21 @@ export async function getProductSuggestions(query: string) {
 export async function getProductDetail(slug: string) {
   const response = await apiClient.get(`/products/${slug}`)
   return unwrap<ProductDetailResponse>(response)
+}
+
+export async function getStoreProfile(slug: string) {
+  const response = await apiClient.get(`/stores/${slug}`)
+  return unwrap<StoreProfile>(response)
+}
+
+export async function getStoreProducts(slug: string, filter?: ProductBrowseFilter) {
+  const response = await apiClient.get(`/stores/${slug}/products`, {
+    params: filter ? toParams(filter) : undefined,
+  })
+  return unwrap<PagedResult<CatalogProduct>>(response)
+}
+
+export async function followStore(slug: string) {
+  const response = await apiClient.post(`/stores/${slug}/follow`)
+  return unwrap<{ isFollowing: boolean }>(response)
 }

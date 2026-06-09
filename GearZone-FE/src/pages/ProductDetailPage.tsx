@@ -258,11 +258,11 @@ export default function ProductDetailPage() {
       if (isBuyNow) {
         const cartItemId = payload?.cartItemId
         if (cartItemId) {
-          window.location.href = `/Checkout?SelectedCartItemIds=${encodeURIComponent(cartItemId)}`
+          navigate(`/checkout?selectedCartItemIds=${encodeURIComponent(cartItemId)}`)
           return
         }
 
-        window.location.href = '/Cart/Index'
+        navigate('/cart')
         return
       }
 
@@ -627,9 +627,9 @@ export default function ProductDetailPage() {
                     {actionMessage.type === 'success' && latestCartCount !== null ? ` Cart now has ${latestCartCount} item(s).` : ''}
                   </span>
                   {actionMessage.type === 'success' ? (
-                    <a className="font-bold underline underline-offset-2" href="/Cart/Index">
+                    <Link className="font-bold underline underline-offset-2" to="/cart">
                       View cart
-                    </a>
+                    </Link>
                   ) : null}
                 </div>
               </div>
@@ -673,20 +673,21 @@ export default function ProductDetailPage() {
       <div className="mt-6 overflow-hidden border border-slate-200 bg-[#fafafa]">
         <div className="flex flex-col items-center gap-6 p-5 sm:flex-row sm:gap-10">
           <div className="flex min-w-[320px] items-center gap-4 pr-0 sm:border-r sm:border-slate-200 sm:pr-8">
-            <a className="relative flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm" href={`/store/${product.storeSlug}`}>
+            <Link className="relative flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm" to={`/store/${product.storeSlug}`}>
               <span className="text-[28px] font-black tracking-wider text-slate-800">
                 {(product.storeName || 'S').slice(0, 1).toUpperCase()}
               </span>
-            </a>
+            </Link>
 
             <div className="min-w-0">
-              <a className="truncate text-[15px] font-medium text-slate-800 transition-colors hover:text-[#ff6b00]" href={`/store/${product.storeSlug}`}>
+              <Link className="truncate text-[15px] font-medium text-slate-800 transition-colors hover:text-[#ff6b00]" to={`/store/${product.storeSlug}`}>
                 {product.storeName}
-              </a>
+              </Link>
               <div className="mb-2 text-[13px] text-[#757575]">Active 6 minutes ago</div>
               <div className="flex items-center gap-2.5">
                 <button
                   className="inline-flex items-center gap-1.5 rounded-sm border border-[#ff6b00] bg-[#fff1e8] px-3 py-[7px] text-[13px] text-[#ff6b00] transition-colors hover:bg-[#ffe2cf]"
+                  onClick={() => window.dispatchEvent(new CustomEvent('gearzone:open-chat', { detail: { storeSlug: product.storeSlug } }))}
                   type="button"
                   onClick={() => {
                     if (chatEnabled) void openChatWithStore(product.storeSlug)
@@ -696,10 +697,10 @@ export default function ProductDetailPage() {
                   <span className="material-symbols-outlined text-[15px]">chat</span>
                   Chat Now
                 </button>
-                <a className="inline-flex items-center gap-1.5 rounded-sm border border-[#d5d5d5] bg-white px-3 py-[7px] text-[13px] text-[#555] shadow-sm transition-colors hover:bg-slate-50" href={`/store/${product.storeSlug}`}>
+                <Link className="inline-flex items-center gap-1.5 rounded-sm border border-[#d5d5d5] bg-white px-3 py-[7px] text-[13px] text-[#555] shadow-sm transition-colors hover:bg-slate-50" to={`/store/${product.storeSlug}`}>
                   <span className="material-symbols-outlined text-[15px]">storefront</span>
                   View Shop
-                </a>
+                </Link>
               </div>
             </div>
           </div>
