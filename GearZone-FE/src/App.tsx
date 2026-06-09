@@ -7,8 +7,13 @@ import HomePage from '@/pages/HomePage'
 import ProductBrowsePage from '@/pages/ProductBrowsePage'
 import ProductDetailPage from '@/pages/ProductDetailPage'
 import CustomerShellPage from '@/pages/CustomerShellPage'
-import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
-import AdminShellPage from '@/pages/AdminShellPage'
+import StaffShellPage from '@/pages/StaffShellPage'
+import CartPage from '@/pages/CartPage'
+import CheckoutPage from '@/pages/CheckoutPage'
+import PayOSCheckoutPage from '@/pages/PayOSCheckoutPage'
+import OrderSuccessPage from '@/pages/OrderSuccessPage'
+
+// Admin pages (use AdminLayout internally — must NOT be inside SiteLayout)
 import AdminDashboardPage from '@/pages/AdminDashboardPage'
 import AdminOrderDetailPage from '@/pages/AdminOrderDetailPage'
 import AdminOrdersPage from '@/pages/AdminOrdersPage'
@@ -35,11 +40,87 @@ function RequireAuth({ children, roles }: { children: ReactElement; roles?: stri
   return children
 }
 
+const ADMIN_ROLES = ['Super Admin', 'Admin']
+const SELLER_ROLES = ['Store Owner']
+
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
+      {/* ── Admin (AdminLayout handles its own layout — no SiteLayout wrapper) ── */}
+      <Route
+        path="/admin"
+        element={<RequireAuth roles={ADMIN_ROLES}><Navigate to="/admin/dashboard" replace /></RequireAuth>}
+      />
+      <Route
+        path="/admin/dashboard"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminDashboardPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/store-applications"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminStoreApplicationsPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/store-applications/:id"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminStoreApplicationDetailPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/stores"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminStoresPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/stores/:id"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminStoreApplicationDetailPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/users"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminUsersPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/orders"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminOrdersPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/orders/detail"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminOrderDetailPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/orders/:id"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminOrderDetailPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/products"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminProductsPage /></RequireAuth>}
+      />
+      <Route
+        path="/admin/products/:id"
+        element={<RequireAuth roles={ADMIN_ROLES}><AdminProductDetailPage /></RequireAuth>}
+      />
+
+      {/* ── Store Owner / Seller (SellerLayout handles its own layout) ── */}
+      <Route
+        path="/store-owner"
+        element={<RequireAuth roles={SELLER_ROLES}><Navigate to="/store-owner/dashboard" replace /></RequireAuth>}
+      />
+      <Route
+        path="/store-owner/dashboard"
+        element={<RequireAuth roles={SELLER_ROLES}><SellerDashboardPage /></RequireAuth>}
+      />
+      <Route
+        path="/store-owner/products"
+        element={<RequireAuth roles={SELLER_ROLES}><SellerProductsPage /></RequireAuth>}
+      />
+      <Route
+        path="/store-owner/orders"
+        element={<RequireAuth roles={SELLER_ROLES}><SellerOrdersPage /></RequireAuth>}
+      />
+      <Route
+        path="/store-owner/settings"
+        element={<RequireAuth roles={SELLER_ROLES}><SellerSettingsPage /></RequireAuth>}
+      />
+
+      {/* ── Public + Customer routes (inside SiteLayout) ── */}
       <Route element={<SiteLayout />}>
         {/* Public */}
         <Route path="/" element={<HomePage />} />
@@ -50,8 +131,6 @@ export default function App() {
 
         <Route path="/customer" element={<RequireAuth roles={['Customer']}><CustomerShellPage /></RequireAuth>} />
         <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />
-        <Route path="/store-owner" element={<RequireAuth roles={['Store Owner']}><StoreOwnerShellPage /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAuth roles={['Super Admin', 'Admin']}><AdminShellPage /></RequireAuth>} />
 
         <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
         <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
