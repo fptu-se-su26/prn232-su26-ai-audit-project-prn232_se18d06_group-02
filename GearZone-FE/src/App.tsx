@@ -6,6 +6,8 @@ import HomePage from '@/pages/HomePage'
 import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
+import AdminBrandsPage from '@/pages/AdminBrandsPage'
+import AdminCategoriesPage from '@/pages/AdminCategoriesPage'
 import AdminDashboardPage from '@/pages/AdminDashboardPage'
 import AdminOrderDetailPage from '@/pages/AdminOrderDetailPage'
 import AdminOrdersPage from '@/pages/AdminOrdersPage'
@@ -13,8 +15,11 @@ import AdminProductDetailPage from '@/pages/AdminProductDetailPage'
 import AdminProductsPage from '@/pages/AdminProductsPage'
 import AdminStoreApplicationDetailPage from '@/pages/AdminStoreApplicationDetailPage'
 import AdminStoreApplicationsPage from '@/pages/AdminStoreApplicationsPage'
+import AdminSettingsPage from '@/pages/AdminSettingsPage'
 import AdminStoresPage from '@/pages/AdminStoresPage'
 import AdminUsersPage from '@/pages/AdminUsersPage'
+import AdminVouchersPage from '@/pages/AdminVouchersPage'
+import AdminWalletPage from '@/pages/AdminWalletPage'
 import StaffShellPage from '@/pages/StaffShellPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
@@ -130,6 +135,86 @@ export default function App() {
         element={
           <RequireAuth roles={['Super Admin', 'Admin']}>
             <AdminProductDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/categories"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminCategoriesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/categories/create"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminCategoriesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/categories/:id/edit"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminCategoriesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/brands"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminBrandsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/vouchers"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminVouchersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/vouchers/create"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminVouchersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/vouchers/edit/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminVouchersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <RequireAuth roles={['Super Admin']}>
+            <AdminSettingsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/wallet"
+        element={
+          <RequireAuth roles={['Super Admin']}>
+            <AdminWalletPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/finance/wallet"
+        element={
+          <RequireAuth roles={['Super Admin']}>
+            <AdminWalletPage />
           </RequireAuth>
         }
       />

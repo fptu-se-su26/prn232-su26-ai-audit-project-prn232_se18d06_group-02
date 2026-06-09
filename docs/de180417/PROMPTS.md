@@ -178,3 +178,28 @@ Use the existing admin product API endpoints for list, metadata, detail, approve
 
 ### Evaluation
 This prompt describes Product Management as a new React admin module and defines both the operational list workflow and the review-focused detail workflow. It also explicitly limits the scope where APIs are not available, which keeps the final implementation aligned with the backend contract.
+
+## Prompt #09
+
+- Date: 2026-06-07
+- AI Tool: Codex
+- Author: DE180417
+- Purpose: Build new React Category, Brand, and Voucher Management modules for the admin area
+
+### Prompt
+Please implement new React admin screens for Category Management, Brand Management, and Voucher Management in `GearZone-FE`. The Category Management module should support hierarchical category listing, search, status filtering, create and edit forms, soft delete, parent category assignment, visibility control, slug generation, and category attribute/option editing. The Brand Management module should support brand statistics, search, approval filtering, pagination, create and edit modal forms, brand logo upload or URL input, approve actions, and delete confirmation. The Voucher Management module should support voucher KPI cards, status tabs, search, advanced filters, sorting, ticket-style voucher cards, pagination, create/edit workflows, duplicate support, status toggling, discount validation, usage lifecycle controls, and real-time voucher preview.
+
+Use the existing admin layout, route protection, and API response envelope. Add only the backend API support required for the React screens, such as category attribute persistence, brand multipart form handling, and voucher summary data. Keep the implementation focused on the admin catalog and marketing workflows.
+
+### Expected Output
+- `GearZone-FE/src/pages/AdminCategoriesPage.tsx`
+- `GearZone-FE/src/pages/AdminBrandsPage.tsx`
+- `GearZone-FE/src/pages/AdminVouchersPage.tsx`
+- Typed Category, Brand, and Voucher API support in `GearZone-FE/src/api/admin.ts`
+- Protected routes for `/admin/categories`, `/admin/categories/create`, `/admin/categories/:id/edit`, `/admin/brands`, `/admin/vouchers`, `/admin/vouchers/create`, and `/admin/vouchers/edit/:id`
+- Backend API support for category query and attributes, brand form-data logo handling, and voucher summary data
+- Search, filtering, pagination, loading, error, empty, confirmation, and validation states for the new admin modules
+- Successful frontend and backend build verification
+
+### Evaluation
+This prompt defines Category, Brand, and Voucher Management as new React admin modules with clear catalog and marketing responsibilities. It separates list workflows from create/edit workflows, names the required backend support, and keeps the expected UI behavior tied to admin operations rather than unrelated refactoring.

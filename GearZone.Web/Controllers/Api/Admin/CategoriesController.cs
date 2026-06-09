@@ -20,9 +20,9 @@ public class CategoriesController : BaseApiController
 
     // GET /api/admin/categories
     [HttpGet]
-    public async Task<IActionResult> List()
+    public async Task<IActionResult> List([FromQuery] CategoryQueryDto query)
     {
-        var categories = await _categoryService.GetAllCategoriesListAsync();
+        var categories = await _categoryService.GetHierarchicalCategoriesAsync(query);
         return OkResponse(categories);
     }
 
@@ -50,7 +50,15 @@ public class CategoriesController : BaseApiController
         if (!ModelState.IsValid) return ValidationFailResponse();
         var success = await _categoryService.CreateCategoryAsync(entity);
         if (!success) return FailResponse("Failed to create category.");
-        return OkResponse("Category created.");
+        return OkResponse(new
+        {
+            entity.Id,
+            entity.Name,
+            entity.Slug,
+            entity.ParentId,
+            entity.IsActive,
+            entity.IsDeleted
+        }, "Category created.");
     }
 
     // PUT /api/admin/categories/{id}
@@ -59,8 +67,19 @@ public class CategoriesController : BaseApiController
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
         dto.Id = id;
-        await _categoryService.UpdateCategoryAsync(dto);
+        var ok = await _categoryService.UpdateCategoryAsync(dto);
+        if (!ok) return FailResponse("Failed to update category.");
         return OkResponse("Category updated.");
+    }
+
+    // PUT /api/admin/categories/{id}/attributes
+    [HttpPut("{id:int}/attributes")]
+    public async Task<IActionResult> SaveAttributes(int id, [FromBody] SaveCategoryAttributesRequest request)
+    {
+        if (!ModelState.IsValid) return ValidationFailResponse();
+        request.CategoryId = id;
+        var ok = await _categoryService.SaveCategoryAttributesAsync(request);
+        return ok ? OkResponse("Category attributes saved.") : FailResponse("Failed to save category attributes.");
     }
 
     // DELETE /api/admin/categories/{id}
