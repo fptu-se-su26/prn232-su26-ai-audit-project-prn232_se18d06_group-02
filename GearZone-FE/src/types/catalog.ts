@@ -189,3 +189,18 @@ export interface ProductDetailResponse {
   reviews: PagedResult<ProductReviewItem>
   relatedProducts: CatalogProduct[]
 }
+
+export interface StoreProfile {
+  slug: string
+  name: string
+  description?: string
+  logoUrl?: string
+  bannerUrl?: string
+  followerCount?: number
+  productCount?: number
+  totalSold?: number
+  rating?: number
+  reviewCount?: number
+  isFollowing?: boolean
+  isVerified?: boolean
+}
