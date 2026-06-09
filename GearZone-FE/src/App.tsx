@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/useAuth'
 import SiteLayout from '@/components/layout/SiteLayout'
 import LoginPage from '@/pages/LoginPage'
@@ -27,8 +27,9 @@ import ChatPage from '@/pages/ChatPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">Loading...</div>
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to={`/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}`} replace />
   if (roles && !roles.includes(user.role ?? '')) return <Navigate to="/" replace />
   return children
 }
@@ -37,7 +38,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+
       <Route element={<SiteLayout />}>
+        {/* Public */}
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductBrowsePage />} />
         <Route path="/products/:slug" element={<ProductBrowsePage />} />
