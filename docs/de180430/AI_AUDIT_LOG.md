@@ -29,3 +29,19 @@ For this feature, AI was used only as a lightweight review assistant near the en
 
 ## Usage Note
 AI assisted with generating the UI components and Tailwind CSS structure. The API integration decisions, route protection, and payment flow logic were designed and verified manually.
+
+---
+
+## Log #03
+- Date: 2026-06-09
+- Author: Nguyen Sinh Nhat (DE180430)
+- AI Tool: Claude Code
+- Purpose: Implement the public store profile page and extend the catalog API with store-specific endpoints
+- Prompt Reference: PROMPTS.md#prompt-03, PROMPTS.md#prompt-04
+- AI Output Summary: Prompt-03 generated the Tailwind CSS layout for the store banner, logo overlay, stats row, and products grid. Prompt-04 produced the three catalog API function signatures following the existing unwrap pattern and suggested placing StoreProfile interface in types/catalog.ts.
+- Human Decision: I designed the page sections (banner, stats, grid) and the follow toggle behavior before prompting. I reviewed the generated Tailwind classes and adjusted spacing and color choices for consistency with the existing public pages. I verified the follow/unfollow optimistic state update and the products fetch independently.
+- Applied To: `GearZone-FE/src/types/catalog.ts`, `GearZone-FE/src/api/catalog.ts`, `GearZone-FE/src/pages/StoreProfilePage.tsx`, `GearZone-FE/src/App.tsx`
+- Verification: Confirmed page renders at /store/:slug. Validated with `pnpm build` in `GearZone-FE` with zero TypeScript errors.
+
+## Usage Note
+For this feature, the page section structure and API extension design were planned manually. AI was used to accelerate the Tailwind CSS composition for the banner/stats layout and to draft the API function signatures. The optimistic follow toggle logic and error handling were designed and verified manually.

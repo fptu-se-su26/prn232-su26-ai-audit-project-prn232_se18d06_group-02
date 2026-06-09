@@ -43,3 +43,21 @@ Author: Nguyen Sinh Nhat (DE180430)
 ### AI-assisted
 - Used Claude Code to generate the UI components and Tailwind CSS structure
 - API integration decisions, route protection, and payment flow logic were designed and verified manually
+
+---
+
+## [2026-06-09] — Store Profile Page
+Author: Nguyen Sinh Nhat (DE180430)
+
+### Added
+- Added `StoreProfile` interface to `GearZone-FE/src/types/catalog.ts`
+- Added `getStoreProfile()`, `getStoreProducts()`, and `followStore()` to `GearZone-FE/src/api/catalog.ts` following the existing `unwrap(await apiClient.get(...))` pattern
+- Built `GearZone-FE/src/pages/StoreProfilePage.tsx` — public page at `/store/:slug` with banner (image or gradient fallback), store logo overlay, verified badge, follow/unfollow toggle, stats row (followers, products, total sold, rating), and a responsive 2–5 column products grid using `ProductCard`
+
+### Changed
+- `GearZone-FE/src/App.tsx`: added missing imports for `SiteLayout`, `ProductBrowsePage`, `ProductDetailPage`; removed four duplicate route definitions; registered `/store/:slug` as a public route inside `SiteLayout`
+
+### AI-assisted
+- Used Claude Code to generate the Tailwind CSS layout for banner, stats, and products grid sections
+- Used Claude Code to draft the three catalog API function signatures
+- Page section design, follow toggle logic, and final verification were done manually

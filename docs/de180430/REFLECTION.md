@@ -29,3 +29,21 @@ This experience reinforced that AI is useful for generating component structure 
 - Voucher apply requires separate API calls with proper feedback messages for success and failure
 - Using React useState for loading states during API calls gives users important visual feedback
 - Consistent Tailwind component patterns across multiple pages make the overall UI feel cohesive
+
+---
+
+## Reflection - Store Profile Page
+
+For this feature, I implemented a public store profile page that lets buyers browse a seller's store, view their listed products, and follow or unfollow the store. The page is accessible to all users without authentication. I planned the layout sections — banner, stats, and products grid — before writing any code and decided to reuse the existing ProductCard component for consistency.
+
+I used AI in two focused ways: to generate the Tailwind CSS class composition for the banner overlay, logo positioning, and stats row, and to draft the catalog API function signatures with the correct TypeScript pattern. In both cases I gave a specific prompt and then reviewed and adjusted the output before applying it.
+
+One thing I had to think through manually was the follow toggle optimistic update. Rather than refetching the store profile after a follow call, the handler directly updates the local state by incrementing or decrementing the followerCount. This avoids a round-trip and makes the UI feel snappier, but it requires careful handling when followerCount is undefined — which I added a conditional check for.
+
+Placing the StoreProfile interface in types/catalog.ts was a deliberate decision to keep all catalog-related types in one file, consistent with how CatalogProduct and the other product types are organized.
+
+### What I learned
+- Optimistic state updates for toggle actions (like follow/unfollow) improve perceived performance but need null/undefined guards when the value may not exist
+- Overlapping elements like a store logo above a banner are easy to achieve with Tailwind's `translate-y-1/2` on an absolute-positioned child inside a `relative` container
+- Reusing existing components like ProductCard across multiple pages is worth the small mapping step — it keeps the visual style consistent without duplicating rendering logic
+- Keeping TypeScript interfaces in dedicated type files makes imports cleaner and easier to maintain across multiple API and page files
