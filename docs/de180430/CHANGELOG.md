@@ -43,3 +43,20 @@ Author: Nguyen Sinh Nhat (DE180430)
 ### AI-assisted
 - Used Claude Code to generate the UI components and Tailwind CSS structure
 - API integration decisions, route protection, and payment flow logic were designed and verified manually
+
+---
+
+## [2026-06-09] — Seller Messaging Page
+Author: Nguyen Sinh Nhat (DE180430)
+
+### Added
+- Created `GearZone-FE/src/api/chat.ts` with `chatApi.buyer.*` and `chatApi.seller.*` namespaces covering inbox, thread, conversationUpdate, unread, scopeOptions, and conversation ensure helpers. Shared `send()` and `markRead()` complete the contract.
+- Built `GearZone-FE/src/pages/seller/SellerMessagesPage.tsx` — a two-panel seller messaging dashboard with conversation sidebar and thread panel. Features include 5-second polling for new messages, unread badges, mark-as-read on conversation open, and Enter-to-send textarea.
+
+### Changed
+- `GearZone-FE/src/App.tsx`: added missing imports for `SiteLayout`, `ProductBrowsePage`, `ProductDetailPage`; removed four duplicate route definitions; wrapped all routes cleanly inside `SiteLayout`; registered `/seller/messages` route for Store Owner role.
+
+### AI-assisted
+- Used Claude Code to generate the TypeScript interface outline and Tailwind CSS class structure for the chat UI
+- Used Claude Code to review the polling useEffect for potential memory leaks
+- API module design, layout decisions, and final verification were done manually

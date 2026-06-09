@@ -29,3 +29,21 @@ This experience reinforced that AI is useful for generating component structure 
 - Voucher apply requires separate API calls with proper feedback messages for success and failure
 - Using React useState for loading states during API calls gives users important visual feedback
 - Consistent Tailwind component patterns across multiple pages make the overall UI feel cohesive
+
+---
+
+## Reflection - Seller Messaging Page
+
+For this feature, I implemented a real-time messaging interface for sellers to read and reply to buyer conversations. The page has a sidebar listing all conversations and a thread panel showing the selected conversation with a send input. I designed the two-panel layout and the polling approach before writing any code.
+
+I used AI in three focused ways: to draft the TypeScript interface shapes, to generate a Tailwind CSS skeleton for the sidebar and message bubble classes, and to review the useEffect polling implementation for potential issues. In each case I gave AI a specific, narrow prompt and then verified the output before applying it.
+
+The most important part was still manual: understanding the interaction between loadThread, the polling interval, and the mark-as-read side effect. These three things need to stay in sync — if the interval fires while the thread is already loading, it should not cause double-rendering. I verified this by reading the code path carefully and confirming that the setState updater function in the polling callback avoids the stale closure issue.
+
+One thing I had to fix manually was the App.tsx routing — the existing file had missing imports for SiteLayout, ProductBrowsePage, and ProductDetailPage, plus duplicate route definitions. These caused a TypeScript build error that I identified and fixed before the final commit.
+
+### What I learned
+- Real-time polling with setInterval works well for low-frequency updates but the cleanup pattern in useEffect is important — missing it causes interval pile-up when the selected conversation changes
+- Tailwind's bg-white/10 and border-white/10 utilities are very useful for dark-theme glassmorphism without needing custom CSS
+- Splitting the API module into buyer and seller namespaces keeps the chat contract clear even though both sides share send() and markRead()
+- AI-generated TypeScript interfaces are a useful starting point but need adjustment once the actual backend response shape is known

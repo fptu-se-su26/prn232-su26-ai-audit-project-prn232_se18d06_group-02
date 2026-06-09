@@ -29,3 +29,19 @@ For this feature, AI was used only as a lightweight review assistant near the en
 
 ## Usage Note
 AI assisted with generating the UI components and Tailwind CSS structure. The API integration decisions, route protection, and payment flow logic were designed and verified manually.
+
+---
+
+## Log #03
+- Date: 2026-06-09
+- Author: Nguyen Sinh Nhat (DE180430)
+- AI Tool: Claude Code
+- Purpose: Implement the seller messaging page — a two-panel inbox and thread interface for Store Owner users
+- Prompt Reference: PROMPTS.md#prompt-03, PROMPTS.md#prompt-04, PROMPTS.md#prompt-05
+- AI Output Summary: Prompt-03 produced the component state shape, interface definitions, and handler outline. Prompt-04 generated the Tailwind CSS class structure for the sidebar and message bubbles. Prompt-05 reviewed the polling implementation and flagged the cleanup pattern in the useEffect return.
+- Human Decision: I designed the two-panel layout decision (sidebar vs. thread split) and the polling interval before prompting. I reviewed the generated Tailwind classes and adjusted color choices to match the existing seller theme. I verified the mark-as-read side-effect and the sending flow manually. The API module structure was written manually using the existing apiClient pattern.
+- Applied To: `GearZone-FE/src/api/chat.ts`, `GearZone-FE/src/pages/seller/SellerMessagesPage.tsx`, `GearZone-FE/src/App.tsx`
+- Verification: Confirmed page renders and routing works. Validated with `pnpm build` in `GearZone-FE` with zero errors.
+
+## Usage Note
+For this feature, I designed the overall layout structure and the API contract shape before using AI. AI was mainly used to generate the Tailwind CSS styling and to review the polling cleanup logic. The conversation sidebar, thread rendering, and send handler were understood and verified manually before committing.
