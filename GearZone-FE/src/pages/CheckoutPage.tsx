@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { checkoutApi } from '@/api/checkout'
 
 interface Address { id: string; fullName: string; phone: string; addressLine: string; province: string; district: string; ward: string }
@@ -11,6 +11,8 @@ interface CheckoutData {
 
 export default function CheckoutPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const selectedCartItemIds = searchParams.get('selectedCartItemIds') ?? undefined
   const [data, setData] = useState<CheckoutData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedAddress, setSelectedAddress] = useState('')
@@ -22,12 +24,12 @@ export default function CheckoutPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    checkoutApi.getData().then(d => {
+    checkoutApi.getData(selectedCartItemIds).then(d => {
       const cd = d as CheckoutData
       setData(cd)
       if (cd.addresses?.length > 0) setSelectedAddress(cd.addresses[0].id)
     }).finally(() => setLoading(false))
-  }, [])
+  }, [selectedCartItemIds])
 
   const handleApplyVoucher = async () => {
     if (!voucherCode) return

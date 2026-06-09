@@ -24,6 +24,7 @@ import AdminUsersPage from '@/pages/AdminUsersPage'
 import StaffShellPage from '@/pages/StaffShellPage'
 import CartPage from '@/pages/CartPage'
 import CheckoutPage from '@/pages/CheckoutPage'
+import StoreProfilePage from '@/pages/StoreProfilePage'
 import PayOSCheckoutPage from '@/pages/PayOSCheckoutPage'
 import OrderSuccessPage from '@/pages/OrderSuccessPage'
 
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/products" element={<ProductBrowsePage />} />
         <Route path="/products/:slug" element={<ProductBrowsePage />} />
         <Route path="/product/:slug" element={<ProductDetailPage />} />
+        <Route path="/store/:slug" element={<StoreProfilePage />} />
 
         {/* Authenticated buyer */}
         <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
