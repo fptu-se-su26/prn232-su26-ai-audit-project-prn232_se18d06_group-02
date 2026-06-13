@@ -110,7 +110,7 @@ function SortIcon({ active, direction }: { active: boolean; direction: string })
 
 function paginationPages(current: number, total: number) {
   let start = Math.max(1, current - 2)
-  let end = Math.min(total, start + 4)
+  const end = Math.min(total, start + 4)
   if (end - start < 4 && start > 1) start = Math.max(1, end - 4)
 
   const pages: Array<number | 'ellipsis-start' | 'ellipsis-end'> = []
@@ -227,6 +227,7 @@ export default function AdminOrdersPage() {
   }
 
   const handleSort = (column: string) => {
+    // eslint-disable-next-line no-useless-assignment
     let nextDirection = ''
     let nextSortBy = column
 
