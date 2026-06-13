@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'reac
 import { getCatalogCategories, getProductSuggestions } from '@/api/catalog'
 import { useAuth } from '@/contexts/useAuth'
 import { getShellPath, resolveShellRole } from '@/lib/roleShell'
+import ChatWidget from '@/components/chat/ChatWidget'
 import type { CatalogCategory, ProductSuggestion } from '@/types/catalog'
 
 const navLabelOverrides: Record<string, string> = {
@@ -634,6 +635,7 @@ export default function SiteLayout() {
           </div>
         </div>
       </footer>
+      <ChatWidget />
     </div>
   )
 }

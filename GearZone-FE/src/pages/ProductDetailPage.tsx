@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getProductDetail } from '@/api/catalog'
 import { useAuth } from '@/contexts/useAuth'
+import { useChatContext } from '@/contexts/useChatContext'
 import type {
   CatalogProduct,
   ProductAttributeSelection,
@@ -125,6 +126,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
+  const { enabled: chatEnabled, openChatWithStore } = useChatContext()
   const [data, setData] = useState<ProductDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -686,6 +688,10 @@ export default function ProductDetailPage() {
                 <button
                   className="inline-flex items-center gap-1.5 rounded-sm border border-[#ff6b00] bg-[#fff1e8] px-3 py-[7px] text-[13px] text-[#ff6b00] transition-colors hover:bg-[#ffe2cf]"
                   type="button"
+                  onClick={() => {
+                    if (chatEnabled) void openChatWithStore(product.storeSlug)
+                    else navigate('/login')
+                  }}
                 >
                   <span className="material-symbols-outlined text-[15px]">chat</span>
                   Chat Now
