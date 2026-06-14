@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useLocation, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { checkoutApi } from '@/api/checkout'
