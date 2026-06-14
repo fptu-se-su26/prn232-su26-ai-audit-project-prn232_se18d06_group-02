@@ -43,3 +43,25 @@ Please build the customer product detail page as a newly implemented React front
 
 ### Evaluation
 This prompt was useful because it clearly framed the work as building a new React shopping flow on top of the current project APIs instead of describing it like a rework of an older UI. The AI output accelerated page structure, API integration, and action handling, but manual review was still necessary to align the orange theme, cart badge behavior, brand filtering, login return flow, and section-anchor scrolling with the real app behavior.
+
+## Prompt #03
+
+- Date: 2026-06-14
+- AI Tool: Codex
+- Author: Dang Cong Quoc Khanh (DE180880)
+- Purpose: Build the new React cart experience and improve customer shopping interactions in `GearZone-FE`
+
+### Prompt
+Please help build the customer cart experience in `GearZone-FE` as a new React frontend feature using the current project APIs. I need a proper cart page with store-grouped items, quantity controls, item selection, order summary, smooth quantity updates, a custom delete confirmation dialog, and reliable price-slider interaction on the browsing page. Keep the documentation and implementation framed as newly built frontend work in the current application, not as a refactor story from an older UI.
+
+### Expected Output
+- A React cart page at `/cart` with grouped store sections and product items
+- Quantity increase/decrease controls that feel smooth and do not reload the full cart view
+- Item and store selection behavior that updates the cart summary immediately
+- A custom in-app confirmation dialog for removing cart items
+- Cart navigation from customer shopping flows routed into the React cart page
+- A more reliable custom price slider interaction for min/max filtering on the browsing page
+- Successful frontend build verification
+
+### Evaluation
+This prompt was useful because it combined UX, state management, and interaction behavior into one customer shopping flow instead of treating them as isolated fixes. The AI output helped accelerate the cart page structure and interaction logic, but manual review and browser testing were still necessary to confirm that quantity updates felt smooth, the delete dialog matched the UI, and both price-slider handles worked correctly.

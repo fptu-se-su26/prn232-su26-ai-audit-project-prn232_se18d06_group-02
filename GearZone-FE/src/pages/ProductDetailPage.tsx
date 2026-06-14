@@ -262,7 +262,7 @@ export default function ProductDetailPage() {
           return
         }
 
-        window.location.href = '/Cart/Index'
+        window.location.href = '/cart'
         return
       }
 
@@ -627,7 +627,7 @@ export default function ProductDetailPage() {
                     {actionMessage.type === 'success' && latestCartCount !== null ? ` Cart now has ${latestCartCount} item(s).` : ''}
                   </span>
                   {actionMessage.type === 'success' ? (
-                    <a className="font-bold underline underline-offset-2" href="/Cart/Index">
+                    <a className="font-bold underline underline-offset-2" href="/cart">
                       View cart
                     </a>
                   ) : null}
