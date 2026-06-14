@@ -262,3 +262,191 @@ test for the message bubble covering own vs incoming rendering and the "Seen" ma
 ### Evaluation
 Kept the formatters pure so they were straightforward to test. Configured automatic JSX so the component
 test renders without importing React. All tests pass alongside lint and build.
+
+---
+
+## Prompt #13
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Define the store-profile types and a stores API module for the seller view
+
+### Prompt
+I'm building a public store profile page. Define the TypeScript types for a store profile (name, slug,
+logo, description, province, product count, total sold, rating, review count, follower count, isFollowing,
+createdAt, review summary) and a follow-toggle result, plus a store product filter derived from the
+existing product filter. Then create a stores API module using our apiClient/unwrap pattern: get a store
+profile by slug, toggle follow, and get a store's products — building the query string the same way the
+catalog module does.
+
+### Expected Output
+- `src/types/store.ts` with StoreProfile, FollowToggleResult, StoreProductFilter
+- `src/api/stores.ts` with getStoreProfile, toggleStoreFollow, getStoreProducts
+
+### Evaluation
+Adopted. I pointed the products call at the dedicated `/stores/{slug}/products` endpoint and the follow
+call at `/stores/{slug}/follow` (both by slug) after confirming the real backend routes, so no change to
+the shared product filter was needed. Exported the param builder so it can be unit tested.
+
+---
+
+## Prompt #14
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Build the data hooks for the store profile, URL-driven filters, products, and follow
+
+### Prompt
+Create the hooks this page needs: a useStoreProfile hook that loads a store by slug with loading/error/
+not-found states; a useStoreFilters hook that keeps sort, category, price range, and page number in the
+URL search params (default sort popular, resetting the page when a filter changes); a useStoreProducts
+hook that refetches when the filter changes; and a useStoreFollow hook with an optimistic toggle that
+redirects anonymous users to login and reconciles the follower count from the response.
+
+### Expected Output
+- `src/hooks/{useStoreProfile,useStoreFilters,useStoreProducts,useStoreFollow}.ts`
+
+### Evaluation
+Adopted. Listing state lives entirely in the URL so the view is shareable and back/forward works. The
+follow hook applies the optimistic change immediately, reconciles with the API result, and reverts on
+failure; the profile sync is done during render (keyed on store id) to satisfy the strict hooks lint.
+
+---
+
+## Prompt #15
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Build the store header with identity, follow/chat actions, and a stats grid
+
+### Prompt
+Build the store header: a dark gradient banner with the logo (reusing our Avatar), the name, a verified
+badge, location, a 2-line clamped description, a follow button with count, a chat button, and a stats
+grid (products, total sold, rating with reviews, and "joined" as a relative time) — 4 columns on desktop
+and 2 on mobile, with thousands separators. Add a small format helper for counts and relative time.
+
+### Expected Output
+- `src/components/store/{StoreHeader,StoreIdentity,StoreFollowButton,StoreChatButton,StoreStats,StoreStatItem}.tsx`
+- `src/lib/format.ts`
+
+### Evaluation
+Adopted; I split each stat into a reusable StoreStatItem and kept the count/relative-time formatters as
+pure functions. The chat button reuses the existing chat context's openChatWithStore action.
+
+---
+
+## Prompt #16
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Build the sticky sort tabs and the sidebar filters
+
+### Prompt
+Build the sticky sort tabs (popular, newest, best selling, price low→high, price high→low) with the total
+product count, and the sidebar filters: a category hierarchy with an "All Products" option, a price-range
+panel with apply that ignores negative/inverted ranges, and a conditional "clear all filters" link.
+
+### Expected Output
+- `src/components/store/{StoreSortTabs,StoreSidebar,StoreCategoryFilter,CategoryFilterItem,StorePriceFilter,ClearFiltersLink}.tsx`
+- Shared sort options constant in `src/lib/storeSort.ts`
+
+### Evaluation
+Adopted. Moved the sort-options constant into its own module so the tab component file only exports a
+component (Fast-Refresh rule). The price filter validates bounds before emitting and syncs its inputs when
+the applied range changes externally.
+
+---
+
+## Prompt #17
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Build the product grid, empty state, and a reusable pagination control
+
+### Prompt
+Build the product grid using our existing ProductCard (2→3→4 columns), a "No Products Found" empty state
+that reuses our EmptyState with a reset link, and a reusable pagination control showing the first/last/
+neighbor pages with ellipsis and prev/next, with the page-list logic factored out so it can be tested.
+
+### Expected Output
+- `src/components/store/{StoreProductGrid,StoreProductsEmptyState}.tsx`
+- `src/components/ui/Pagination.tsx` and `src/lib/pagination.ts`
+
+### Evaluation
+Adopted. The grid maps the catalog product into the ProductCard's data shape. Extracted `buildPageList`
+into `lib/pagination.ts` so the component file stays component-only and the logic is unit tested.
+
+---
+
+## Prompt #18
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Assemble the store profile page, add the route, and handle states + responsive layout
+
+### Prompt
+Assemble the store profile page at /store/:slug, wiring the header, sort tabs, sidebar, grid, and
+pagination to the URL-driven filter state. Add a public route, the loading/empty/error and store-not-found
+states, and make the layout responsive: hide the sidebar on mobile behind a collapsible "Filters" toggle,
+keep the sort tabs sticky, and use the 4→2 stats grid and 2→3→4 product grid.
+
+### Expected Output
+- `src/pages/StoreProfilePage.tsx`, `src/components/store/StoreNotFound.tsx`
+- A public `/store/:slug` route in `App.tsx`
+
+### Evaluation
+Adopted. Each data source has its own loading/error handling so a slow product fetch never blanks the
+header. Only the product list refetches on filter changes; profile and categories stay put. The route is
+public; follow/chat actions redirect anonymous users to login.
+
+---
+
+## Prompt #19
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Confirm the chat button and the product-detail entry points reach the store page
+
+### Prompt
+Wire the chat button to open chat scoped to this store, and confirm the entry points (product detail
+"View Shop" and the store logo/name) link to /store/{slug}.
+
+### Expected Output
+- Chat button calling openChatWithStore(slug)
+- Verified product-detail links resolve to the new route
+
+### Evaluation
+The chat button reuses the existing chat context. The product detail page already linked to
+`/store/{slug}` for the logo, name, and "View Shop" button, so those entry points resolve to the new page
+with no change; the home page currently shows role shells with no store cards to wire.
+
+---
+
+## Prompt #20
+
+- Date: 2026-06-14
+- AI Tool: Claude Code
+- Author: Nguyen Sinh Nhat (DE180430)
+- Purpose: Add tests for the seller-view hooks, the param builder, pagination, and key components
+
+### Prompt
+Write tests: the store product param builder (emits/omits correctly), the pagination page-list (ellipsis
+and bounds), the useStoreFilters URL round-trip (default sort, page reset, clear), the useStoreFollow
+optimistic toggle (reconcile, revert on failure, anonymous redirect), and the price filter and sort tabs
+components.
+
+### Expected Output
+- Unit tests for `toStoreProductParams` and `buildPageList`
+- Hook tests for `useStoreFilters` and `useStoreFollow`
+- Component tests for `StorePriceFilter` and `StoreSortTabs`
+
+### Evaluation
+Adopted. Kept the testable logic pure (param builder, page-list) and mocked the API/auth/navigation for
+the follow hook. All 21 new tests pass alongside the existing suite, lint, and build.

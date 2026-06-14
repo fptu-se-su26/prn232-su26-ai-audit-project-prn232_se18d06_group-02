@@ -75,3 +75,47 @@ established lint-disable convention to get a green build and lint.
 - Working around pre-existing build/lint breakage in the project before the feature could be verified.
 - Configuring the test runner (automatic JSX, excluding test files from the production build) on a very
   new toolchain.
+
+---
+
+## Reflection - Seller View (customer-facing store profile)
+
+For this feature I built the public store profile page in `GearZone-FE`: a header with the seller's
+identity, follow and chat actions, and a stats grid, followed by a product listing with sort, category and
+price filters, and pagination. I used AI in small, focused steps — one prompt per concern (types, API,
+hooks, header, controls, grid/pagination, page assembly, tests) — so each piece stayed reviewable and I
+could verify with lint, build, and tests before moving on.
+
+The decisions that mattered were mine to make and verify. The most important was to keep the entire
+listing state (sort, category, price, page) in the URL search params as a single source of truth, so the
+view is shareable and the browser back/forward buttons work, and only the product list refetches while the
+header and categories stay put. I also made the follow action optimistic — applying the change instantly,
+then reconciling with the API response and reverting on failure — and made it redirect anonymous users to
+login rather than silently doing nothing.
+
+A few things needed human judgement beyond accepting AI output. Before wiring anything I checked the real
+backend routes and found the follow and product endpoints are keyed by slug (not the id the early notes
+assumed), with a dedicated `/stores/{slug}/products` route — so I targeted those directly and avoided
+changing the shared product filter. A strict new hooks lint rule also pushed me to sync prop-derived state
+during render (keyed on the store id) instead of in an effect, and to move the sort-options constant and
+the pagination page-list logic out of the component files (both for the Fast-Refresh rule and to make the
+logic unit-testable).
+
+### How I verified the results
+- Ran `npm run lint`, `npm run build` (tsc + vite), and `npm run test` after each step; all green.
+- Wrote unit tests for the pure logic (param builder, pagination page-list), hook tests for the URL-driven
+  filters and the optimistic follow, and component tests for the price filter and sort tabs.
+- Confirmed the store API calls and DTO shapes match the backend before wiring the UI, and that the
+  product-detail "View Shop" links resolve to the new route.
+
+### What I learned
+- Putting listing state in the URL keeps the page shareable and makes filter/pagination behaviour
+  predictable, with refetching scoped to just the product list.
+- Reusing the project's shared primitives, ProductCard, and the chat integration point kept the feature
+  small and consistent instead of duplicating UI.
+- Verifying the actual backend routes up front prevented wiring against assumed endpoints.
+
+### Difficulties
+- Reconciling the early route assumptions with the real (slug-based) backend endpoints.
+- Satisfying the strict React 19 hooks/refresh lint rules without changing behaviour (render-time state
+  sync, and moving constants/logic into `lib/`).
