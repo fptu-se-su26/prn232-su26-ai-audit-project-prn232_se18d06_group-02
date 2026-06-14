@@ -43,3 +43,34 @@ Author: Nguyen Sinh Nhat (DE180430)
 ### AI-assisted
 - Used Claude Code to generate the UI components and Tailwind CSS structure
 - API integration decisions, route protection, and payment flow logic were designed and verified manually
+
+---
+
+## [2026-06-13] — Real-time Chat (customer ↔ seller)
+Author: Nguyen Sinh Nhat (DE180430)
+
+### Added
+- Chat data layer: TypeScript types (`types/chat.ts`) and REST API client (`api/chat.ts`)
+- SignalR real-time client (`lib/chatHub.ts`) and `useChatHub` connection hook; added `@microsoft/signalr`
+- Shared UI primitives (`components/ui/`): Avatar, UnreadBadge, EmptyState, ErrorState, LoadingOverlay
+- Pure helpers: `lib/chatFormat.ts` (time/date/grouping), `lib/text.ts` (initials), `lib/sessionStore.ts`
+- Hooks: `useDebouncedValue`, `useChatConversations`, `useChatThread`, `useAutoScroll`, `useMessageDraft`, `useChatWidget`, `useChatUnread`
+- Conversation list (search, All/Unread filter, shop scope, infinite scroll) and components
+- Message thread with date grouping, message bubble (own/incoming, "Seen"), product context card, and composer (draft persistence + 2000-char limit)
+- Floating, responsive chat widget (desktop panel / mobile full-screen drawer) reusing a shared `ChatInboxLayout`
+- Full chat page at `/messages`; `ChatProvider`/`useChatContext` with app-wide unread count and an `openChatWithStore` action
+- Vitest setup with unit tests (formatters/initials) and a MessageBubble component test; `test` script
+
+### Changed
+- `main.tsx`: wrapped the app in `ChatProvider`
+- `App.tsx`: added the `/messages` route
+- `SiteLayout.tsx`: mounted the floating chat widget for authenticated customers (hidden on `/messages`)
+- `ProductDetailPage.tsx`: wired the "Chat Now" button to open a conversation with the shop
+
+### Fixed
+- Repaired the app router (`App.tsx`): added missing page/layout imports, removed duplicated routes, and fixed the layout route nesting so the app compiles
+- Cleared pre-existing lint errors in a few existing files using the project's standard rule disables and trivial safe fixes
+
+### AI-assisted
+- Built with Claude Code from a sequence of small, focused prompts (see PROMPTS.md #03–#12)
+- Each step was reviewed and verified locally with `npm run lint`, `npm run build`, and `npm run test` before moving on
