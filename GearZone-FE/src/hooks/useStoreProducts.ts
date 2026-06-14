@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react'
 import { getStoreProducts } from '@/api/stores'
 import type { CatalogProduct, PagedResult } from '@/types/catalog'

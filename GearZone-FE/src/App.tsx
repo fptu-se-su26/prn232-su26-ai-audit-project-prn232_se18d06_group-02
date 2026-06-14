@@ -6,6 +6,7 @@ import LoginPage from '@/pages/LoginPage'
 import HomePage from '@/pages/HomePage'
 import ProductBrowsePage from '@/pages/ProductBrowsePage'
 import ProductDetailPage from '@/pages/ProductDetailPage'
+import StoreProfilePage from '@/pages/StoreProfilePage'
 import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/products" element={<ProductBrowsePage />} />
         <Route path="/products/:slug" element={<ProductBrowsePage />} />
         <Route path="/product/:slug" element={<ProductDetailPage />} />
+        <Route path="/store/:slug" element={<StoreProfilePage />} />
 
         <Route path="/customer" element={<RequireAuth roles={['Customer']}><CustomerShellPage /></RequireAuth>} />
         <Route path="/staff" element={<RequireAuth roles={['Staff']}><StaffShellPage /></RequireAuth>} />

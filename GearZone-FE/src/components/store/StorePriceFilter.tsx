@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 interface StorePriceFilterProps {
   minPrice?: number
@@ -15,11 +15,15 @@ function parseInput(value: string): number | null {
 export default function StorePriceFilter({ minPrice, maxPrice, onApply }: StorePriceFilterProps) {
   const [min, setMin] = useState(minPrice ? String(minPrice) : '')
   const [max, setMax] = useState(maxPrice ? String(maxPrice) : '')
+  const [syncedRange, setSyncedRange] = useState(`${minPrice ?? ''}-${maxPrice ?? ''}`)
 
-  useEffect(() => {
+  // Sync inputs when the applied range changes externally (e.g. clear filters).
+  const range = `${minPrice ?? ''}-${maxPrice ?? ''}`
+  if (range !== syncedRange) {
+    setSyncedRange(range)
     setMin(minPrice ? String(minPrice) : '')
     setMax(maxPrice ? String(maxPrice) : '')
-  }, [minPrice, maxPrice])
+  }
 
   const handleApply = () => {
     const parsedMin = parseInput(min)

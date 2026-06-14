@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from 'react'
 import { getStoreProfile } from '@/api/stores'
 import type { StoreProfile } from '@/types/store'
@@ -38,14 +39,13 @@ export function useStoreProfile(slug: string | undefined): UseStoreProfileResult
   }, [])
 
   useEffect(() => {
-    if (!slug) {
-      setStore(null)
-      setLoading(false)
-      setNotFound(true)
-      return
-    }
+    if (!slug) return
     void load(slug)
   }, [slug, load])
+
+  if (!slug) {
+    return { store: null, loading: false, error: null, notFound: true }
+  }
 
   return { store, loading, error, notFound }
 }

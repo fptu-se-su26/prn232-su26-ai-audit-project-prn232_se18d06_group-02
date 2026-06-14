@@ -1,28 +1,9 @@
+import { buildPageList, PAGINATION_ELLIPSIS } from '@/lib/pagination'
+
 interface PaginationProps {
   pageNumber: number
   totalPages: number
   onChange: (page: number) => void
-}
-
-const ELLIPSIS = 'ellipsis'
-
-/** Builds a condensed page list: first, last, current ±1, with ellipsis for gaps. */
-export function buildPageList(current: number, total: number): Array<number | typeof ELLIPSIS> {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, index) => index + 1)
-  }
-
-  const pages = new Set<number>([1, total, current, current - 1, current + 1])
-  const sorted = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b)
-
-  const result: Array<number | typeof ELLIPSIS> = []
-  let previous = 0
-  for (const page of sorted) {
-    if (page - previous > 1) result.push(ELLIPSIS)
-    result.push(page)
-    previous = page
-  }
-  return result
 }
 
 export default function Pagination({ pageNumber, totalPages, onChange }: PaginationProps) {
@@ -48,7 +29,7 @@ export default function Pagination({ pageNumber, totalPages, onChange }: Paginat
       </button>
 
       {pages.map((page, index) =>
-        page === ELLIPSIS ? (
+        page === PAGINATION_ELLIPSIS ? (
           <span key={`ellipsis-${index}`} className="px-1 text-gray-400">
             …
           </span>

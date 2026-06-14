@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toggleStoreFollow } from '@/api/stores'
 import { useAuth } from '@/contexts/useAuth'
@@ -15,15 +15,18 @@ interface UseStoreFollowResult {
 export function useStoreFollow(store: StoreProfile | null): UseStoreFollowResult {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followerCount, setFollowerCount] = useState(0)
+  const [isFollowing, setIsFollowing] = useState(store?.isFollowing ?? false)
+  const [followerCount, setFollowerCount] = useState(store?.followerCount ?? 0)
+  const [syncedId, setSyncedId] = useState(store?.id)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setIsFollowing(store?.isFollowing ?? false)
-    setFollowerCount(store?.followerCount ?? 0)
-  }, [store])
+  // Reconcile local state when a different store loads (adjust state during render).
+  if (store && store.id !== syncedId) {
+    setSyncedId(store.id)
+    setIsFollowing(store.isFollowing)
+    setFollowerCount(store.followerCount)
+  }
 
   const toggle = () => {
     if (!store || pending) return

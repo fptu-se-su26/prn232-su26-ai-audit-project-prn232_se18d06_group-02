@@ -1,12 +1,5 @@
 import { formatCount } from '@/lib/format'
-
-export const SORT_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Popular', value: 'popular' },
-  { label: 'Newest', value: 'newest' },
-  { label: 'Best Selling', value: 'best_selling' },
-  { label: 'Price: Low → High', value: 'price_asc' },
-  { label: 'Price: High → Low', value: 'price_desc' },
-]
+import { SORT_OPTIONS } from '@/lib/storeSort'
 
 interface StoreSortTabsProps {
   sortBy: string
