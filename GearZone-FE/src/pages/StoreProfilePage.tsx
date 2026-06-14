@@ -32,6 +32,7 @@ export default function StoreProfilePage() {
   const { isFollowing, followerCount, pending: followPending, toggle } = useStoreFollow(store)
 
   const [categories, setCategories] = useState<CatalogCategory[]>([])
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -67,6 +68,19 @@ export default function StoreProfilePage() {
   const totalCount = page?.totalCount ?? 0
   const totalPages = page?.totalPages ?? 0
 
+  const sidebar = (
+    <StoreSidebar
+      categories={categories}
+      categorySlug={filter.categorySlug}
+      minPrice={filter.minPrice}
+      maxPrice={filter.maxPrice}
+      hasActiveFilters={hasActiveFilters}
+      onSelectCategory={setCategorySlug}
+      onApplyPrice={setPriceRange}
+      onClear={clearFilters}
+    />
+  )
+
   return (
     <div className="bg-gray-50">
       <StoreHeader
@@ -81,21 +95,23 @@ export default function StoreProfilePage() {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row">
           <div className="hidden w-64 shrink-0 lg:block">
-            <div className="sticky top-20">
-              <StoreSidebar
-                categories={categories}
-                categorySlug={filter.categorySlug}
-                minPrice={filter.minPrice}
-                maxPrice={filter.maxPrice}
-                hasActiveFilters={hasActiveFilters}
-                onSelectCategory={setCategorySlug}
-                onApplyPrice={setPriceRange}
-                onClear={clearFilters}
-              />
-            </div>
+            <div className="sticky top-20">{sidebar}</div>
           </div>
 
           <div className="min-w-0 flex-1">
+            <div className="mb-4 lg:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((open) => !open)}
+                aria-expanded={mobileFiltersOpen}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
+              >
+                <span className="material-symbols-outlined text-[18px]">tune</span>
+                Filters
+              </button>
+              {mobileFiltersOpen && <div className="mt-3">{sidebar}</div>}
+            </div>
+
             {productsError ? (
               <ErrorState message={productsError} />
             ) : !productsLoading && products.length === 0 ? (
