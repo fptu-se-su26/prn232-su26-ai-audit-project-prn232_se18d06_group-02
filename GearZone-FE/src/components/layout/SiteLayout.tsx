@@ -403,6 +403,10 @@ export default function SiteLayout() {
                     </div>
 
                     <div className="py-1">
+                      <Link className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-blue-700" to="/profile">
+                        <span className="material-symbols-outlined text-[20px]">person</span>
+                        My Profile
+                      </Link>
                       <Link className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-blue-700" to={getShellPath(resolveShellRole(user.role))}>
                         <span className="material-symbols-outlined text-[20px]">dashboard</span>
                         Dashboard

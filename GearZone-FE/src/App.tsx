@@ -24,6 +24,10 @@ import CheckoutPage from '@/pages/CheckoutPage'
 import PayOSCheckoutPage from '@/pages/PayOSCheckoutPage'
 import OrderSuccessPage from '@/pages/OrderSuccessPage'
 import ChatPage from '@/pages/ChatPage'
+import ProfilePage from '@/pages/ProfilePage'
+import OrderTrackPage from '@/pages/OrderTrackPage'
+import WriteReviewPage from '@/pages/WriteReviewPage'
+import RegisterSellerPage from '@/pages/RegisterSellerPage'
 
 function RequireAuth({ children, roles }: { children: ReactElement; roles?: string[] }) {
   const { user, loading } = useAuth()
@@ -54,6 +58,10 @@ export default function App() {
         <Route path="/checkout/success/:orderId" element={<RequireAuth><OrderSuccessPage /></RequireAuth>} />
 
         <Route path="/messages" element={<RequireAuth><ChatPage /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+        <Route path="/orders/track/:subOrderId" element={<RequireAuth><OrderTrackPage /></RequireAuth>} />
+        <Route path="/reviews/write/:orderItemId" element={<RequireAuth><WriteReviewPage /></RequireAuth>} />
+        <Route path="/seller/register" element={<RequireAuth><RegisterSellerPage /></RequireAuth>} />
 
         <Route
           path="/seller/dashboard"
