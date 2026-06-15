@@ -5,10 +5,10 @@ import type {
   ChatConversationListItem,
   ChatConversationUpdate,
   ChatCounterpartScopeOption,
-  ChatInboxQuery,
+  ChatInboxQuery as BuyerChatInboxQuery,
   ChatSendMessageResult,
-  ChatThread,
-  ChatThreadQuery,
+  ChatThread as BuyerChatThread,
+  ChatThreadQuery as BuyerChatThreadQuery,
   ChatWidgetBootstrap,
   SendChatMessageDto,
 } from '@/types/chat'
@@ -42,7 +42,7 @@ export async function getBuyerBootstrap(query: ChatBootstrapQuery = {}) {
   return unwrap<ChatWidgetBootstrap>(response)
 }
 
-export async function getBuyerInbox(query: ChatInboxQuery = {}) {
+export async function getBuyerInbox(query: BuyerChatInboxQuery = {}) {
   const response = await apiClient.get('/chat/buyer/inbox', {
     params: buildParams({
       filter: query.filter,
@@ -55,7 +55,7 @@ export async function getBuyerInbox(query: ChatInboxQuery = {}) {
   return unwrap<PagedResult<ChatConversationListItem>>(response)
 }
 
-export async function getBuyerThread(conversationId: string, query: ChatThreadQuery = {}) {
+export async function getBuyerThread(conversationId: string, query: BuyerChatThreadQuery = {}) {
   const response = await apiClient.get(`/chat/buyer/conversations/${conversationId}/thread`, {
     params: buildParams({
       loadedPageCount: query.loadedPageCount,
@@ -63,7 +63,7 @@ export async function getBuyerThread(conversationId: string, query: ChatThreadQu
       productSlug: query.productSlug,
     }),
   })
-  return unwrap<ChatThread>(response)
+  return unwrap<BuyerChatThread>(response)
 }
 
 export async function getBuyerConversationUpdate(conversationId: string) {
@@ -94,4 +94,112 @@ export async function sendMessage(dto: SendChatMessageDto) {
 export async function markConversationRead(conversationId: string) {
   const response = await apiClient.patch(`/chat/conversations/${conversationId}/mark-read`)
   return unwrap<{ markedCount: number }>(response).markedCount
+}
+
+export interface ChatInboxQuery {
+  Filter?: string
+  SearchTerm?: string
+  CounterpartScopeKey?: string
+  PageNumber?: number
+  PageSize?: number
+}
+
+export interface ChatThreadQuery {
+  LoadedPageCount?: number
+  PageSize?: number
+}
+
+export interface ChatConversation {
+  conversationId: string
+  storeId: string
+  storeName: string
+  storeSlug: string
+  storeLogoUrl?: string
+  buyerUserId: string
+  buyerDisplayName: string
+  buyerAvatarUrl?: string
+  counterpartName: string
+  counterpartAvatarUrl?: string
+  counterpartSubtitle: string
+  lastMessagePreview: string
+  lastMessageSenderUserId: string
+  lastMessageAt: string
+  unreadCount: number
+  hasMessages: boolean
+}
+
+export interface ChatScopeOption {
+  value: string
+  label: string
+  subtitle?: string
+  avatarUrl?: string
+}
+
+export interface ChatMessage {
+  id: string
+  conversationId: string
+  senderUserId: string
+  senderDisplayName: string
+  senderAvatarUrl?: string
+  content: string
+  sentAt: string
+  isRead: boolean
+  readAt?: string
+}
+
+export interface ChatRecentOrder {
+  subOrderId: string
+  orderCode: number
+  createdAt: string
+  deliveredAt?: string
+  status: string
+  subtotal: number
+  itemCount: number
+  productPreview: string
+}
+
+export interface ChatThread {
+  conversationId: string
+  storeId: string
+  storeName: string
+  storeSlug: string
+  storeLogoUrl?: string
+  buyerUserId: string
+  buyerDisplayName: string
+  buyerAvatarUrl?: string
+  counterpartName: string
+  counterpartAvatarUrl?: string
+  counterpartSubtitle?: string
+  isSellerView: boolean
+  loadedPageCount: number
+  pageSize: number
+  hasOlderMessages: boolean
+  messages: ChatMessage[]
+  recentOrders: ChatRecentOrder[]
+}
+
+export const chatApi = {
+  sellerInbox: (params?: ChatInboxQuery) =>
+    apiClient.get('/chat/seller/inbox', { params }).then((response) => unwrap<PagedResult<ChatConversation>>(response)),
+
+  sellerThread: (conversationId: string, params?: ChatThreadQuery) =>
+    apiClient
+      .get(`/chat/seller/conversations/${conversationId}/thread`, { params })
+      .then((response) => unwrap<ChatThread>(response)),
+
+  sellerUnread: () =>
+    apiClient.get('/chat/seller/unread').then((response) => unwrap<{ unreadCount: number }>(response)),
+
+  sellerScopeOptions: () =>
+    apiClient.get('/chat/seller/scope-options').then((response) => unwrap<ChatScopeOption[]>(response)),
+
+  ensureSellerConversationFromOrder: (subOrderId: string) =>
+    apiClient
+      .post('/chat/seller/conversations/ensure-from-order', { subOrderId })
+      .then((response) => unwrap<{ conversationId: string }>(response)),
+
+  send: (conversationId: string, content: string) =>
+    apiClient
+      .post('/chat/send', { conversationId, content })
+      .then((response) => unwrap<{ conversationId: string; message: ChatMessage }>(response)),
 }

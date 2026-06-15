@@ -27,7 +27,35 @@ public class StoreSettingsController : BaseApiController
     {
         var store = await _storeService.GetStoreByOwnerIdAsync(CurrentUserId!);
         if (store == null) return FailResponse("Store not found.", 404);
-        return OkResponse(store);
+        return OkResponse(new StoreProfileResponse
+        {
+            Id = store.Id,
+            OwnerUserId = store.OwnerUserId,
+            StoreName = store.StoreName,
+            Slug = store.Slug,
+            Description = store.Description,
+            LogoUrl = store.LogoUrl,
+            BusinessType = store.BusinessType.ToString(),
+            TaxCode = store.TaxCode,
+            Phone = store.Phone,
+            Email = store.Email,
+            AddressLine = store.AddressLine,
+            Province = store.Province,
+            Latitude = store.Latitude,
+            Longitude = store.Longitude,
+            BankAccountNumber = store.BankAccountNumber,
+            BankAccountName = store.BankAccountName,
+            BankName = store.BankName,
+            BankBin = store.BankBin,
+            RegistrationStep = store.RegistrationStep,
+            Status = store.Status.ToString(),
+            RejectReason = store.RejectReason,
+            LockReason = store.LockReason,
+            CommissionRate = store.CommissionRate,
+            CreatedAt = store.CreatedAt,
+            ApprovedAt = store.ApprovedAt,
+            UpdatedAt = store.UpdatedAt
+        });
     }
 
     // PUT /api/seller/store
@@ -70,4 +98,34 @@ public class StoreSettingsController : BaseApiController
 public class ReviewReplyRequest
 {
     public string ReplyContent { get; set; } = string.Empty;
+}
+
+public class StoreProfileResponse
+{
+    public Guid Id { get; set; }
+    public string OwnerUserId { get; set; } = string.Empty;
+    public string StoreName { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? LogoUrl { get; set; }
+    public string BusinessType { get; set; } = string.Empty;
+    public string TaxCode { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string AddressLine { get; set; } = string.Empty;
+    public string Province { get; set; } = string.Empty;
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string BankAccountNumber { get; set; } = string.Empty;
+    public string BankAccountName { get; set; } = string.Empty;
+    public string BankName { get; set; } = string.Empty;
+    public string BankBin { get; set; } = string.Empty;
+    public int RegistrationStep { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? RejectReason { get; set; }
+    public string? LockReason { get; set; }
+    public decimal CommissionRate { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }

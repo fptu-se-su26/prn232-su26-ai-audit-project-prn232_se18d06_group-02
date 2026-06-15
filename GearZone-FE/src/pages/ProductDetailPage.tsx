@@ -687,7 +687,6 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-2.5">
                 <button
                   className="inline-flex items-center gap-1.5 rounded-sm border border-[#ff6b00] bg-[#fff1e8] px-3 py-[7px] text-[13px] text-[#ff6b00] transition-colors hover:bg-[#ffe2cf]"
-                  onClick={() => window.dispatchEvent(new CustomEvent('gearzone:open-chat', { detail: { storeSlug: product.storeSlug } }))}
                   type="button"
                   onClick={() => {
                     if (chatEnabled) void openChatWithStore(product.storeSlug)
