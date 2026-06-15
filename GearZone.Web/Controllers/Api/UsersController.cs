@@ -38,6 +38,33 @@ public class UsersController : BaseApiController
         return OkResponse(user);
     }
 
+    // PUT /api/users/me
+    [HttpPut("me")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto request)
+    {
+        if (!ModelState.IsValid) return ValidationFailResponse();
+
+        await _userService.UpdateProfileAsync(CurrentUserId!, request);
+        var user = await _userService.GetProfileAsync(CurrentUserId!);
+        return OkResponse(user, "Profile updated.");
+    }
+
+    // POST /api/users/me/change-password
+    [HttpPost("me/change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+            return FailResponse("Current password and new password are required.");
+
+        if (request.NewPassword != request.ConfirmPassword)
+            return FailResponse("Password confirmation does not match.");
+
+        var changed = await _userService.ChangePasswordAsync(CurrentUserId!, request.CurrentPassword, request.NewPassword);
+        if (!changed) return FailResponse("Current password is incorrect or the new password is invalid.");
+
+        return OkResponse("Password updated.");
+    }
+
     // GET /api/users/me/store
     [HttpGet("me/store")]
     public async Task<IActionResult> GetMyStore()
@@ -126,4 +153,11 @@ public class UsersController : BaseApiController
         await _userService.SetDefaultAddressAsync(addressId, CurrentUserId!);
         return OkResponse("Default address updated.");
     }
+}
+
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+    public string ConfirmPassword { get; set; } = string.Empty;
 }

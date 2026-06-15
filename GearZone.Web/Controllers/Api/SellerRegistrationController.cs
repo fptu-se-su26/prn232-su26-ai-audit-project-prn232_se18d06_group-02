@@ -57,7 +57,7 @@ public class SellerRegistrationController : BaseApiController
 
     // POST /api/seller-registration/step2
     [HttpPost("step2")]
-    public async Task<IActionResult> Step2([FromBody] Step2Dto dto)
+    public async Task<IActionResult> Step2([FromForm] Step2Dto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
 
