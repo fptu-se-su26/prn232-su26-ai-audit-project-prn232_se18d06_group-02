@@ -2,9 +2,13 @@ import apiClient, { unwrap } from './apiClient'
 
 export const usersApi = {
   me: () => apiClient.get('/users/me').then(res => unwrap(res)),
+  updateProfile: (data: { fullName?: string; phoneNumber?: string; avatarUrl?: string }) =>
+    apiClient.put('/users/me', data).then(res => unwrap(res)),
+  changePassword: (data: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
+    apiClient.post('/users/me/change-password', data).then(res => unwrap(res)),
   myStore: () => apiClient.get('/users/me/store').then(res => unwrap(res)),
 
-  getOrders: (params?: { status?: string; search?: string; page?: number; pageSize?: number }) =>
+  getOrders: (params?: { status?: string; searchTerm?: string; pageNumber?: number; pageSize?: number }) =>
     apiClient.get('/users/me/orders', { params }).then(res => unwrap(res)),
 
   getReviews: (page = 1) =>
