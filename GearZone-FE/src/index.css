@@ -86,52 +86,7 @@ a {
   text-decoration: none;
 }
 
-.dual-slider-input {
-  appearance: none;
-  -webkit-appearance: none;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.dual-slider-input::-webkit-slider-runnable-track {
-  height: 100%;
-  background: transparent;
-}
-
-.dual-slider-input::-moz-range-track {
-  height: 100%;
-  background: transparent;
-}
-
-.dual-slider-input::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  pointer-events: auto;
-  height: 32px;
-  width: 32px;
-  border-radius: 9999px;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  cursor: grab;
-  margin-top: -12px;
-}
-
-.dual-slider-input::-moz-range-thumb {
-  pointer-events: auto;
-  height: 32px;
-  width: 32px;
-  border-radius: 9999px;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  cursor: grab;
-}
-
-.dual-slider-input:active::-webkit-slider-thumb {
-  cursor: grabbing;
-}
-
-.dual-slider-input:active::-moz-range-thumb {
-  cursor: grabbing;
+.seller-primary-button,
+.seller-primary-button * {
+  color: #fff !important;
 }

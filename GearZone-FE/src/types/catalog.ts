@@ -1,3 +1,20 @@
+export interface StoreProfile {
+  slug: string
+  name: string
+  description?: string
+  logoUrl?: string
+  bannerUrl?: string
+  followerCount?: number
+  productCount?: number
+  totalSold?: number
+  rating?: number
+  reviewCount?: number
+  isFollowing?: boolean
+  isVerified?: boolean
+  joinedAt?: string
+  responseRate?: number
+}
+
 export interface PagedResult<T> {
   items: T[]
   totalCount: number

@@ -152,14 +152,33 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* Store */}
-          <Link to={`/store/${product.storeSlug}`} className="flex items-center gap-2 mb-6 mt-2 w-fit">
-            {product.storeLogoUrl
-              ? <img src={product.storeLogoUrl} alt={product.storeName} className="w-6 h-6 rounded-full object-cover" />
-              : <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-primary font-bold text-xs">{product.storeName[0]}</div>
-            }
-            <span className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">{product.storeName}</span>
-          </Link>
+          {/* Store card */}
+          <div className="flex items-center justify-between gap-3 mb-6 mt-2 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+            <Link to={`/store/${product.storeSlug}`} className="flex items-center gap-3 min-w-0">
+              {product.storeLogoUrl
+                ? <img src={product.storeLogoUrl} alt={product.storeName} className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                : <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">{product.storeName[0]}</div>
+              }
+              <div className="min-w-0">
+                <p className="text-xs text-gray-400 font-medium">Sold by</p>
+                <p className="text-sm font-bold text-gray-900 hover:text-primary transition-colors truncate">{product.storeName}</p>
+              </div>
+            </Link>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link to={`/store/${product.storeSlug}`}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg text-gray-600 hover:border-primary hover:text-primary transition-colors">
+                View Store
+              </Link>
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('gearzone:open-chat', { detail: { storeSlug: product.storeSlug } }));
+                }}
+                className="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">chat</span>
+                Chat
+              </button>
+            </div>
+          </div>
 
           {/* Quantity + Add to cart */}
           <div className="flex items-center gap-3 mb-4">
