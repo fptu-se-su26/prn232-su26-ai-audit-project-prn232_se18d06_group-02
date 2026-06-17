@@ -25,8 +25,9 @@ public class VouchersController : BaseApiController
     public async Task<IActionResult> List([FromQuery] AdminVoucherQueryDto query)
     {
         var vouchers = await _voucherService.GetPaginatedVouchersAsync(query);
+        var summary = await _voucherService.GetVoucherSummaryAsync();
         var categories = await _categoryService.GetAllCategoriesListAsync();
-        return OkResponse(new { vouchers, categories });
+        return OkResponse(new { vouchers, summary, categories });
     }
 
     // GET /api/admin/vouchers/{id}

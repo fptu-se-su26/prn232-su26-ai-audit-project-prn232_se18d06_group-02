@@ -74,3 +74,34 @@ Author: Nguyen Sinh Nhat (DE180430)
 ### AI-assisted
 - Built with Claude Code from a sequence of small, focused prompts (see PROMPTS.md #03–#12)
 - Each step was reviewed and verified locally with `npm run lint`, `npm run build`, and `npm run test` before moving on
+
+---
+
+## [2026-06-14] — Seller View (customer-facing store profile)
+Author: Nguyen Sinh Nhat (DE180430)
+
+### Added
+- Store data layer: TypeScript types (`types/store.ts`) and a REST API client (`api/stores.ts`) for the
+  store profile, follow toggle, and store products
+- Hooks: `useStoreProfile`, `useStoreFilters` (URL-driven sort/category/price/page), `useStoreProducts`,
+  `useStoreFollow` (optimistic toggle with login redirect)
+- Store header (`components/store/`): banner, identity (logo/name/verified/location/description),
+  follow button with count, chat button, and a stats grid (products, total sold, rating, joined)
+- Listing controls: sticky sort tabs, sidebar with a category hierarchy, price-range filter, and a
+  conditional "clear all filters" link
+- Product grid reusing the shared `ProductCard`, a "No Products Found" empty state, and a reusable
+  `components/ui/Pagination` control
+- Store profile page at `/store/:slug` with loading/empty/error/not-found states and a responsive layout
+  (mobile "Filters" collapsible, sticky sort tabs, 4→2 stats grid, 2→3→4 product grid)
+- Pure helpers `lib/format.ts` (counts + relative time), `lib/storeSort.ts`, `lib/pagination.ts`
+- Tests: param builder, pagination page-list, `useStoreFilters`, `useStoreFollow`, `StorePriceFilter`,
+  and `StoreSortTabs` (21 new tests)
+
+### Changed
+- `App.tsx`: added the public `/store/:slug` route
+
+### AI-assisted
+- Built with Claude Code from a sequence of small, focused prompts (see PROMPTS.md #13–#20)
+- Reused existing primitives (`Avatar`, `EmptyState`, `ErrorState`, `LoadingOverlay`, `ProductCard`) and
+  the chat context's `openChatWithStore`; targeted the real backend store routes (by slug)
+- Each step was verified locally with `npm run lint`, `npm run build`, and `npm run test` before moving on

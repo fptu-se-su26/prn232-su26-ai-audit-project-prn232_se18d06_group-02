@@ -1,5 +1,43 @@
 # CHANGELOG.md
 
+## [2026-06-07]
+Author: DE180417
+
+### Added
+- Built the new React Admin Category Management page in `GearZone-FE/src/pages/AdminCategoriesPage.tsx`
+- Added category hierarchy listing with root/sub-category rows, expand and collapse behavior, status filtering, search, soft-delete confirmation, and summary counts
+- Added category create and edit workflows with parent category selection, active/inactive visibility control, automatic slug generation, and category path/meta preview
+- Added category attribute management with attribute rows, filterable toggles, input type selection, option chips, and drag-to-reorder behavior for attributes and options
+- Built the new React Admin Brand Management page in `GearZone-FE/src/pages/AdminBrandsPage.tsx`
+- Added brand statistics, search, approval status filtering, paginated brand table, brand logo display, create/edit modal workflows, approve action, and delete confirmation
+- Added brand logo support for both uploaded image files and external image URLs
+- Built the new React Admin Voucher Management page in `GearZone-FE/src/pages/AdminVouchersPage.tsx`
+- Added voucher KPI widgets, status tabs, search, scope/type/sort filters, advanced filters, ticket-style voucher rows, pagination, duplicate support, and status toggle confirmation
+- Added voucher create and edit workflows with code generation, voucher type selection, category restriction, discount logic, usage lifecycle controls, date validation, visibility toggle, and real-time voucher preview
+- Registered protected React routes for `/admin/categories`, `/admin/categories/create`, `/admin/categories/:id/edit`, `/admin/brands`, `/admin/vouchers`, `/admin/vouchers/create`, and `/admin/vouchers/edit/:id`
+- Added typed Category, Brand, and Voucher API support in `GearZone-FE/src/api/admin.ts`
+
+### Changed
+- Expanded the shared admin API client so catalog and marketing modules use typed request and response contracts
+- Updated `GearZone.Web/Controllers/Api/Admin/CategoriesController.cs` with category query support, create response data, and category attribute persistence support
+- Updated `GearZone.Web/Controllers/Api/Admin/BrandsController.cs` so brand create and update actions accept multipart form data for logo uploads
+- Updated `GearZone.Web/Controllers/Api/Admin/VouchersController.cs` so voucher list responses include summary KPI data for the React voucher dashboard
+- Kept Category, Brand, and Voucher pages inside the existing admin shell and route protection model
+
+### Fixed
+- Fixed frontend TypeScript issues found while building the new catalog and marketing admin modules
+- Avoided backend build output locking during verification by compiling the web project to a temporary output folder
+- Added frontend validation for voucher discount rules and voucher date ranges before save requests
+
+### Verification
+- Ran `npm run build` in `GearZone-FE`
+- Ran `dotnet build GearZone.Web\GearZone.Web.csproj -o %TEMP%\gearzone-web-build-check /p:UseAppHost=false`
+- Confirmed the frontend development server was available at `http://localhost:5173`
+
+### AI-assisted
+- Used Codex to help design, implement, review, and verify the new React admin modules for category management, brand management, and voucher management
+- Final route behavior, API contracts, form validation, mutation actions, and build verification were reviewed manually by the author
+
 ## [2026-06-06]
 Author: DE180417
 

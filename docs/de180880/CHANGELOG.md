@@ -60,3 +60,30 @@ Author: Dang Cong Quoc Khanh (DE180880)
 - Used Codex to help implement the new React product detail feature, cart action flows, cart badge updates, brand filter correction, and detail-page interaction fixes.
 - Reviewed generated changes manually and aligned the implementation with the current project structure and APIs.
 - Confirmed frontend changes with repeated `npm run build` verification and validated behavior in the browser.
+
+## [2026-06-14]
+Author: Dang Cong Quoc Khanh (DE180880)
+
+### Added
+- Built a new React shopping cart experience in `GearZone-FE` for route `/cart`.
+- Added cart display grouped by store, with item checkboxes, store-level selection, order summary, and checkout entry behavior.
+- Added optimistic quantity updates so cart totals and counts respond immediately when users increase or decrease item quantity.
+- Added a custom remove-item confirmation dialog in the cart page instead of relying on the browser default confirm popup.
+- Added a custom draggable dual-thumb price slider interaction for the product browsing filter.
+
+### Changed
+- Updated customer cart navigation so header cart actions and shopping feedback links open the React cart route.
+- Updated cart interaction behavior so quantity changes no longer trigger a full loading experience after every click.
+- Updated the price filter interaction so the minimum and maximum thumbs use a more reliable pointer-based dragging flow.
+- Updated the shopping cart summary to stay synchronized with item selection and quantity changes in real time.
+
+### Fixed
+- Fixed cart UX lag caused by refetch-style loading after each quantity increment or decrement.
+- Fixed product browsing price slider behavior so both minimum and maximum price handles can be dragged independently.
+- Fixed price slider hit-area and cursor behavior so dragging feels more predictable for users.
+- Fixed cart delete confirmation UX by replacing the native browser popup with a consistent in-app dialog.
+
+### AI-assisted
+- Used Codex to help implement the new React cart page, smoother quantity-change behavior, custom cart removal dialog, and price-slider interaction fixes.
+- Reviewed the generated output manually and kept the documentation framed as new frontend feature work in the current application.
+- Confirmed frontend changes with `npm run build` and browser-based interaction testing.
