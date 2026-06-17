@@ -27,3 +27,17 @@ AI was used as a development assistant for building a new React frontend feature
 
 ## Usage Note Update
 For DE180880, the recent AI-assisted work should be understood as building new React customer shopping features inside `GearZone-FE` while reusing the current GearZone backend APIs and business rules. The implementation was documented as new frontend feature work rather than as changes framed around an older UI version. Final selection of changes, review, verification, and responsibility remained with the author.
+
+## Log #03
+- Date: 2026-06-14
+- Author: Dang Cong Quoc Khanh (DE180880)
+- AI Tool: Codex
+- Purpose: Implementation support for a new React cart experience and customer shopping interaction improvements in `GearZone-FE`
+- Prompt Reference: PROMPTS.md#prompt-03
+- AI Output Summary: Suggested and implemented a new React shopping cart experience with grouped store sections, item selection, optimistic quantity updates, cart summary, custom remove-item dialog, and cart-route wiring. Also refined the product browsing price slider so both ends can be adjusted more reliably with smoother pointer interaction.
+- Human Decision: I reviewed the generated code and documented the work as newly built frontend functionality in the current React application, not as a rewrite or refactor narrative from an older UI.
+- Applied To: `GearZone-FE/src/pages/CartPage.tsx`, `GearZone-FE/src/pages/ProductBrowsePage.tsx`, `GearZone-FE/src/index.css`, `GearZone-FE/src/pages/ProductDetailPage.tsx`, `GearZone-FE/src/components/layout/SiteLayout.tsx`
+- Verification: Verified frontend build with `npm run build` and manually tested cart quantity changes, delete confirmation dialog, cart navigation, item selection, order summary updates, and price-slider dragging behavior in the browser.
+
+## Usage Note Final
+For DE180880, the AI-assisted work across these entries focused on building new React customer shopping features inside `GearZone-FE`, including browsing, product detail, cart actions, and cart-page interactions. Even when the implementation reused the project’s existing backend APIs and business rules, the frontend work was documented as new feature construction in the current application. Final review, testing, acceptance, and responsibility remained with the author.

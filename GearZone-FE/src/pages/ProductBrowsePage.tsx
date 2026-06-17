@@ -288,6 +288,8 @@ export default function ProductBrowsePage() {
   const filterVersionRef = useRef(0)
   const currentFilterRef = useRef<ProductBrowseFilter | null>(null)
   const loadMoreFnRef = useRef<() => Promise<void>>(async () => {})
+  const priceTrackRef = useRef<HTMLDivElement | null>(null)
+  const draggingPriceThumbRef = useRef<'min' | 'max' | null>(null)
 
   const searchParamsKey = searchParams.toString()
   const search = searchParams.get('search') ?? ''
@@ -570,6 +572,48 @@ export default function ProductBrowsePage() {
     })
   }
 
+  function updatePriceFromClientX(clientX: number, thumb: 'min' | 'max') {
+    const track = priceTrackRef.current
+    if (!track) return
+
+    const rect = track.getBoundingClientRect()
+    const ratio = rect.width > 0 ? Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) : 0
+    const rawValue = MIN_PRICE + ratio * (MAX_PRICE - MIN_PRICE)
+    const steppedValue = Math.round(rawValue / PRICE_STEP) * PRICE_STEP
+    const safeValue = Math.max(MIN_PRICE, Math.min(MAX_PRICE, steppedValue))
+
+    if (thumb === 'min') handleMinPriceInput(safeValue)
+    else handleMaxPriceInput(safeValue)
+  }
+
+  function startPriceDrag(thumb: 'min' | 'max', clientX: number) {
+    draggingPriceThumbRef.current = thumb
+    setActivePriceThumb(thumb)
+    updatePriceFromClientX(clientX, thumb)
+  }
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      const thumb = draggingPriceThumbRef.current
+      if (!thumb) return
+      updatePriceFromClientX(event.clientX, thumb)
+    }
+
+    function handlePointerUp() {
+      if (!draggingPriceThumbRef.current) return
+      draggingPriceThumbRef.current = null
+      commitPriceRange(draftMinPrice, draftMaxPrice)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [draftMaxPrice, draftMinPrice])
+
   async function loadMore() {
     if (
       loadingMoreRef.current ||
@@ -786,49 +830,56 @@ export default function ProductBrowsePage() {
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-semibold">Price (VND)</span>
                   </div>
-                  <div className="mt-2">
-                    <div className="relative mx-3 mb-8 mt-2 h-2 rounded-full bg-slate-200">
+                  <div className="mt-3">
+                    <div className="relative mx-3 mb-8 mt-3 h-5" ref={priceTrackRef}>
+                      <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-slate-200" />
                       <div
-                        className="absolute z-10 h-full rounded-full bg-blue-700"
+                        className="absolute top-1/2 z-10 h-2 -translate-y-1/2 rounded-full bg-blue-700"
                         style={{
                           left: `${minPercent}%`,
                           right: `${100 - maxPercent}%`,
                         }}
                       />
-                      <input
-                        className={`dual-slider-input absolute m-0 h-full w-full bg-transparent ${activePriceThumb === 'min' ? 'z-40' : 'z-30'}`}
-                        max={MAX_PRICE}
-                        min={MIN_PRICE}
-                        onChange={(event) => handleMinPriceInput(Number(event.target.value))}
-                        onMouseDown={() => setActivePriceThumb('min')}
-                        onKeyUp={() => commitPriceRange(draftMinPrice, draftMaxPrice)}
-                        onPointerUp={() => commitPriceRange(draftMinPrice, draftMaxPrice)}
-                        onTouchEnd={() => commitPriceRange(draftMinPrice, draftMaxPrice)}
-                        step={PRICE_STEP}
-                        type="range"
-                        value={draftMinPrice}
-                      />
-                      <input
-                        className={`dual-slider-input absolute m-0 h-full w-full bg-transparent ${activePriceThumb === 'max' ? 'z-40' : 'z-30'}`}
-                        max={MAX_PRICE}
-                        min={MIN_PRICE}
-                        onChange={(event) => handleMaxPriceInput(Number(event.target.value))}
-                        onMouseDown={() => setActivePriceThumb('max')}
-                        onKeyUp={() => commitPriceRange(draftMinPrice, draftMaxPrice)}
-                        onPointerUp={() => commitPriceRange(draftMinPrice, draftMaxPrice)}
-                        onTouchEnd={() => commitPriceRange(draftMinPrice, draftMaxPrice)}
-                        step={PRICE_STEP}
-                        type="range"
-                        value={draftMaxPrice}
-                      />
-                      <div
-                        className="pointer-events-none absolute top-1/2 z-20 h-5 w-5 -translate-y-1/2 rounded-full border-2 border-blue-700 bg-white shadow-md"
-                        style={{ left: `calc(${minPercent}% - 10px)` }}
-                      />
-                      <div
-                        className="pointer-events-none absolute top-1/2 z-20 h-5 w-5 -translate-y-1/2 rounded-full border-2 border-blue-700 bg-white shadow-md"
-                        style={{ left: `calc(${maxPercent}% - 10px)` }}
-                      />
+                      <button
+                        aria-label="Adjust minimum price"
+                        className={`absolute top-1/2 h-8 w-8 -translate-y-1/2 cursor-grab rounded-full bg-transparent touch-none ${activePriceThumb === 'min' ? 'z-30' : 'z-20'}`}
+                        onKeyDown={(event) => {
+                          const delta = event.key === 'ArrowRight' ? PRICE_STEP : event.key === 'ArrowLeft' ? -PRICE_STEP : 0
+                          if (!delta) return
+                          event.preventDefault()
+                          const nextMin = draftMinPrice + delta
+                          handleMinPriceInput(nextMin)
+                          commitPriceRange(Math.max(MIN_PRICE, Math.min(nextMin, draftMaxPrice - PRICE_MIN_GAP)), draftMaxPrice)
+                        }}
+                        onPointerDown={(event) => {
+                          event.preventDefault()
+                          startPriceDrag('min', event.clientX)
+                        }}
+                        style={{ left: `calc(${minPercent}% - 16px)` }}
+                        type="button"
+                      >
+                        <span className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-700 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.18)]" />
+                      </button>
+                      <button
+                        aria-label="Adjust maximum price"
+                        className={`absolute top-1/2 h-8 w-8 -translate-y-1/2 cursor-grab rounded-full bg-transparent touch-none ${activePriceThumb === 'max' ? 'z-30' : 'z-20'}`}
+                        onKeyDown={(event) => {
+                          const delta = event.key === 'ArrowRight' ? PRICE_STEP : event.key === 'ArrowLeft' ? -PRICE_STEP : 0
+                          if (!delta) return
+                          event.preventDefault()
+                          const nextMax = draftMaxPrice + delta
+                          handleMaxPriceInput(nextMax)
+                          commitPriceRange(draftMinPrice, Math.min(MAX_PRICE, Math.max(nextMax, draftMinPrice + PRICE_MIN_GAP)))
+                        }}
+                        onPointerDown={(event) => {
+                          event.preventDefault()
+                          startPriceDrag('max', event.clientX)
+                        }}
+                        style={{ left: `calc(${maxPercent}% - 16px)` }}
+                        type="button"
+                      >
+                        <span className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-700 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.18)]" />
+                      </button>
                     </div>
                     <input
                       readOnly
@@ -972,7 +1023,7 @@ export default function ProductBrowsePage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span>{actionMessage.text}</span>
                   {actionMessage.type === 'success' ? (
-                    <a className="font-bold underline underline-offset-2" href="/Cart/Index">
+                    <a className="font-bold underline underline-offset-2" href="/cart">
                       View cart
                     </a>
                   ) : null}

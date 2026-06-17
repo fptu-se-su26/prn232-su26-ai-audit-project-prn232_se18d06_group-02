@@ -363,7 +363,7 @@ export default function SiteLayout() {
             </div>
 
             <div className="flex flex-shrink-0 items-center gap-4">
-              <a className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700" href="/Cart/Index">
+              <a className="relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700" href="/cart">
                 <span className="material-symbols-outlined">shopping_cart</span>
                 {cartCount > 0 ? (
                   <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-[#ff6b00] px-1 text-[10px] font-bold leading-5 text-white shadow-sm">
