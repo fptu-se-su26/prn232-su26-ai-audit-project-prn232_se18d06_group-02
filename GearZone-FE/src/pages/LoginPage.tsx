@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { AuthCard } from '@/components/auth/AuthCard'
 import { AuthHeroPanel } from '@/components/auth/AuthHeroPanel'
@@ -19,6 +19,11 @@ const primaryButtonClassName =
 export default function LoginPage() {
   const { login, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnUrl = useMemo(() => {
+    const value = searchParams.get('returnUrl') ?? ''
+    return value.startsWith('/') ? value : ''
+  }, [searchParams])
 
   const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState('')
@@ -36,9 +41,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(getShellPath(resolveShellRole(user.role)), { replace: true })
+      navigate(returnUrl || getShellPath(resolveShellRole(user.role)), { replace: true })
     }
-  }, [authLoading, navigate, user])
+  }, [authLoading, navigate, returnUrl, user])
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -47,7 +52,7 @@ export default function LoginPage() {
 
     try {
       const result = await login(username, password, rememberMe)
-      navigate(getShellPath(resolveShellRole(result.role)), { replace: true })
+      navigate(returnUrl || getShellPath(resolveShellRole(result.role)), { replace: true })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {
