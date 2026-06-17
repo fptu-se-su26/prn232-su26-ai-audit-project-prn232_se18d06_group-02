@@ -88,5 +88,27 @@
 - Applied To: `GearZone-FE/src/pages/AdminProductsPage.tsx`, `GearZone-FE/src/pages/AdminProductDetailPage.tsx`, `GearZone-FE/src/api/admin.ts`, `GearZone-FE/src/App.tsx`
 - Verification: Ran `npm run build` in `GearZone-FE`
 
+## Log #09
+- Date: 2026-06-07
+- Author: DE180417
+- AI Tool: Codex
+- Purpose: Implementation support for new React Admin Category, Brand, and Voucher Management modules
+- Prompt Reference: Current session request for admin catalog and marketing management features
+- AI Output Summary: Helped build complete React admin modules for category hierarchy management, brand catalog management, and platform voucher campaign management. The category module includes hierarchical listing, status filters, create/edit flows, soft delete confirmation, and category attribute/option editing. The brand module includes statistics, search and approval filtering, paginated brand listing, logo file or URL handling, create/edit modals, approve actions, and delete confirmation. The voucher module includes KPI widgets, status tabs, search, advanced filters, sorting, ticket-style voucher rows, pagination, create/edit workflows, duplicate support, status toggling, discount validation, lifecycle controls, and real-time voucher preview.
+- Human Decision: I reviewed the admin workflows as new React functionality, kept the UI behavior aligned with the intended admin catalog and marketing operations, and accepted small backend API additions needed for complete React feature support.
+- Applied To: `GearZone-FE/src/pages/AdminCategoriesPage.tsx`, `GearZone-FE/src/pages/AdminBrandsPage.tsx`, `GearZone-FE/src/pages/AdminVouchersPage.tsx`, `GearZone-FE/src/api/admin.ts`, `GearZone-FE/src/App.tsx`, `GearZone.Web/Controllers/Api/Admin/CategoriesController.cs`, `GearZone.Web/Controllers/Api/Admin/BrandsController.cs`, `GearZone.Web/Controllers/Api/Admin/VouchersController.cs`
+- Verification: Ran `npm run build` in `GearZone-FE`; compiled the backend web project with `dotnet build GearZone.Web\GearZone.Web.csproj -o %TEMP%\gearzone-web-build-check /p:UseAppHost=false`
+
+## Log #10
+- Date: 2026-06-08
+- Author: DE180417
+- AI Tool: Codex
+- Purpose: Implementation support for the React Admin Wallet Management page
+- Prompt Reference: Current session request for admin wallet management and audit log update
+- AI Output Summary: Helped migrate the Razor Admin Wallet Management page into React with typed wallet API support, protected admin routes, live wallet summary cards, wallet status display, cash-flow visualizations, transaction search/type/status filters, pagination, refresh handling, and a top-up modal with validation and post-save reload behavior.
+- Human Decision: I reviewed the wallet workflow against the existing Razor page and kept the React implementation aligned with the available `/api/admin/wallet` and `/api/admin/wallet/top-up` backend endpoints without adding new backend behavior.
+- Applied To: `GearZone-FE/src/pages/AdminWalletPage.tsx`, `GearZone-FE/src/api/admin.ts`, `GearZone-FE/src/App.tsx`, `docs/de180417/AI_AUDIT_LOG.md`
+- Verification: Ran `npx eslint src/pages/AdminWalletPage.tsx src/api/admin.ts src/App.tsx` in `GearZone-FE`; ran `npm run build` in `GearZone-FE`
+
 ## Usage Note
-For these admin features, AI was used as an implementation and debugging assistant. The work was documented as new React admin functionality: the dashboard overview, shared admin layout, store-application management pages, store management, user management, order management, product management, local database restoration, and the role-based access fix were reviewed manually and verified with local build commands.
+For these admin features, AI was used as an implementation and debugging assistant. The work was documented as new React admin functionality: the dashboard overview, shared admin layout, store-application management pages, store management, user management, order management, product management, category management, brand management, voucher management, wallet management, local database restoration, and the role-based access fix were reviewed manually and verified with local build commands.

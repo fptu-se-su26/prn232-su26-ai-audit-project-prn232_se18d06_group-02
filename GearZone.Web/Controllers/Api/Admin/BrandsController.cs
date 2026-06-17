@@ -49,7 +49,7 @@ public class BrandsController : BaseApiController
 
     // POST /api/admin/brands
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateBrandDto dto)
+    public async Task<IActionResult> Create([FromForm] CreateBrandDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
         var ok = await _brandService.CreateBrandAsync(dto);
@@ -58,7 +58,7 @@ public class BrandsController : BaseApiController
 
     // PUT /api/admin/brands
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] EditBrandDto dto)
+    public async Task<IActionResult> Update([FromForm] EditBrandDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
         var ok = await _brandService.UpdateBrandAsync(dto);

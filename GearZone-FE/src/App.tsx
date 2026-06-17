@@ -10,6 +10,8 @@ import StoreProfilePage from '@/pages/StoreProfilePage'
 import CustomerShellPage from '@/pages/CustomerShellPage'
 import StoreOwnerShellPage from '@/pages/StoreOwnerShellPage'
 import AdminShellPage from '@/pages/AdminShellPage'
+import AdminBrandsPage from '@/pages/AdminBrandsPage'
+import AdminCategoriesPage from '@/pages/AdminCategoriesPage'
 import AdminDashboardPage from '@/pages/AdminDashboardPage'
 import AdminOrderDetailPage from '@/pages/AdminOrderDetailPage'
 import AdminOrdersPage from '@/pages/AdminOrdersPage'
@@ -17,8 +19,11 @@ import AdminProductDetailPage from '@/pages/AdminProductDetailPage'
 import AdminProductsPage from '@/pages/AdminProductsPage'
 import AdminStoreApplicationDetailPage from '@/pages/AdminStoreApplicationDetailPage'
 import AdminStoreApplicationsPage from '@/pages/AdminStoreApplicationsPage'
+import AdminSettingsPage from '@/pages/AdminSettingsPage'
 import AdminStoresPage from '@/pages/AdminStoresPage'
 import AdminUsersPage from '@/pages/AdminUsersPage'
+import AdminVouchersPage from '@/pages/AdminVouchersPage'
+import AdminWalletPage from '@/pages/AdminWalletPage'
 import StaffShellPage from '@/pages/StaffShellPage'
 import CartPage from '@/pages/CartPage'
 import CheckoutPage from '@/pages/CheckoutPage'
@@ -55,6 +60,182 @@ export default function App() {
         <Route path="/checkout/payos" element={<RequireAuth><PayOSCheckoutPage /></RequireAuth>} />
         <Route path="/checkout/success/:orderId" element={<RequireAuth><OrderSuccessPage /></RequireAuth>} />
 
+      <Route
+        path="/seller/dashboard"
+        element={
+          <RequireAuth roles={['Store Owner']}>
+            <Navigate to="/store-owner" replace />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-applications"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/store-applications/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/stores"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoresPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/stores/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminStoreApplicationDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminUsersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminOrdersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders/detail"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminOrderDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/orders/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminOrderDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/products"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminProductsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/products/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminProductDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/categories"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminCategoriesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/categories/create"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminCategoriesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/categories/:id/edit"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminCategoriesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/brands"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminBrandsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/vouchers"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminVouchersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/vouchers/create"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminVouchersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/vouchers/edit/:id"
+        element={
+          <RequireAuth roles={['Super Admin', 'Admin']}>
+            <AdminVouchersPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <RequireAuth roles={['Super Admin']}>
+            <AdminSettingsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/wallet"
+        element={
+          <RequireAuth roles={['Super Admin']}>
+            <AdminWalletPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/finance/wallet"
+        element={
+          <RequireAuth roles={['Super Admin']}>
+            <AdminWalletPage />
+          </RequireAuth>
+        }
+      />
         <Route path="/messages" element={<RequireAuth><ChatPage /></RequireAuth>} />
 
         <Route
