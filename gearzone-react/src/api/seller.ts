@@ -56,6 +56,32 @@ export const sellerApi = {
     toggleStatus: (id: string) => apiClient.patch(`/seller/vouchers/${id}/toggle-status`),
   },
 
+  reports: {
+    sales: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/sales', { params }).then(res => unwrap(res)),
+    products: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/products', { params }).then(res => unwrap(res)),
+    operations: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/operations', { params }).then(res => unwrap(res)),
+    customers: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/customers', { params }).then(res => unwrap(res)),
+    marketing: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/marketing', { params }).then(res => unwrap(res)),
+    reviews: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/reviews', { params }).then(res => unwrap(res)),
+    exportSalesCsv: async (params?: Record<string, unknown>) => {
+      const res = await apiClient.get('/seller/reports/sales/export', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    },
+  },
+
   registration: {
     getProgress: () => apiClient.get('/seller-registration/progress').then(res => unwrap(res)),
     submitStep1: (data: unknown) => apiClient.post('/seller-registration/step1', data),

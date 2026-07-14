@@ -1,0 +1,364 @@
+@page "/storeowner/reports"
+@model GearZone.Web.Pages.StoreOwner.Reports.IndexModel
+@{
+    ViewData["Title"] = "Reports";
+    ViewData["PageHeader"] = "Reports & Analytics";
+    ViewData["ActivePage"] = "Reports";
+    ViewData["Breadcrumb"] = new string[] { "Analytics", "Reports" };
+    Layout = "_StoreOwnerLayout";
+
+    string Money(decimal v) => v.ToString("N0") + " ₫";
+    string Num(decimal v) => v.ToString("N0");
+}
+
+@functions {
+    // Renders a small metric card. Colour is a Tailwind hue (emerald, blue, ...).
+    Microsoft.AspNetCore.Html.IHtmlContent StatCard(string label, string value, string colour,
+        GearZone.Application.Features.Seller.Dtos.MetricDto? metric = null)
+    {
+        var change = metric == null ? "" :
+            $"<span class=\"text-xs font-semibold {Model.ChangeClass(metric.ChangePct)}\">{Model.ChangeText(metric.ChangePct)}</span>" +
+            "<span class=\"ml-1 text-[11px] text-slate-400\">vs prev</span>";
+        var html =
+            $"<div class=\"rounded-xl border border-slate-100 bg-white p-4 shadow-card\">" +
+                $"<p class=\"text-xs font-semibold uppercase tracking-wider text-slate-500\">{label}</p>" +
+                $"<h3 class=\"mt-2 text-2xl font-bold text-{colour}-700\">{value}</h3>" +
+                $"<div class=\"mt-1\">{change}</div>" +
+            "</div>";
+        return new Microsoft.AspNetCore.Html.HtmlString(html);
+    }
+}
+
+<div class="flex flex-col gap-6">
+
+    <!-- Toolbar: range selector + tabs -->
+    <div class="rounded-xl border border-slate-100 bg-white p-4 shadow-card">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2">
+                @foreach (var r in GearZone.Web.Pages.StoreOwner.Reports.IndexModel.Ranges)
+                {
+                    var active = string.Equals(Model.Range, r.Key, StringComparison.OrdinalIgnoreCase);
+                    <a href="?Tab=@Model.Tab&Range=@r.Key"
+                       class="rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors @(active ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary")">
+                        @r.Label
+                    </a>
+                }
+            </div>
+            @if (Model.Tab == "sales" && Model.HasStore)
+            {
+                <a href="?handler=Export&Range=@Model.Range&Granularity=@Model.Granularity"
+                   class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-900">
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                    Export CSV
+                </a>
+            }
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
+            @foreach (var t in GearZone.Web.Pages.StoreOwner.Reports.IndexModel.Tabs)
+            {
+                var active = Model.Tab == t.Key;
+                <a href="?Tab=@t.Key&Range=@Model.Range"
+                   class="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors @(active ? "bg-primary-light text-primary" : "text-slate-500 hover:bg-slate-50 hover:text-primary")">
+                    <span class="material-symbols-outlined text-[18px] @(active ? "filled" : "")">@t.Icon</span>
+                    @t.Label
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (!Model.HasStore)
+    {
+        <div class="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-card">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                <span class="material-symbols-outlined text-[28px]">bar_chart</span>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900">No store yet</h2>
+            <p class="mt-2 text-sm text-slate-500">Reports will appear once your store is active and has orders.</p>
+        </div>
+    }
+    else
+    {
+        <!-- ================= SALES ================= -->
+        @if (Model.Tab == "sales" && Model.Sales != null)
+        {
+            var s = Model.Sales;
+            <p class="-mt-2 text-sm text-slate-500">Period: <span class="font-semibold text-slate-700">@s.Period.Label</span> · grouped by @s.Period.Granularity</p>
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                @StatCard("Revenue", Money(s.Revenue.Current), "emerald", s.Revenue)
+                @StatCard("Net Revenue", Money(s.NetRevenue.Current), "teal", s.NetRevenue)
+                @StatCard("Orders", Num(s.Orders.Current), "blue", s.Orders)
+                @StatCard("Units Sold", Num(s.Units.Current), "violet", s.Units)
+                @StatCard("Avg Order Value", Money(s.AverageOrderValue.Current), "amber", s.AverageOrderValue)
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">Revenue trend</h3>
+                @{
+                    var maxRev = s.Series.Count == 0 ? 1m : Math.Max(1m, s.Series.Max(x => x.Revenue));
+                }
+                @if (s.Series.Count == 0)
+                {
+                    <p class="py-8 text-center text-sm text-slate-400">No sales in this period.</p>
+                }
+                else
+                {
+                    <div class="flex h-56 items-end gap-1.5 overflow-x-auto pb-6 pt-2">
+                        @foreach (var pt in s.Series)
+                        {
+                            var h = (int)Math.Round((double)(pt.Revenue / maxRev) * 190) + 2;
+                            <div class="group relative flex min-w-[34px] flex-1 flex-col items-center justify-end">
+                                <div class="w-2/3 rounded-t bg-emerald-500 transition-all group-hover:bg-emerald-600" style="height:@(h)px"></div>
+                                <span class="absolute -top-5 hidden whitespace-nowrap text-[10px] font-semibold text-slate-600 group-hover:block">@Money(pt.Revenue)</span>
+                                <span class="mt-1 whitespace-nowrap text-[10px] text-slate-400">@pt.Label</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- ================= PRODUCTS ================= -->
+        @if (Model.Tab == "products" && Model.Products != null)
+        {
+            var pr = Model.Products;
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="border-b border-slate-100 p-5"><h3 class="text-base font-bold text-slate-900">Top products by revenue</h3></div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Product</th>
+                                <th class="px-3 py-3 text-right">Units</th>
+                                <th class="px-3 py-3 text-right">Orders</th>
+                                <th class="px-6 py-3 text-right">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var p in pr.TopProducts)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-800">@p.ProductName</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@Num(p.UnitsSold)</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@Num(p.OrderCount)</td>
+                                    <td class="px-6 py-3 text-right font-semibold text-slate-900">@Money(p.Revenue)</td>
+                                </tr>
+                            }
+                            @if (pr.TopProducts.Count == 0)
+                            {
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">No sales in this period.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="border-b border-slate-100 p-5"><h3 class="text-base font-bold text-slate-900">Low stock (&le; @pr.LowStockThreshold)</h3></div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Product</th>
+                                <th class="px-3 py-3">Variant</th>
+                                <th class="px-3 py-3">SKU</th>
+                                <th class="px-6 py-3 text-right">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var v in pr.LowStock)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-800">@v.ProductName</td>
+                                    <td class="px-3 py-3 text-slate-600">@v.VariantName</td>
+                                    <td class="px-3 py-3 font-mono text-xs text-slate-500">@v.Sku</td>
+                                    <td class="px-6 py-3 text-right font-bold @(v.StockQuantity == 0 ? "text-red-600" : "text-amber-600")">@v.StockQuantity</td>
+                                </tr>
+                            }
+                            @if (pr.LowStock.Count == 0)
+                            {
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">All variants are well stocked. 🎉</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- ================= OPERATIONS ================= -->
+        @if (Model.Tab == "operations" && Model.Operations != null)
+        {
+            var o = Model.Operations;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                @StatCard("Total Orders", Num(o.TotalOrders.Current), "blue", o.TotalOrders)
+                @StatCard("Cancellation Rate", $"{o.CancellationRate}%", "red")
+                @StatCard("Refund Rate", $"{o.RefundRate}%", "amber")
+                @StatCard("Completion Rate", $"{o.CompletionRate}%", "emerald")
+                @StatCard("Avg Fulfillment", o.AvgFulfillmentHours == null ? "—" : $"{o.AvgFulfillmentHours:0.0}h", "violet")
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="border-b border-slate-100 p-5"><h3 class="text-base font-bold text-slate-900">Order status breakdown</h3></div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Status</th>
+                                <th class="px-6 py-3 text-right">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var st in o.StatusBreakdown)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-800">@st.Status</td>
+                                    <td class="px-6 py-3 text-right text-slate-600">@Num(st.Count)</td>
+                                </tr>
+                            }
+                            @if (o.StatusBreakdown.Count == 0)
+                            {
+                                <tr><td colspan="2" class="py-12 text-center text-slate-400">No orders in this period.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- ================= CUSTOMERS ================= -->
+        @if (Model.Tab == "customers" && Model.Customers != null)
+        {
+            var c = Model.Customers;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-6">
+                @StatCard("Unique Buyers", Num(c.UniqueBuyers.Current), "blue", c.UniqueBuyers)
+                @StatCard("New Buyers", Num(c.NewBuyers), "emerald")
+                @StatCard("Returning", Num(c.ReturningBuyers), "violet")
+                @StatCard("Repeat Rate", $"{c.RepeatRate}%", "amber")
+                @StatCard("New Followers", Num(c.NewFollowers.Current), "pink", c.NewFollowers)
+                @StatCard("Total Followers", Num(c.TotalFollowers), "teal")
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">New followers trend</h3>
+                @{
+                    var maxF = c.FollowerSeries.Count == 0 ? 1 : Math.Max(1, c.FollowerSeries.Max(x => x.NewFollowers));
+                }
+                @if (c.FollowerSeries.Count == 0)
+                {
+                    <p class="py-8 text-center text-sm text-slate-400">No follower activity.</p>
+                }
+                else
+                {
+                    <div class="flex h-56 items-end gap-1.5 overflow-x-auto pb-6 pt-2">
+                        @foreach (var pt in c.FollowerSeries)
+                        {
+                            var h = (int)Math.Round((double)pt.NewFollowers / maxF * 190) + 2;
+                            <div class="group relative flex min-w-[34px] flex-1 flex-col items-center justify-end">
+                                <div class="w-2/3 rounded-t bg-pink-500 group-hover:bg-pink-600" style="height:@(h)px"></div>
+                                <span class="absolute -top-5 hidden text-[10px] font-semibold text-slate-600 group-hover:block">@pt.NewFollowers</span>
+                                <span class="mt-1 whitespace-nowrap text-[10px] text-slate-400">@pt.Label</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- ================= MARKETING ================= -->
+        @if (Model.Tab == "marketing" && Model.Marketing != null)
+        {
+            var m = Model.Marketing;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                @StatCard("Voucher Uses", Num(m.VoucherUsages.Current), "blue", m.VoucherUsages)
+                @StatCard("Total Discount Given", Money(m.TotalDiscount.Current), "amber", m.TotalDiscount)
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="border-b border-slate-100 p-5"><h3 class="text-base font-bold text-slate-900">Voucher performance</h3></div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Code</th>
+                                <th class="px-3 py-3">Name</th>
+                                <th class="px-3 py-3 text-right">Uses</th>
+                                <th class="px-6 py-3 text-right">Discount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var v in m.Vouchers)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-mono text-xs font-semibold text-slate-800">@v.Code</td>
+                                    <td class="px-3 py-3 text-slate-600">@v.Name</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@Num(v.UsageCount)</td>
+                                    <td class="px-6 py-3 text-right font-semibold text-slate-900">@Money(v.TotalDiscount)</td>
+                                </tr>
+                            }
+                            @if (m.Vouchers.Count == 0)
+                            {
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">No voucher usage in this period.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- ================= REVIEWS ================= -->
+        @if (Model.Tab == "reviews" && Model.Reviews != null)
+        {
+            var rv = Model.Reviews;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                @StatCard("Avg Rating", $"{rv.AvgRating:0.00} ★", "amber")
+                @StatCard("Total Reviews", Num(rv.TotalReviews), "blue", rv.NewReviews)
+                @StatCard("Replied", $"{rv.RepliedCount}/{rv.TotalReviews}", "emerald")
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">Rating distribution</h3>
+                @{
+                    var maxRc = rv.Distribution.Count == 0 ? 1 : Math.Max(1, rv.Distribution.Max(x => x.Count));
+                }
+                <div class="flex flex-col gap-2">
+                    @foreach (var b in rv.Distribution.OrderByDescending(x => x.Rating))
+                    {
+                        var w = (int)Math.Round((double)b.Count / maxRc * 100);
+                        <div class="flex items-center gap-3">
+                            <span class="w-10 text-sm text-slate-500">@b.Rating &#9733;</span>
+                            <div class="h-4 flex-1 rounded bg-slate-100">
+                                <div class="h-full rounded bg-amber-500" style="width:@(w)%"></div>
+                            </div>
+                            <span class="w-10 text-right text-sm text-slate-500">@b.Count</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">Reviews trend</h3>
+                @{
+                    var maxRt = rv.Trend.Count == 0 ? 1 : Math.Max(1, rv.Trend.Max(x => x.Count));
+                }
+                @if (rv.Trend.Count == 0)
+                {
+                    <p class="py-8 text-center text-sm text-slate-400">No reviews in this period.</p>
+                }
+                else
+                {
+                    <div class="flex h-56 items-end gap-1.5 overflow-x-auto pb-6 pt-2">
+                        @foreach (var pt in rv.Trend)
+                        {
+                            var h = (int)Math.Round((double)pt.Count / maxRt * 190) + 2;
+                            <div class="group relative flex min-w-[34px] flex-1 flex-col items-center justify-end">
+                                <div class="w-2/3 rounded-t bg-blue-500 group-hover:bg-blue-600" style="height:@(h)px"></div>
+                                <span class="absolute -top-5 hidden text-[10px] font-semibold text-slate-600 group-hover:block">@pt.Count (@pt.AvgRating.ToString("0.0")★)</span>
+                                <span class="mt-1 whitespace-nowrap text-[10px] text-slate-400">@pt.Label</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

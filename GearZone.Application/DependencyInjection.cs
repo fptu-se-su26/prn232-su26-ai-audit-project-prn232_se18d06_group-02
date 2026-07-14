@@ -54,6 +54,7 @@ namespace GearZone.Application
             services.AddScoped<IMapService, MapService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ISellerVoucherService, SellerVoucherService>();
+            services.AddScoped<ISellerReportService, SellerReportService>();
             services.AddScoped<IPaymentService, PaymentService>();
 
             return services;
