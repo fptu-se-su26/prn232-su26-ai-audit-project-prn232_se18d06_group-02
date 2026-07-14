@@ -4,7 +4,7 @@ using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Common.Models;
 using GearZone.Domain.Entities;
 using GearZone.Application.Features.Admin.Dtos;
-using GearZone.Web.Pages.Admin.Users.Models;
+using GearZone.Application.Features.Admin.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;

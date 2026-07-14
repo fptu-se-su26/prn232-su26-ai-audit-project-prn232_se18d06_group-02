@@ -14,7 +14,7 @@ namespace GearZone.Infrastructure
 {
     public static class DependencyInjection
     {
-        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, bool enableHangfireServer = true)
         {
             static string ReadFirstNonEmpty(IConfiguration config, params string[] keys)
             {
@@ -142,7 +142,12 @@ namespace GearZone.Infrastructure
                 services.AddScoped<IPayoutClient, DisabledPayoutClient>();
             }
 
-            services.AddHangfireServer(opt => opt.WorkerCount = 2);
+            // The Hangfire *server* (job processor + recurring schedules) should run in
+            // exactly one host. The Razor Web host keeps it; the separate API host opts out.
+            if (enableHangfireServer)
+            {
+                services.AddHangfireServer(opt => opt.WorkerCount = 2);
+            }
 
             return services;
         }

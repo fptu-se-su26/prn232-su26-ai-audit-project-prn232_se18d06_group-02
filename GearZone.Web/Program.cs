@@ -71,6 +71,11 @@ var connectionString = builder.Configuration["DB_CONNECTION_STRING"] ?? builder.
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+// Reverse-proxy /api/* to the separate GearZone.Api host. Keeping /api same-origin
+// means Razor pages (server render + client-side JS) are untouched by the split.
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 builder.Services.AddScoped<IOrderTrackingNotifier, SignalROrderTrackingNotifier>();
 builder.Services.AddScoped<BuyerInboxComposer>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -242,6 +247,7 @@ using (var scope = app.Services.CreateScope())
 
 app.UseStaticFiles();
 app.MapControllers();
+app.MapReverseProxy();
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<OrderTrackingHub>("/hubs/order-tracking");
 app.MapRazorPages();
