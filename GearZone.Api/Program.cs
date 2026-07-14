@@ -7,12 +7,14 @@ using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---- Environment (.env at solution root, shared with GearZone.Web) ----
+// ---- Environment: shared .env. It currently lives in the GearZone.Web project
+//      folder, so probe that location too (plus solution root and this project). ----
 var envCandidates = new[]
 {
     Path.Combine(builder.Environment.ContentRootPath, ".env"),
     Path.Combine(Directory.GetCurrentDirectory(), ".env"),
-    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", ".env"))
+    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", ".env")),
+    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "GearZone.Web", ".env"))
 }
 .Distinct(StringComparer.OrdinalIgnoreCase);
 
