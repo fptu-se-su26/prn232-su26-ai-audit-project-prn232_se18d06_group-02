@@ -1,4 +1,4 @@
-using GearZone.Web.Common;
+using GearZone.Application.Common;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 

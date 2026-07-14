@@ -1,5 +1,10 @@
-namespace GearZone.Web.Common;
+namespace GearZone.Application.Common;
 
+/// <summary>
+/// Standard envelope wrapping every API response as { success, data, message, errors }.
+/// Lives in the Application layer so both the API host and any HTTP client
+/// (e.g. the Razor Pages client) can (de)serialize against the same type.
+/// </summary>
 public class ApiResponse<T>
 {
     public bool Success { get; init; }

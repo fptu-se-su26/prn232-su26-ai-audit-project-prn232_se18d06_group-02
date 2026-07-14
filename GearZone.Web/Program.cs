@@ -9,6 +9,7 @@ using GearZone.Web.Pages.Public.User.Messages;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -78,6 +79,18 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
+
+// Shared Data Protection key ring. Persisting the keys with a fixed application
+// name lets a future separate API host (GearZone.Api) decrypt & validate the same
+// Identity auth cookie issued here. Both apps MUST use the same path + name.
+// Note: changing the application name invalidates cookies issued before this change,
+// so existing sessions are logged out once (login flow itself is unchanged).
+var dataProtectionKeysPath = builder.Configuration["DATA_PROTECTION_KEYS_PATH"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "..", "shared-keys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("GearZone");
 
 builder.Services.AddAuthentication(options =>
 {

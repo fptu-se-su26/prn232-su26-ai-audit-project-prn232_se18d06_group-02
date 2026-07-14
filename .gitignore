@@ -23,6 +23,9 @@ lerna-debug.log*
 .vscode/*
 !.vscode/extensions.json
 
+# Data Protection shared key ring (not secrets to commit)
+shared-keys/
+
 # Env / secrets
 *.env
 appsettings.*.json
