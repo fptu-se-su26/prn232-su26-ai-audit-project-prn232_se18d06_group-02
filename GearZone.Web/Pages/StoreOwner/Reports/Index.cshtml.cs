@@ -11,9 +11,7 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
     [Authorize(Roles = "Store Owner")]
     public class IndexModel : PageModel
     {
-        // Phase 2 pilot: this page now consumes GearZone.Api over HTTP (via IApiClient)
-        // instead of calling ISellerReportService in-process. The auth cookie is
-        // forwarded by CookieForwardingHandler so the API's [Authorize] validates it.
+
         private readonly IApiClient _api;
 
         public IndexModel(IApiClient api)
