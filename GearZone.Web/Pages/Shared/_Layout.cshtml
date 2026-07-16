@@ -19,7 +19,7 @@
     };
     string GetCategoryNavLabel(string name)
         => navLabelOverrides.TryGetValue(name, out var label) ? label : name;
-    var isBuyerMessagesProfile = currentPath.Equals("/Public/User/Profile", StringComparison.OrdinalIgnoreCase)
+    var isBuyerMessagesProfile = currentPath.Equals("/profile", StringComparison.OrdinalIgnoreCase)
         && currentTab.Equals("messages", StringComparison.OrdinalIgnoreCase);
     var showBuyerChatWidget = !currentPath.Equals("/messages", StringComparison.OrdinalIgnoreCase)
         && !isBuyerMessagesProfile;
@@ -172,7 +172,7 @@
                 <div class="flex items-center gap-4 flex-shrink-0">
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <a href="/Public/User/Profile?tab=messages" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-chat-icon">
+                        <a href="/profile?tab=messages" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-chat-icon">
                             <span class="material-symbols-outlined">chat</span>
                             <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-orange-500 rounded-full @(buyerUnreadCount > 0 ? "" : "hidden")" data-header-chat-badge>@(buyerUnreadCount > 99 ? "99+" : buyerUnreadCount.ToString())</span>
                         </a>
@@ -205,15 +205,15 @@
                                 </div>
                                 
                                 <div class="py-1">
-                                    <a href="/Public/User/Profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                    <a href="/profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                         <span class="material-symbols-outlined text-[20px]">account_circle</span>
                                         My Profile
                                     </a>
-                                    <a href="/Public/User/Profile?tab=orders" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                    <a href="/profile?tab=orders" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                         <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
                                         My Orders
                                     </a>
-                                    <a href="/Public/User/Profile?tab=messages" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                    <a href="/profile?tab=messages" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                         <span class="material-symbols-outlined text-[20px]">chat</span>
                                         Messages
                                     </a>
@@ -368,7 +368,7 @@
                         <li><span class="text-gray-400">Warranty Policy</span></li>
                         <li><span class="text-gray-400">Return & Refund</span></li>
                         <li><span class="text-gray-400">Shipping Info</span></li>
-                        <li><a class="hover:text-primary transition-colors" href="/Public/User/Profile?tab=orders">Track Order</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/profile?tab=orders">Track Order</a></li>
                     </ul>
                 </div>
                 <!-- Column 4 -->
@@ -409,7 +409,7 @@
                      IsAuthenticated = User.Identity?.IsAuthenticated == true,
                      TotalUnreadCount = buyerUnreadCount,
                      BootstrapUrl = "/messages?handler=WidgetBootstrap",
-                     MessagesUrl = "/Public/User/Profile?tab=messages"
+                     MessagesUrl = "/profile?tab=messages"
                  }' />
     }
 

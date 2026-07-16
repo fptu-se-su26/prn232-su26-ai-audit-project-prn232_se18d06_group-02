@@ -1,4 +1,4 @@
-@page
+@page "/profile"
 @model GearZone.Web.Pages.Public.User.ProfileModel
 @using GearZone.Domain.Enums
 @using GearZone.Web.Pages.Shared.Models
@@ -76,7 +76,7 @@
                                     <span class="material-symbols-outlined text-[18px]">hourglass_empty</span>
                                     App Pending
                                 </div>
-                                <a href="/Public/User/RegisterSeller?reapply=true"
+                                <a href="/register-seller?reapply=true"
                                    class="w-full py-2 bg-orange-50 text-orange-600 font-bold rounded-lg hover:bg-orange-100 transition-all border border-orange-200 flex items-center justify-center gap-2 text-sm">
                                     <span class="material-symbols-outlined text-[18px]">edit_square</span>
                                     Edit & Resubmit
@@ -97,7 +97,7 @@
                                     <span class="material-symbols-outlined text-[18px]">cancel</span>
                                     App Rejected
                                 </div>
-                                <a href="/Public/User/RegisterSeller?reapply=true"
+                                <a href="/register-seller?reapply=true"
                                    class="w-full py-2 bg-orange-50 text-orange-600 font-bold rounded-lg hover:bg-orange-100 transition-all border border-orange-200 flex items-center justify-center gap-2 text-sm">
                                     <span class="material-symbols-outlined text-[18px]">refresh</span>
                                     Resubmit Store Application
@@ -180,7 +180,7 @@
                                 <p class="text-xs text-orange-700/90">Reason: @Model.UserStore.RejectReason</p>
                             }
                         </div>
-                        <a href="/Public/User/RegisterSeller?reapply=true"
+                        <a href="/register-seller?reapply=true"
                            class="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-bold text-orange-700 hover:bg-orange-100 transition-colors">
                             <span class="material-symbols-outlined text-[18px]">refresh</span>
                             @(Model.UserStore?.Status == StoreStatus.Pending ? "Edit & Resubmit" : "Resubmit Application")

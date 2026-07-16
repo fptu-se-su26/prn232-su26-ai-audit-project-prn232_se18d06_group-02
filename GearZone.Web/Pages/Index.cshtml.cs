@@ -136,7 +136,7 @@ namespace GearZone.Web.Pages
                     PrimaryLabel = featuredStore != null ? "Visit official store" : "See flash picks",
                     PrimaryHref = featuredStore?.Href ?? (flashProduct != null ? $"/product/{flashProduct.Slug}" : "/products"),
                     SecondaryLabel = "Open messages",
-                    SecondaryHref = "/Public/User/Profile?tab=messages",
+                    SecondaryHref = "/profile?tab=messages",
                     ImageUrl = "/images/home-hero/hero-03.svg",
                     ImageAlt = "Official store and support hero artwork",
                     Tags = CompactTags(
@@ -190,7 +190,7 @@ namespace GearZone.Web.Pages
                 new() { Icon = "local_shipping", Title = "Fast shipping", Subtitle = "Nationwide", Href = "/products", Tone = "blue" },
                 new() { Icon = "storefront", Title = "Official stores", Subtitle = "Verified sellers", Href = homePage.Stores.FirstOrDefault()?.Href ?? "/products", Tone = "sky" },
                 new() { Icon = "bolt", Title = "Flash deals", Subtitle = "Daily picks", Href = "/#home-flash-zone", Tone = "orange" },
-                new() { Icon = "chat_bubble", Title = "Quick chat", Subtitle = "Profile inbox", Href = "/Public/User/Profile?tab=messages", Tone = "violet" },
+                new() { Icon = "chat_bubble", Title = "Quick chat", Subtitle = "Profile inbox", Href = "/profile?tab=messages", Tone = "violet" },
                 new() { Icon = "inventory_2", Title = "Setup gear", Subtitle = "Browse all", Href = ResolveHref(homePage.RecommendedRail.ViewAllHref, "/products"), Tone = "emerald" },
                 new() { Icon = "workspace_premium", Title = "Top categories", Subtitle = "Jump faster", Href = "/products", Tone = "slate" }
             };
