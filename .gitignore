@@ -9,6 +9,9 @@ obj/
 node_modules/
 dist/
 dist-ssr/
+# ...but ASP.NET client-side libraries live in wwwroot/lib/*/dist and MUST be committed,
+# otherwise jQuery 404s and every page script dies with "$ is not defined".
+!GearZone.Web/wwwroot/lib/**
 .vite/
 *.local
 logs/
