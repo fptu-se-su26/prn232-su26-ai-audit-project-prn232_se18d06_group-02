@@ -1,4 +1,5 @@
 using GearZone.Application.Abstractions.Services;
+using GearZone.Application.Features.Orders.Dtos;
 using GearZone.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -76,25 +77,6 @@ public class OrdersController : BaseApiController
         var tracking = await _orderService.GetUserOrderTrackingAsync(user.Id, subOrderId, ct);
         if (tracking == null) return FailResponse("Order not found.", 404);
 
-        var history = tracking.StatusHistory
-            .OrderByDescending(x => x.ChangedAt)
-            .Select(x => new
-            {
-                changedAtIso = x.ChangedAt.ToString("O"),
-                oldStatus = x.OldStatus?.ToString(),
-                newStatus = x.NewStatus.ToString(),
-                changedByDisplayName = x.ChangedByDisplayName,
-                note = x.Note
-            });
-
-        return OkResponse(new
-        {
-            subOrderId = tracking.SubOrderId,
-            status = tracking.Status.ToString(),
-            shippingProvider = tracking.ShippingProvider,
-            trackingNumber = tracking.TrackingNumber,
-            deliveredAtIso = tracking.DeliveredAt?.ToString("O"),
-            statusHistory = history
-        });
+        return OkResponse(UserOrderTrackingLiveDto.From(tracking));
     }
 }

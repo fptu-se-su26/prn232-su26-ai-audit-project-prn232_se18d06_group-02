@@ -21,6 +21,8 @@ public interface IApiClient
     Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default);
     Task<ApiResult> PostAsync<TBody>(string path, TBody body, CancellationToken ct = default);
     Task<ApiResult> PostAsync(string path, CancellationToken ct = default);
+    /// <summary>POSTs multipart/form-data, for endpoints that take file uploads.</summary>
+    Task<ApiResult> PostFormAsync(string path, MultipartFormDataContent form, CancellationToken ct = default);
     /// <summary>POSTs with no body and returns the unwrapped payload (null on failure).</summary>
     Task<TResponse?> PostAndReadAsync<TResponse>(string path, CancellationToken ct = default);
     Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default);
@@ -62,6 +64,9 @@ public class ApiClient : IApiClient
     public Task<ApiResult> PostAsync(string path, CancellationToken ct = default) =>
         SendAsync<object?>(HttpMethod.Post, path, null, ct);
 
+    public Task<ApiResult> PostFormAsync(string path, MultipartFormDataContent form, CancellationToken ct = default) =>
+        SendContentAsync(HttpMethod.Post, path, form, ct);
+
     public async Task<TResponse?> PostAndReadAsync<TResponse>(string path, CancellationToken ct = default)
     {
         var response = await _http.PostAsync(path, content: null, ct);
@@ -77,15 +82,15 @@ public class ApiClient : IApiClient
     public Task<ApiResult> PatchAsync(string path, CancellationToken ct = default) =>
         SendAsync<object?>(HttpMethod.Patch, path, null, ct);
 
+    private Task<ApiResult> SendAsync<TBody>(HttpMethod method, string path, TBody? body, CancellationToken ct) =>
+        SendContentAsync(method, path, body is null ? null : JsonContent.Create(body), ct);
+
     // Write calls must read the body even on 4xx: the API reports failures as
     // ApiResponse.Fail (message + errors) with a non-success status code.
-    private async Task<ApiResult> SendAsync<TBody>(HttpMethod method, string path, TBody? body, CancellationToken ct)
+    private async Task<ApiResult> SendContentAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(method, path);
-        if (body is not null)
-        {
-            request.Content = JsonContent.Create(body);
-        }
+        request.Content = content;
 
         var response = await _http.SendAsync(request, ct);
 

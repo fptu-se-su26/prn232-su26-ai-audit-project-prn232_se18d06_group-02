@@ -30,15 +30,15 @@ public class SellerRegistrationController : BaseApiController
         var existingStore = await _sellerStoreService.GetStoreByOwnerIdAsync(user.Id);
         var progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
 
-        return OkResponse(new
+        return OkResponse(new SellerRegistrationStateDto
         {
-            existingStore = existingStore == null ? null : new
+            ExistingStore = existingStore == null ? null : new SellerRegistrationStoreStateDto
             {
-                existingStore.Id,
-                existingStore.Status,
-                existingStore.RejectReason
+                Id = existingStore.Id,
+                Status = existingStore.Status,
+                RejectReason = existingStore.RejectReason
             },
-            progress
+            Progress = progress == null ? null : SellerRegistrationProgressStateDto.From(progress)
         });
     }
 
@@ -51,8 +51,15 @@ public class SellerRegistrationController : BaseApiController
         var user = await _authService.GetUserAsync(User);
         if (user == null) return FailResponse("Unauthorized.", 401);
 
-        var storeId = await _sellerStoreService.SaveStep1Async(user.Id, dto);
-        return OkResponse(new { storeId }, "Step 1 saved.");
+        try
+        {
+            var storeId = await _sellerStoreService.SaveStep1Async(user.Id, dto);
+            return OkResponse(new { storeId }, "Step 1 saved.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/seller-registration/step2
@@ -67,8 +74,15 @@ public class SellerRegistrationController : BaseApiController
         var progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
         if (progress?.StoreId == null) return FailResponse("Start from step 1 first.");
 
-        await _sellerStoreService.SaveStep2Async(progress.StoreId.Value, user.Id, dto);
-        return OkResponse("Step 2 saved.");
+        try
+        {
+            await _sellerStoreService.SaveStep2Async(progress.StoreId.Value, user.Id, dto);
+            return OkResponse("Step 2 saved.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/seller-registration/step3
@@ -83,8 +97,15 @@ public class SellerRegistrationController : BaseApiController
         var progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
         if (progress?.StoreId == null) return FailResponse("Start from step 1 first.");
 
-        await _sellerStoreService.SaveStep3Async(progress.StoreId.Value, dto);
-        return OkResponse("Step 3 saved.");
+        try
+        {
+            await _sellerStoreService.SaveStep3Async(progress.StoreId.Value, dto);
+            return OkResponse("Step 3 saved.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/seller-registration/submit
@@ -97,8 +118,15 @@ public class SellerRegistrationController : BaseApiController
         var progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
         if (progress?.StoreId == null) return FailResponse("Registration not started.");
 
-        await _sellerStoreService.SubmitRegistrationAsync(progress.StoreId.Value, user.Id);
-        return OkResponse("Registration submitted. We will review and respond as soon as possible.");
+        try
+        {
+            await _sellerStoreService.SubmitRegistrationAsync(progress.StoreId.Value, user.Id);
+            return OkResponse("Registration submitted. We will review and respond as soon as possible.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/seller-registration/reapply
@@ -112,7 +140,14 @@ public class SellerRegistrationController : BaseApiController
         if (existingStore == null || (existingStore.Status != StoreStatus.Pending && existingStore.Status != StoreStatus.Rejected))
             return FailResponse("No rejected or pending application to reapply.");
 
-        await _sellerStoreService.StartReapplicationAsync(user.Id);
-        return OkResponse("Application reopened for editing.");
+        try
+        {
+            await _sellerStoreService.StartReapplicationAsync(user.Id);
+            return OkResponse("Application reopened for editing.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 }
