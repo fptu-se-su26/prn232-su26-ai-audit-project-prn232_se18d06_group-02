@@ -1,32 +1,20 @@
-using GearZone.Application.Abstractions.Persistence;
-using GearZone.Application.Abstractions.Services;
-using GearZone.Application.Features.Chat.Dtos;
-using GearZone.Domain.Enums;
+using System.Security.Claims;
+using GearZone.Application.Features.Seller.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace GearZone.Web.Pages.StoreOwner
 {
     [Authorize(Roles = "Store Owner")]
     public class DashboardModel : PageModel
     {
-        private readonly IChatService _chatService;
-        private readonly IStoreRepository _storeRepository;
-        private readonly ISubOrderRepository _subOrderRepository;
-        private readonly IPayoutTransactionRepository _payoutTransactionRepository;
+        // Consumes GearZone.Api over HTTP instead of querying repositories in-process.
+        private readonly IApiClient _api;
 
-        public DashboardModel(
-            IChatService chatService,
-            IStoreRepository storeRepository,
-            ISubOrderRepository subOrderRepository,
-            IPayoutTransactionRepository payoutTransactionRepository)
+        public DashboardModel(IApiClient api)
         {
-            _chatService = chatService;
-            _storeRepository = storeRepository;
-            _subOrderRepository = subOrderRepository;
-            _payoutTransactionRepository = payoutTransactionRepository;
+            _api = api;
         }
 
         public bool HasStore { get; set; }
@@ -42,11 +30,11 @@ namespace GearZone.Web.Pages.StoreOwner
         public decimal PaidOutAmount { get; set; }
         public decimal PendingPayoutAmount { get; set; }
 
-        public List<MonthlyRevenuePoint> RevenueByMonth { get; set; } = new();
-        public List<RecentOrderItem> RecentOrders { get; set; } = new();
-        public List<RecentPayoutItem> RecentPayouts { get; set; } = new();
+        public List<SellerDashboardMonthlyPointDto> RevenueByMonth { get; set; } = new();
+        public List<SellerDashboardRecentOrderDto> RecentOrders { get; set; } = new();
+        public List<SellerDashboardRecentPayoutDto> RecentPayouts { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId))
@@ -54,130 +42,34 @@ namespace GearZone.Web.Pages.StoreOwner
                 return;
             }
 
-            var inbox = await _chatService.GetSellerInboxAsync(userId, new ChatInboxQueryDto
+            var data = await _api.GetAsync<SellerDashboardDto>("/api/seller/dashboard", ct);
+            if (data == null)
             {
-                PageNumber = 1,
-                PageSize = 1
-            });
+                return;
+            }
 
-            CustomerConversationCount = inbox.TotalCount;
-            CustomerUnreadCount = await _chatService.GetSellerUnreadCountAsync(userId);
+            CustomerConversationCount = data.CustomerConversationCount;
+            CustomerUnreadCount = data.CustomerUnreadCount;
 
-            var store = await _storeRepository.GetStoreByOwnerIdAsync(userId);
-            if (store == null)
+            if (!data.HasStore)
             {
                 return;
             }
 
             HasStore = true;
-            StoreName = store.StoreName;
+            StoreName = data.StoreName;
 
-            var orderQuery = _subOrderRepository.Query().Where(x => x.StoreId == store.Id);
+            TotalOrders = data.TotalOrders;
+            PendingOrders = data.PendingOrders;
+            FulfilledOrders = data.FulfilledOrders;
 
-            TotalOrders = await orderQuery.CountAsync();
-            PendingOrders = await orderQuery.CountAsync(x =>
-                x.Status == OrderStatus.Pending ||
-                x.Status == OrderStatus.AwaitingPayment ||
-                x.Status == OrderStatus.Approved);
-            FulfilledOrders = await orderQuery.CountAsync(x =>
-                x.Status == OrderStatus.Paid ||
-                x.Status == OrderStatus.Processing ||
-                x.Status == OrderStatus.Delivered ||
-                x.Status == OrderStatus.Completed);
+            GrossRevenue = data.GrossRevenue;
+            PaidOutAmount = data.PaidOutAmount;
+            PendingPayoutAmount = data.PendingPayoutAmount;
 
-            GrossRevenue = await orderQuery
-                .Where(x =>
-                    x.Status != OrderStatus.Cancelled &&
-                    x.Status != OrderStatus.Rejected &&
-                    x.Status != OrderStatus.Refunded)
-                .SumAsync(x => (decimal?)x.Subtotal) ?? 0m;
-
-            var now = DateTime.UtcNow;
-            var startMonth = new DateTime(now.Year, now.Month, 1).AddMonths(-5);
-            var monthlyData = await orderQuery
-                .Where(x => x.CreatedAt >= startMonth)
-                .GroupBy(x => new { x.CreatedAt.Year, x.CreatedAt.Month })
-                .Select(g => new
-                {
-                    g.Key.Year,
-                    g.Key.Month,
-                    Revenue = g.Sum(x => x.Subtotal)
-                })
-                .ToListAsync();
-
-            for (var i = 0; i < 6; i++)
-            {
-                var month = startMonth.AddMonths(i);
-                var monthValue = monthlyData.FirstOrDefault(x => x.Year == month.Year && x.Month == month.Month);
-                RevenueByMonth.Add(new MonthlyRevenuePoint
-                {
-                    Label = month.ToString("MMM"),
-                    Revenue = monthValue?.Revenue ?? 0m
-                });
-            }
-
-            RecentOrders = await orderQuery
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(5)
-                .Select(x => new RecentOrderItem
-                {
-                    SubOrderId = x.Id,
-                    OrderCode = x.Order.OrderCode,
-                    BuyerName = x.Order.User.FullName ?? x.Order.User.UserName ?? x.Order.User.Email ?? "Buyer",
-                    Status = x.Status,
-                    Subtotal = x.Subtotal,
-                    CreatedAt = x.CreatedAt
-                })
-                .ToListAsync();
-
-            var payoutQuery = _payoutTransactionRepository.Query().Where(x => x.StoreId == store.Id);
-
-            PaidOutAmount = await payoutQuery
-                .Where(x => x.Status == PayoutTransactionStatus.Success)
-                .SumAsync(x => (decimal?)x.NetAmount) ?? 0m;
-
-            PendingPayoutAmount = await payoutQuery
-                .Where(x =>
-                    x.Status == PayoutTransactionStatus.Queued ||
-                    x.Status == PayoutTransactionStatus.Processing ||
-                    x.Status == PayoutTransactionStatus.ManualRequired)
-                .SumAsync(x => (decimal?)x.NetAmount) ?? 0m;
-
-            RecentPayouts = await payoutQuery
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(5)
-                .Select(x => new RecentPayoutItem
-                {
-                    TransactionCode = x.TransactionCode,
-                    NetAmount = x.NetAmount,
-                    Status = x.Status,
-                    CreatedAt = x.CreatedAt
-                })
-                .ToListAsync();
-        }
-
-        public class MonthlyRevenuePoint
-        {
-            public string Label { get; set; } = string.Empty;
-            public decimal Revenue { get; set; }
-        }
-
-        public class RecentOrderItem
-        {
-            public Guid SubOrderId { get; set; }
-            public long OrderCode { get; set; }
-            public string BuyerName { get; set; } = string.Empty;
-            public OrderStatus Status { get; set; }
-            public decimal Subtotal { get; set; }
-            public DateTime CreatedAt { get; set; }
-        }
-
-        public class RecentPayoutItem
-        {
-            public string TransactionCode { get; set; } = string.Empty;
-            public decimal NetAmount { get; set; }
-            public PayoutTransactionStatus Status { get; set; }
-            public DateTime CreatedAt { get; set; }
+            RevenueByMonth = data.RevenueByMonth;
+            RecentOrders = data.RecentOrders;
+            RecentPayouts = data.RecentPayouts;
         }
     }
 }

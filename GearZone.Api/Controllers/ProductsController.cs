@@ -117,7 +117,12 @@ public class ProductsController : BaseApiController
 
         var relatedProducts = await _catalogService.GetRelatedProductsAsync(product.CategoryId, product.Id, 4);
 
-        return OkResponse(new { product, reviews, relatedProducts });
+        return OkResponse(new ProductDetailPageDto
+        {
+            Product = product,
+            Reviews = reviews,
+            RelatedProducts = relatedProducts
+        });
     }
 
     // GET /api/products/{slug}/reviews?rating=&withCommentOnly=&page=
