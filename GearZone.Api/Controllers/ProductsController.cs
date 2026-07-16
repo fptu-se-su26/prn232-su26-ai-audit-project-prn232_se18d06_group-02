@@ -24,7 +24,8 @@ public class ProductsController : BaseApiController
         _adminProductService = adminProductService;
     }
 
-    // GET /api/products?search=&categorySlug=&brand=&minPrice=&maxPrice=&sort=&page=&inStock=
+    // GET /api/products?search=&categorySlug=&brand=&minPrice=&maxPrice=&sortBy=&pageNumber=&inStockOnly=
+    // Any other query key is treated as a dynamic attribute filter, e.g. ?VRAM=12GB&VRAM=16GB
     [HttpGet]
     public async Task<IActionResult> Browse([FromQuery] ProductFilterDto filter)
     {
@@ -32,8 +33,38 @@ public class ProductsController : BaseApiController
         if (filter.PageNumber < 1) filter.PageNumber = 1;
         if (filter.PageSize <= 0) filter.PageSize = 12;
 
+        filter.Attributes = ParseDynamicAttributes();
+
         var result = await _catalogService.GetProductsAsync(filter);
         return OkResponse(result);
+    }
+
+    // Query keys that map onto ProductFilterDto itself; everything else is an attribute filter.
+    private static readonly HashSet<string> FilterQueryKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "storeId", "search", "categorySlug", "brand", "brandSlugs", "minPrice", "maxPrice",
+        "inStockOnly", "inStock", "sortBy", "sort", "viewMode", "pageNumber", "page", "pageSize",
+        "attributes", "handler"
+    };
+
+    private Dictionary<string, List<string>> ParseDynamicAttributes()
+    {
+        var attributes = new Dictionary<string, List<string>>();
+
+        foreach (var key in Request.Query.Keys)
+        {
+            if (FilterQueryKeys.Contains(key)) continue;
+
+            var values = new List<string>();
+            foreach (var value in Request.Query[key])
+            {
+                if (!string.IsNullOrWhiteSpace(value)) values.AddRange(value.Split(','));
+            }
+
+            if (values.Count > 0) attributes[key] = values;
+        }
+
+        return attributes;
     }
 
     // GET /api/products/suggestions?query=

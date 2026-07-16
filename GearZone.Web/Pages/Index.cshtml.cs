@@ -1,31 +1,31 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Catalog.DTOs;
 using GearZone.Web.Pages.Models;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GearZone.Web.Pages
 {
     public class IndexModel : PageModel
     {
-        private readonly ICatalogService _catalogService;
+        // Consumes GearZone.Api over HTTP instead of the catalog service in-process.
+        // The forwarded auth cookie lets the API personalise the payload when signed in.
+        private readonly IApiClient _api;
 
-        public IndexModel(ICatalogService catalogService)
+        public IndexModel(IApiClient api)
         {
-            _catalogService = catalogService;
+            _api = api;
         }
 
         public HomePageDto HomePage { get; private set; } = new();
         public IReadOnlyList<HomeHeroSlideViewModel> HeroSlides { get; private set; } = Array.Empty<HomeHeroSlideViewModel>();
         public IReadOnlyList<HomeServiceStripItemViewModel> ServiceItems { get; private set; } = Array.Empty<HomeServiceStripItemViewModel>();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            HomePage = await _catalogService.GetHomePageAsync(currentUserId);
+            HomePage = await _api.GetAsync<HomePageDto>("/api/catalog/home", ct) ?? new HomePageDto();
             HeroSlides = BuildHeroSlides(HomePage);
             ServiceItems = BuildServiceItems(HomePage);
         }
