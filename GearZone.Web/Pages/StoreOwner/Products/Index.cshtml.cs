@@ -1,30 +1,27 @@
-using GearZone.Application.Abstractions.Services;
+using System.Security.Claims;
 using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Domain.Entities;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Globalization;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GearZone.Web.Pages.StoreOwner.Products
 {
     [Authorize(Roles = "Store Owner")]
     public class IndexModel : PageModel
     {
-        private readonly ISellerProductService _productService;
-        private readonly ISellerStoreService _storeService;
+        // Consumes GearZone.Api over HTTP instead of the product service in-process.
+        // Filtering/sorting/paging and the stat tiles are computed by the API.
+        private readonly IApiClient _api;
 
-        public IndexModel(ISellerProductService productService, ISellerStoreService storeService)
+        public IndexModel(IApiClient api)
         {
-            _productService = productService;
-            _storeService = storeService;
+            _api = api;
         }
 
         public List<SellerProductListDto> Products { get; set; } = new();
-        public ProductStatsViewModel Stats { get; set; } = new();
+        public SellerProductStatsDto Stats { get; set; } = new();
         public List<Category> Categories { get; set; } = new();
         public List<Brand> Brands { get; set; } = new();
 
@@ -53,119 +50,65 @@ namespace GearZone.Web.Pages.StoreOwner.Products
         public int TotalCount { get; set; }
         public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return RedirectToPage("/Public/Auth/Login");
 
-            var store = await _storeService.GetStoreByOwnerIdAsync(userId);
-            if (store == null) return RedirectToPage("/StoreOwner/Dashboard");
+            PageNumber = PageNumber < 1 ? 1 : PageNumber;
 
-            // Fetch all data (Service is currently simple)
-            var allProducts = await _productService.GetProductsByStoreAsync(store.Id);
-            Categories = await _productService.GetCategoriesAsync();
-            Brands = await _productService.GetBrandsAsync();
+            var data = await _api.GetAsync<SellerProductListResponseDto>($"/api/seller/products{BuildQueryString()}", ct);
+            if (data == null) return RedirectToPage("/StoreOwner/Dashboard"); // no store
 
-            // Calculate Stats
-            Stats = new ProductStatsViewModel
+            Products = data.Items;
+            Stats = data.Stats;
+            TotalCount = data.TotalCount;
+            PageSize = data.PageSize > 0 ? data.PageSize : PageSize;
+
+            var metadata = await _api.GetAsync<SellerProductMetadataDto>("/api/seller/products/metadata", ct);
+            if (metadata != null)
             {
-                TotalProducts = allProducts.Count,
-                ActiveProducts = allProducts.Count(p => p.Status == "Active"),
-                OutofStockProducts = allProducts.Count(p => p.TotalStock == 0),
-                DraftProducts = allProducts.Count(p => p.Status == "Draft"),
-                PendingProducts = allProducts.Count(p => p.Status == "Pending")
-            };
-
-            // Apply Filters in-memory
-            var query = allProducts.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(SearchTerm))
-            {
-                var term = NormalizeForSearch(SearchTerm);
-                query = query.Where(p => 
-                    NormalizeForSearch(p.Name).Contains(term, StringComparison.Ordinal) ||
-                    NormalizeForSearch(p.CategoryName).Contains(term, StringComparison.Ordinal) ||
-                    NormalizeForSearch(p.BrandName).Contains(term, StringComparison.Ordinal));
+                Categories = metadata.Categories;
+                Brands = metadata.Brands;
             }
-
-            if (!string.IsNullOrWhiteSpace(Status))
-            {
-                query = query.Where(p => p.Status == Status);
-            }
-
-            if (CategoryId.HasValue)
-            {
-                query = query.Where(p => p.CategoryId == CategoryId.Value);
-            }
-
-            if (BrandId.HasValue)
-            {
-                query = query.Where(p => p.BrandId == BrandId.Value);
-            }
-
-            // Sorting
-            query = SortBy switch
-            {
-                "name" => SortDirection == "asc" ? query.OrderBy(p => p.Name) : query.OrderByDescending(p => p.Name),
-                "price" => SortDirection == "asc" ? query.OrderBy(p => p.BasePrice) : query.OrderByDescending(p => p.BasePrice),
-                "stock" => SortDirection == "asc" ? query.OrderBy(p => p.TotalStock) : query.OrderByDescending(p => p.TotalStock),
-                _ => SortDirection == "asc" ? query.OrderBy(p => p.CreatedAt) : query.OrderByDescending(p => p.CreatedAt)
-            };
-
-            TotalCount = query.Count();
-            Products = query.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToList();
 
             return Page();
         }
 
-        public async Task<IActionResult> OnPostToggleStatusAsync(Guid id)
+        public async Task<IActionResult> OnPostToggleStatusAsync(Guid id, CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var store = await _storeService.GetStoreByOwnerIdAsync(userId!);
-            
-            if (store == null) return RedirectToPage("/StoreOwner/Dashboard");
+            if (string.IsNullOrEmpty(userId)) return RedirectToPage("/Public/Auth/Login");
 
-            try
+            var result = await _api.PatchAsync($"/api/seller/products/{id}/toggle-status", ct);
+            if (result.Success)
             {
-                await _productService.ToggleProductStatusAsync(id, store.Id);
                 TempData["SuccessMessage"] = "Product status updated!";
             }
-            catch (Exception ex)
+            else
             {
-                TempData["ErrorMessage"] = ex.Message;
+                TempData["ErrorMessage"] = result.FirstError ?? "Failed to update product status.";
             }
 
             return RedirectToPage(new { SearchTerm, Status, CategoryId, BrandId, SortBy, SortDirection, PageNumber });
         }
 
-        public class ProductStatsViewModel
+        private string BuildQueryString()
         {
-            public int TotalProducts { get; set; }
-            public int ActiveProducts { get; set; }
-            public int OutofStockProducts { get; set; }
-            public int DraftProducts { get; set; }
-            public int PendingProducts { get; set; }
-        }
-
-        private static string NormalizeForSearch(string? input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
+            var parts = new List<string>
             {
-                return string.Empty;
-            }
+                $"page={PageNumber}",
+                $"pageSize={PageSize}",
+                $"sortBy={Uri.EscapeDataString(SortBy ?? "createdAt")}",
+                $"sortDir={Uri.EscapeDataString(SortDirection ?? "desc")}"
+            };
 
-            var normalized = input.Trim().Normalize(NormalizationForm.FormD);
-            var builder = new StringBuilder(normalized.Length);
+            if (!string.IsNullOrWhiteSpace(SearchTerm)) parts.Add($"searchTerm={Uri.EscapeDataString(SearchTerm)}");
+            if (!string.IsNullOrWhiteSpace(Status)) parts.Add($"status={Uri.EscapeDataString(Status)}");
+            if (CategoryId.HasValue) parts.Add($"categoryId={CategoryId.Value}");
+            if (BrandId.HasValue) parts.Add($"brandId={BrandId.Value}");
 
-            foreach (var c in normalized)
-            {
-                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
-                {
-                    builder.Append(char.ToLowerInvariant(c));
-                }
-            }
-
-            return builder.ToString().Normalize(NormalizationForm.FormC);
+            return "?" + string.Join("&", parts);
         }
     }
 }

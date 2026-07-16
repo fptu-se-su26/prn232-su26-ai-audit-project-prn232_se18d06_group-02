@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Api.Controllers;
@@ -33,23 +35,24 @@ public class ProductsController : BaseApiController
 
         var all = await _productService.GetProductsByStoreAsync(store.Id);
 
-        var stats = new
+        var stats = new SellerProductStatsDto
         {
-            total = all.Count,
-            active = all.Count(p => p.Status == "Active"),
-            outOfStock = all.Count(p => p.TotalStock == 0),
-            draft = all.Count(p => p.Status == "Draft"),
-            pending = all.Count(p => p.Status == "Pending")
+            TotalProducts = all.Count,
+            ActiveProducts = all.Count(p => p.Status == "Active"),
+            OutofStockProducts = all.Count(p => p.TotalStock == 0),
+            DraftProducts = all.Count(p => p.Status == "Draft"),
+            PendingProducts = all.Count(p => p.Status == "Pending")
         };
 
         var query = all.AsQueryable();
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var t = searchTerm.Trim().ToLowerInvariant();
+            // Diacritics-insensitive so "chuot" matches "chuột".
+            var t = NormalizeForSearch(searchTerm);
             query = query.Where(p =>
-                p.Name.ToLowerInvariant().Contains(t) ||
-                p.CategoryName.ToLowerInvariant().Contains(t) ||
-                p.BrandName.ToLowerInvariant().Contains(t));
+                NormalizeForSearch(p.Name).Contains(t, StringComparison.Ordinal) ||
+                NormalizeForSearch(p.CategoryName).Contains(t, StringComparison.Ordinal) ||
+                NormalizeForSearch(p.BrandName).Contains(t, StringComparison.Ordinal));
         }
         if (!string.IsNullOrWhiteSpace(status)) query = query.Where(p => p.Status == status);
         if (categoryId.HasValue) query = query.Where(p => p.CategoryId == categoryId.Value);
@@ -66,7 +69,28 @@ public class ProductsController : BaseApiController
         var totalCount = query.Count();
         var items = query.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
-        return OkResponse(new { stats, totalCount, items, page, pageSize, totalPages = (int)Math.Ceiling(totalCount / (double)pageSize) });
+        return OkResponse(new SellerProductListResponseDto
+        {
+            Stats = stats,
+            TotalCount = totalCount,
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        });
+    }
+
+    // GET /api/seller/products/{id}/details — richer payload for the details screen.
+    [HttpGet("{id:guid}/details")]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        var store = await _storeService.GetStoreByOwnerIdAsync(CurrentUserId!);
+        if (store == null) return FailResponse("Store not found.", 404);
+
+        var product = await _productService.GetProductByIdAsync(id, store.Id);
+        if (product == null) return FailResponse("Product not found.", 404);
+
+        return OkResponse(product);
     }
 
     // GET /api/seller/products/{id}
@@ -125,7 +149,25 @@ public class ProductsController : BaseApiController
     {
         var categories = await _productService.GetCategoriesAsync();
         var brands = await _productService.GetBrandsAsync();
-        return OkResponse(new { categories, brands });
+        return OkResponse(new SellerProductMetadataDto { Categories = categories, Brands = brands });
+    }
+
+    // Strips Vietnamese diacritics + lowercases so search is accent-insensitive.
+    private static string NormalizeForSearch(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+
+        var normalized = input.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var c in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            {
+                builder.Append(char.ToLowerInvariant(c));
+            }
+        }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 
     // GET /api/seller/products/attributes?categoryId=
