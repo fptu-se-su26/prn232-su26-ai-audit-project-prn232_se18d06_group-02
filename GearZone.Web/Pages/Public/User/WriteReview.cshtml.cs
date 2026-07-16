@@ -1,6 +1,6 @@
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Reviews.Dtos;
 using GearZone.Web.Pages.Public.User.Models;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -10,13 +10,12 @@ namespace GearZone.Web.Pages.Public.User
     [Authorize]
     public class WriteReviewModel : PageModel
     {
-        private readonly IAuthService _authService;
-        private readonly IProductReviewService _productReviewService;
+        // Consumes GearZone.Api over HTTP instead of the review service in-process.
+        private readonly IApiClient _api;
 
-        public WriteReviewModel(IAuthService authService, IProductReviewService productReviewService)
+        public WriteReviewModel(IApiClient api)
         {
-            _authService = authService;
-            _productReviewService = productReviewService;
+            _api = api;
         }
 
         [BindProperty]
@@ -24,15 +23,9 @@ namespace GearZone.Web.Pages.Public.User
 
         public EligibleReviewItemDto ReviewItem { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync(Guid orderItemId)
+        public async Task<IActionResult> OnGetAsync(Guid orderItemId, CancellationToken ct)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null)
-            {
-                return RedirectToPage("/Public/Auth/Login");
-            }
-
-            var reviewItem = await _productReviewService.GetReviewEditorAsync(user.Id, orderItemId);
+            var reviewItem = await _api.GetAsync<EligibleReviewItemDto>($"/api/reviews/editor/{orderItemId}", ct);
             if (reviewItem == null)
             {
                 TempData["ErrorMessage"] = "This product is no longer eligible for review.";
@@ -50,15 +43,11 @@ namespace GearZone.Web.Pages.Public.User
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(CancellationToken ct)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null)
-            {
-                return RedirectToPage("/Public/Auth/Login");
-            }
+            ReviewItem = await _api.GetAsync<EligibleReviewItemDto>($"/api/reviews/editor/{Input.OrderItemId}", ct)
+                ?? new EligibleReviewItemDto();
 
-            ReviewItem = await _productReviewService.GetReviewEditorAsync(user.Id, Input.OrderItemId) ?? new EligibleReviewItemDto();
             if (ReviewItem.OrderItemId == Guid.Empty)
             {
                 TempData["ErrorMessage"] = "This product is no longer eligible for review.";
@@ -70,20 +59,20 @@ namespace GearZone.Web.Pages.Public.User
                 return Page();
             }
 
-            var result = await _productReviewService.CreateOrUpdateReviewAsync(user.Id, new CreateOrUpdateProductReviewDto
+            var result = await _api.PostAsync("/api/reviews", new CreateOrUpdateProductReviewDto
             {
                 OrderItemId = Input.OrderItemId,
                 Rating = Input.Rating,
                 Comment = Input.Comment
-            });
+            }, ct);
 
-            if (!result.Succeeded)
+            if (!result.Success)
             {
-                ModelState.AddModelError(string.Empty, result.Message);
+                ModelState.AddModelError(string.Empty, result.FirstError ?? "Failed to submit review.");
                 return Page();
             }
 
-            TempData["SuccessMessage"] = result.Message;
+            TempData["SuccessMessage"] = "Your review has been submitted.";
             return RedirectToPage("/Public/User/Profile", new { tab = "reviews" });
         }
     }
