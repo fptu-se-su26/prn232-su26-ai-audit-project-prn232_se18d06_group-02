@@ -20,6 +20,7 @@ public interface IApiClient
     Task<T?> GetAsync<T>(string path, CancellationToken ct = default);
     Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default);
     Task<ApiResult> PostAsync<TBody>(string path, TBody body, CancellationToken ct = default);
+    Task<ApiResult> PostAsync(string path, CancellationToken ct = default);
     Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default);
     Task<ApiResult> PatchAsync(string path, CancellationToken ct = default);
 }
@@ -51,6 +52,9 @@ public class ApiClient : IApiClient
 
     public Task<ApiResult> PostAsync<TBody>(string path, TBody body, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Post, path, body, ct);
+
+    public Task<ApiResult> PostAsync(string path, CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Post, path, null, ct);
 
     public Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Put, path, body, ct);

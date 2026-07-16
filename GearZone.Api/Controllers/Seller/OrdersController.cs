@@ -1,6 +1,7 @@
 using GearZone.Application.Abstractions.Persistence;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Chat.Dtos;
+using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Domain.Enums;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
@@ -37,21 +38,18 @@ public class OrdersController : BaseApiController
 
         var orders = await _chatService.GetSellerChatOrdersAsync(CurrentUserId!, query);
 
+        var stats = new SellerOrderStatsDto();
         var store = await _storeRepository.GetStoreByOwnerIdAsync(CurrentUserId!);
-        object? stats = null;
         if (store != null)
         {
             var q = _subOrderRepository.Query().Where(x => x.StoreId == store.Id);
-            stats = new
-            {
-                total = await q.CountAsync(),
-                paid = await q.CountAsync(x => x.Status == OrderStatus.Paid || x.Status == OrderStatus.Processing || x.Status == OrderStatus.Delivered || x.Status == OrderStatus.Completed),
-                unpaid = await q.CountAsync(x => x.Status == OrderStatus.Pending || x.Status == OrderStatus.AwaitingPayment || x.Status == OrderStatus.Approved),
-                revenue = await q.Where(x => x.Status != OrderStatus.Cancelled && x.Status != OrderStatus.Rejected && x.Status != OrderStatus.Refunded).SumAsync(x => (decimal?)x.Subtotal) ?? 0m
-            };
+            stats.TotalOrders = await q.CountAsync();
+            stats.PaidOrders = await q.CountAsync(x => x.Status == OrderStatus.Paid || x.Status == OrderStatus.Processing || x.Status == OrderStatus.Delivered || x.Status == OrderStatus.Completed);
+            stats.UnpaidOrders = await q.CountAsync(x => x.Status == OrderStatus.Pending || x.Status == OrderStatus.AwaitingPayment || x.Status == OrderStatus.Approved);
+            stats.TotalRevenue = await q.Where(x => x.Status != OrderStatus.Cancelled && x.Status != OrderStatus.Rejected && x.Status != OrderStatus.Refunded).SumAsync(x => (decimal?)x.Subtotal) ?? 0m;
         }
 
-        return OkResponse(new { orders, stats });
+        return OkResponse(new SellerOrderListDto { Orders = orders, Stats = stats });
     }
 
     // GET /api/seller/orders/{subOrderId}
