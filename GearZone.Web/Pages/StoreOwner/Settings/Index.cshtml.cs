@@ -1,46 +1,46 @@
-using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
-using System.Threading.Tasks;
-using GearZone.Application.Abstractions.Services;
-using GearZone.Domain.Entities;
+using GearZone.Application.Features.Seller.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Configuration;
 
 namespace GearZone.Web.Pages.StoreOwner.Settings
 {
     [Authorize(Roles = "Store Owner")]
     public class IndexModel : PageModel
     {
-        private readonly ISellerStoreService _storeService;
+        // Consumes GearZone.Api over HTTP instead of the store service in-process.
+        private readonly IApiClient _api;
         private readonly IConfiguration _configuration;
 
-        public Store? Store { get; set; }
+        public IndexModel(IApiClient api, IConfiguration configuration)
+        {
+            _api = api;
+            _configuration = configuration;
+        }
+
+        public StoreProfileResponse? Store { get; set; }
 
         public string? GoongApiKey => _configuration["GOONG_API_KEY"];
         public string? GoongMapKey => _configuration["GOONG_MAP_KEY"];
 
-        public IndexModel(ISellerStoreService storeService, IConfiguration configuration)
-        {
-            _storeService = storeService;
-            _configuration = configuration;
-        }
-
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return RedirectToPage("/Public/Auth/Login");
 
-            Store = await _storeService.GetStoreByOwnerIdAsync(userId);
+            Store = await _api.GetAsync<StoreProfileResponse>("/api/seller/store", ct);
             if (Store == null)
             {
                 return RedirectToPage("/Public/Auth/Login"); // Or handle "no store found" properly
             }
-            
+
             return Page();
         }
 
-        public async Task<IActionResult> OnPostUpdateProfileAsync([FromForm] GearZone.Application.Features.Seller.Dtos.UpdateStoreProfileDto dto)
+        public async Task<IActionResult> OnPostUpdateProfileAsync([FromForm] UpdateStoreProfileDto dto, CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return Unauthorized();
@@ -51,9 +51,9 @@ namespace GearZone.Web.Pages.StoreOwner.Settings
                 return RedirectToPage();
             }
 
-            var result = await _storeService.UpdateStoreProfileAsync(userId, dto);
-            
-            if (result)
+            var result = await _api.PutAsync("/api/seller/store", dto, ct);
+
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Store profile updated successfully!";
             }

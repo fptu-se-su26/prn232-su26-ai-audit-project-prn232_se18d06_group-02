@@ -5,6 +5,8 @@ using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+// StoreProfileResponse moved to GearZone.Application.Features.Seller.Dtos (shared with the Razor client).
+
 namespace GearZone.Api.Controllers.Seller;
 
 [Authorize(Roles = "Store Owner")]
@@ -70,14 +72,14 @@ public class StoreSettingsController : BaseApiController
             : FailResponse("Failed to update. Only approved stores can update their profile.");
     }
 
-    // GET /api/seller/store/reviews
+    // GET /api/seller/store/reviews?filter=&pageNumber=&pageSize=
     [HttpGet("reviews")]
-    public async Task<IActionResult> Reviews([FromQuery] int page = 1)
+    public async Task<IActionResult> Reviews([FromQuery] SellerReviewQueryDto query)
     {
         var store = await _storeService.GetStoreByOwnerIdAsync(CurrentUserId!);
         if (store == null) return FailResponse("Store not found.", 404);
 
-        var reviews = await _reviewService.GetStoreReviewsAsync(CurrentUserId!, new GearZone.Application.Features.Reviews.Dtos.SellerReviewQueryDto { PageNumber = page });
+        var reviews = await _reviewService.GetStoreReviewsAsync(CurrentUserId!, query);
         return OkResponse(reviews);
     }
 
@@ -98,34 +100,4 @@ public class StoreSettingsController : BaseApiController
 public class ReviewReplyRequest
 {
     public string ReplyContent { get; set; } = string.Empty;
-}
-
-public class StoreProfileResponse
-{
-    public Guid Id { get; set; }
-    public string OwnerUserId { get; set; } = string.Empty;
-    public string StoreName { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string? LogoUrl { get; set; }
-    public string BusinessType { get; set; } = string.Empty;
-    public string TaxCode { get; set; } = string.Empty;
-    public string Phone { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string AddressLine { get; set; } = string.Empty;
-    public string Province { get; set; } = string.Empty;
-    public double? Latitude { get; set; }
-    public double? Longitude { get; set; }
-    public string BankAccountNumber { get; set; } = string.Empty;
-    public string BankAccountName { get; set; } = string.Empty;
-    public string BankName { get; set; } = string.Empty;
-    public string BankBin { get; set; } = string.Empty;
-    public int RegistrationStep { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public string? RejectReason { get; set; }
-    public string? LockReason { get; set; }
-    public decimal CommissionRate { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? ApprovedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
 }

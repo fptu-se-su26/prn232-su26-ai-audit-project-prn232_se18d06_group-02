@@ -7,7 +7,7 @@ export const sellerApi = {
   getStoreSettings: () => apiClient.get('/seller/store').then(res => unwrap(res)),
   updateStoreSettings: (data: unknown) => apiClient.put('/seller/store', data),
   storeReviews: (page = 1) =>
-    apiClient.get('/seller/store/reviews', { params: { page } }).then(res => unwrap(res)),
+    apiClient.get('/seller/store/reviews', { params: { pageNumber: page } }).then(res => unwrap(res)),
   replyToReview: (reviewId: string, replyContent: string) =>
     apiClient.post(`/seller/store/reviews/${reviewId}/reply`, { replyContent }),
 

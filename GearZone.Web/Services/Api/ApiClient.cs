@@ -37,6 +37,10 @@ public class ApiClient : IApiClient
     public async Task<T?> GetAsync<T>(string path, CancellationToken ct = default)
     {
         var response = await _http.GetAsync(path, ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return default; // "not found" → null, matching the in-process services' semantics.
+        }
         response.EnsureSuccessStatusCode();
 
         var wrapped = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken: ct);
