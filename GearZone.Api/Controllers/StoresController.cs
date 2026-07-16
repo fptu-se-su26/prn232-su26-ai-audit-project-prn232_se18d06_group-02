@@ -6,7 +6,8 @@ using System.Security.Claims;
 
 namespace GearZone.Api.Controllers;
 
-[AllowAnonymous]
+// NOTE: no controller-level [AllowAnonymous] — it would override the [Authorize]
+// on Follow. Public actions opt in individually instead.
 public class StoresController : BaseApiController
 {
     private readonly ICatalogService _catalogService;
@@ -17,6 +18,7 @@ public class StoresController : BaseApiController
     }
 
     // GET /api/stores/{slug}
+    [AllowAnonymous]
     [HttpGet("{slug}")]
     public async Task<IActionResult> Profile(string slug)
     {
@@ -30,6 +32,7 @@ public class StoresController : BaseApiController
     }
 
     // GET /api/stores/{slug}/products?categorySlug=&sort=&minPrice=&maxPrice=&page=
+    [AllowAnonymous]
     [HttpGet("{slug}/products")]
     public async Task<IActionResult> Products(string slug, [FromQuery] ProductFilterDto filter)
     {

@@ -7,25 +7,30 @@ using System.Security.Claims;
 
 namespace GearZone.Api.Controllers;
 
-[AllowAnonymous]
+// NOTE: no controller-level [AllowAnonymous] — it would override the [Authorize]
+// on Preview. Public actions opt in individually instead.
 public class ProductsController : BaseApiController
 {
     private readonly ICatalogService _catalogService;
     private readonly IProductReviewService _reviewService;
     private readonly IAdminProductService _adminProductService;
+    private readonly ISellerStoreService _storeService;
 
     public ProductsController(
         ICatalogService catalogService,
         IProductReviewService reviewService,
-        IAdminProductService adminProductService)
+        IAdminProductService adminProductService,
+        ISellerStoreService storeService)
     {
         _catalogService = catalogService;
         _reviewService = reviewService;
         _adminProductService = adminProductService;
+        _storeService = storeService;
     }
 
     // GET /api/products?search=&categorySlug=&brand=&minPrice=&maxPrice=&sortBy=&pageNumber=&inStockOnly=
     // Any other query key is treated as a dynamic attribute filter, e.g. ?VRAM=12GB&VRAM=16GB
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> Browse([FromQuery] ProductFilterDto filter)
     {
@@ -68,6 +73,7 @@ public class ProductsController : BaseApiController
     }
 
     // GET /api/products/suggestions?query=
+    [AllowAnonymous]
     [HttpGet("suggestions")]
     public async Task<IActionResult> Suggestions([FromQuery] string query)
     {
@@ -76,6 +82,7 @@ public class ProductsController : BaseApiController
     }
 
     // GET /api/products/compare?categoryId=&ids=guid1,guid2
+    [AllowAnonymous]
     [HttpGet("compare")]
     public async Task<IActionResult> Compare([FromQuery] int categoryId, [FromQuery] string ids)
     {
@@ -97,6 +104,7 @@ public class ProductsController : BaseApiController
     }
 
     // GET /api/products/{slug}
+    [AllowAnonymous]
     [HttpGet("{slug}")]
     public async Task<IActionResult> Detail(string slug, [FromQuery] int? reviewRating, [FromQuery] bool withCommentOnly, [FromQuery] int reviewPage = 1)
     {
@@ -126,6 +134,7 @@ public class ProductsController : BaseApiController
     }
 
     // GET /api/products/{slug}/reviews?rating=&withCommentOnly=&page=
+    [AllowAnonymous]
     [HttpGet("{slug}/reviews")]
     public async Task<IActionResult> Reviews(string slug, [FromQuery] ProductReviewQueryDto query)
     {
@@ -139,13 +148,22 @@ public class ProductsController : BaseApiController
         return OkResponse(reviews);
     }
 
-    // GET /api/products/{id}/preview  (Admin only - pending products)
-    [Authorize(Roles = "Super Admin")]
+    // GET /api/products/{id}/preview — preview a not-yet-public (draft/pending) product.
+    // Super Admin can preview any product; a Store Owner only their own store's products.
+    [Authorize(Roles = "Super Admin,Store Owner")]
     [HttpGet("{id:guid}/preview")]
     public async Task<IActionResult> Preview(Guid id)
     {
         var product = await _adminProductService.GetProductDetailAsync(id);
         if (product == null) return FailResponse("Product not found.", 404);
+
+        if (!User.IsInRole("Super Admin"))
+        {
+            var store = await _storeService.GetStoreByOwnerIdAsync(CurrentUserId!);
+            // 404 rather than 403 so we don't leak that the product exists.
+            if (store == null || product.Store?.Id != store.Id)
+                return FailResponse("Product not found.", 404);
+        }
 
         return OkResponse(product);
     }
