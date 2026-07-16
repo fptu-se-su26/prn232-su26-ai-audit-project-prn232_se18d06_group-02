@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using System.Text;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Seller.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -11,11 +11,14 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
     [Authorize(Roles = "Store Owner")]
     public class IndexModel : PageModel
     {
-        private readonly ISellerReportService _reportService;
+        // Phase 2 pilot: this page now consumes GearZone.Api over HTTP (via IApiClient)
+        // instead of calling ISellerReportService in-process. The auth cookie is
+        // forwarded by CookieForwardingHandler so the API's [Authorize] validates it.
+        private readonly IApiClient _api;
 
-        public IndexModel(ISellerReportService reportService)
+        public IndexModel(IApiClient api)
         {
-            _reportService = reportService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -61,14 +64,6 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
             ("lastMonth", "Last month"),
         };
 
-        private SellerReportQueryDto BuildQuery() => new()
-        {
-            Range = Range,
-            Granularity = Granularity,
-            From = From,
-            To = To,
-        };
-
         public async Task<IActionResult> OnGetAsync(CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -76,33 +71,33 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
                 return RedirectToPage("/Public/Auth/Login");
 
             Tab = NormalizeTab(Tab);
-            var q = BuildQuery();
+            var qs = BuildQueryString();
 
             switch (Tab)
             {
                 case "products":
-                    Products = await _reportService.GetProductPerformanceAsync(userId, q, ct);
-                    HasStore = Products.HasStore;
+                    Products = await _api.GetAsync<ProductPerformanceReportDto>($"/api/seller/reports/products{qs}", ct);
+                    HasStore = Products?.HasStore ?? false;
                     break;
                 case "operations":
-                    Operations = await _reportService.GetOperationsReportAsync(userId, q, ct);
-                    HasStore = Operations.HasStore;
+                    Operations = await _api.GetAsync<OperationsReportDto>($"/api/seller/reports/operations{qs}", ct);
+                    HasStore = Operations?.HasStore ?? false;
                     break;
                 case "customers":
-                    Customers = await _reportService.GetCustomerReportAsync(userId, q, ct);
-                    HasStore = Customers.HasStore;
+                    Customers = await _api.GetAsync<CustomerReportDto>($"/api/seller/reports/customers{qs}", ct);
+                    HasStore = Customers?.HasStore ?? false;
                     break;
                 case "marketing":
-                    Marketing = await _reportService.GetMarketingReportAsync(userId, q, ct);
-                    HasStore = Marketing.HasStore;
+                    Marketing = await _api.GetAsync<MarketingReportDto>($"/api/seller/reports/marketing{qs}", ct);
+                    HasStore = Marketing?.HasStore ?? false;
                     break;
                 case "reviews":
-                    Reviews = await _reportService.GetReviewsReportAsync(userId, q, ct);
-                    HasStore = Reviews.HasStore;
+                    Reviews = await _api.GetAsync<ReviewsReportDto>($"/api/seller/reports/reviews{qs}", ct);
+                    HasStore = Reviews?.HasStore ?? false;
                     break;
                 default:
-                    Sales = await _reportService.GetSalesReportAsync(userId, q, ct);
-                    HasStore = Sales.HasStore;
+                    Sales = await _api.GetAsync<SalesReportDto>($"/api/seller/reports/sales{qs}", ct);
+                    HasStore = Sales?.HasStore ?? false;
                     break;
             }
 
@@ -115,10 +110,20 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
             if (string.IsNullOrWhiteSpace(userId))
                 return RedirectToPage("/Public/Auth/Login");
 
-            var csv = await _reportService.GetSalesCsvAsync(userId, BuildQuery(), ct);
+            var raw = await _api.GetBytesAsync($"/api/seller/reports/sales/export{BuildQueryString()}", ct);
             // Prepend BOM so Excel opens UTF-8 correctly.
-            var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray();
+            var bytes = Encoding.UTF8.GetPreamble().Concat(raw).ToArray();
             return File(bytes, "text/csv", $"sales-report-{DateTime.UtcNow:yyyyMMdd}.csv");
+        }
+
+        private string BuildQueryString()
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Range)) parts.Add($"range={Uri.EscapeDataString(Range)}");
+            if (!string.IsNullOrWhiteSpace(Granularity)) parts.Add($"granularity={Uri.EscapeDataString(Granularity)}");
+            if (From.HasValue) parts.Add($"from={From.Value:yyyy-MM-dd}");
+            if (To.HasValue) parts.Add($"to={To.Value:yyyy-MM-dd}");
+            return parts.Count > 0 ? "?" + string.Join("&", parts) : string.Empty;
         }
 
         private static string NormalizeTab(string tab)

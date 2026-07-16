@@ -76,6 +76,16 @@ builder.Services.AddSignalR();
 // means Razor pages (server render + client-side JS) are untouched by the split.
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+// Typed HTTP client Razor PageModels use to consume GearZone.Api server-side,
+// forwarding the caller's auth cookie so the API's [Authorize] validates it.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<GearZone.Web.Services.Api.CookieForwardingHandler>();
+builder.Services.AddHttpClient<GearZone.Web.Services.Api.IApiClient, GearZone.Web.Services.Api.ApiClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiClient:BaseUrl"] ?? "http://localhost:5200/");
+})
+.AddHttpMessageHandler<GearZone.Web.Services.Api.CookieForwardingHandler>();
 builder.Services.AddScoped<IOrderTrackingNotifier, SignalROrderTrackingNotifier>();
 builder.Services.AddScoped<BuyerInboxComposer>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>

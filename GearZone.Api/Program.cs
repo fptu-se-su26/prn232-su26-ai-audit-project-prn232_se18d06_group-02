@@ -30,7 +30,10 @@ foreach (var envPath in envCandidates)
 builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
-    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "No database connection string. Set DB_CONNECTION_STRING (usually via the shared .env) " +
+        "or ConnectionStrings:DefaultConnection.");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
