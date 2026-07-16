@@ -21,6 +21,8 @@ public interface IApiClient
     Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default);
     Task<ApiResult> PostAsync<TBody>(string path, TBody body, CancellationToken ct = default);
     Task<ApiResult> PostAsync(string path, CancellationToken ct = default);
+    /// <summary>POSTs with no body and returns the unwrapped payload (null on failure).</summary>
+    Task<TResponse?> PostAndReadAsync<TResponse>(string path, CancellationToken ct = default);
     Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default);
     Task<ApiResult> PatchAsync(string path, CancellationToken ct = default);
 }
@@ -59,6 +61,15 @@ public class ApiClient : IApiClient
 
     public Task<ApiResult> PostAsync(string path, CancellationToken ct = default) =>
         SendAsync<object?>(HttpMethod.Post, path, null, ct);
+
+    public async Task<TResponse?> PostAndReadAsync<TResponse>(string path, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsync(path, content: null, ct);
+        if (!response.IsSuccessStatusCode) return default;
+
+        var wrapped = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>(cancellationToken: ct);
+        return wrapped is null ? default : wrapped.Data;
+    }
 
     public Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Put, path, body, ct);

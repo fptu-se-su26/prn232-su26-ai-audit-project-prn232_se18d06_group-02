@@ -59,6 +59,6 @@ public class StoresController : BaseApiController
         var isFollowing = await _catalogService.ToggleFollowAsync(CurrentUserId!, store.Id);
         var followerCount = await _catalogService.GetFollowerCountAsync(store.Id);
 
-        return OkResponse(new { isFollowing, followerCount });
+        return OkResponse(new StoreFollowResultDto { IsFollowing = isFollowing, FollowerCount = followerCount });
     }
 }
