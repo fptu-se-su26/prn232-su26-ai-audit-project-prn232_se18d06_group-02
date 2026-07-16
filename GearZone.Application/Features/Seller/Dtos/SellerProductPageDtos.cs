@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using GearZone.Domain.Entities;
 
 namespace GearZone.Application.Features.Seller.Dtos
 {
@@ -23,10 +22,27 @@ namespace GearZone.Application.Features.Seller.Dtos
         public int TotalPages { get; set; }
     }
 
-    /// <summary>Category + brand options for the product filters and forms.</summary>
+    public class SellerCategoryOptionDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int? ParentId { get; set; }
+    }
+
+    public class SellerBrandOptionDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Category + brand options for the product filters and forms. Deliberately flat DTOs:
+    /// the Category entity self-references (Parent/Children), so serializing entities here
+    /// produces a JSON reference cycle.
+    /// </summary>
     public class SellerProductMetadataDto
     {
-        public List<Category> Categories { get; set; } = new();
-        public List<Brand> Brands { get; set; } = new();
+        public List<SellerCategoryOptionDto> Categories { get; set; } = new();
+        public List<SellerBrandOptionDto> Brands { get; set; } = new();
     }
 }

@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using GearZone.Application.Features.Seller.Dtos;
-using GearZone.Domain.Entities;
 using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,8 +21,8 @@ namespace GearZone.Web.Pages.StoreOwner.Products
 
         public List<SellerProductListDto> Products { get; set; } = new();
         public SellerProductStatsDto Stats { get; set; } = new();
-        public List<Category> Categories { get; set; } = new();
-        public List<Brand> Brands { get; set; } = new();
+        public List<SellerCategoryOptionDto> Categories { get; set; } = new();
+        public List<SellerBrandOptionDto> Brands { get; set; } = new();
 
         [BindProperty(SupportsGet = true)]
         public string? SearchTerm { get; set; }

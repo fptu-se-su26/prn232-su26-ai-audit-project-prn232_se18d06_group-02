@@ -149,7 +149,16 @@ public class ProductsController : BaseApiController
     {
         var categories = await _productService.GetCategoriesAsync();
         var brands = await _productService.GetBrandsAsync();
-        return OkResponse(new SellerProductMetadataDto { Categories = categories, Brands = brands });
+
+        return OkResponse(new SellerProductMetadataDto
+        {
+            Categories = categories
+                .Select(c => new SellerCategoryOptionDto { Id = c.Id, Name = c.Name, ParentId = c.ParentId })
+                .ToList(),
+            Brands = brands
+                .Select(b => new SellerBrandOptionDto { Id = b.Id, Name = b.Name })
+                .ToList()
+        });
     }
 
     // Strips Vietnamese diacritics + lowercases so search is accent-insensitive.
