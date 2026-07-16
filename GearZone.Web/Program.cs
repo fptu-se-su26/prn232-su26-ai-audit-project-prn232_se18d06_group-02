@@ -68,7 +68,12 @@ builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration["DB_CONNECTION_STRING"] ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    // Verification emails sent before VerifyEmail moved to /Auth/VerifyEmail still carry the
+    // old link, and a recipient who clicks it can never confirm their account otherwise.
+    options.Conventions.AddPageRoute("/Public/Auth/VerifyEmail", "/Public/Auth/VerifyEmail");
+});
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 

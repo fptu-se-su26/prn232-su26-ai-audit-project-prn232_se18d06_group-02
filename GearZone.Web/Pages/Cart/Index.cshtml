@@ -1,4 +1,4 @@
-@page
+@page "/cart"
 @model GearZone.Web.Pages.Cart.IndexModel
 @{
     ViewData["Title"] = "Shopping Cart - GearZone";
@@ -151,7 +151,7 @@
                         </div>
                     </div>
                     
-                    <form method="get" id="checkout-form" action="/Checkout">
+                    <form method="get" id="checkout-form" action="/checkout">
                         <button type="submit" id="btn-checkout" disabled class="w-full bg-secondary hover:bg-orange-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg shadow-lg shadow-orange-500/20 transition-all transform hover:scale-[1.01] active:scale-[0.99] flex justify-center items-center gap-2 text-lg uppercase tracking-wider">
                             CHECKOUT NOW
                             <span class="material-symbols-outlined text-[20px]">arrow_forward</span>

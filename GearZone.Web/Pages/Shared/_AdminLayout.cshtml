@@ -191,12 +191,12 @@
                 <span class="font-medium text-sm sidebar-text">Payouts</span>
             </a>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/SellerPayableSummary">
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/admin/seller-payable-summary">
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "filled" : "")">summarize</span>
                 <span class="font-medium text-sm sidebar-text">Seller Payable</span>
             </a>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/PayoutBatches/Index">
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/admin/payout-batches">
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "filled" : "")">account_balance_wallet</span>
                 <span class="font-medium text-sm sidebar-text">Payout Batches</span>
             </a>
@@ -250,7 +250,7 @@
                         Account Settings
                     </a>
                     <div class="border-t border-border-light my-1"></div>
-                    <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
+                    <a href="/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
                         <span class="material-symbols-outlined text-[20px] group-hover:text-red-700">logout</span>
                         Log Out
                     </a>
@@ -280,8 +280,8 @@
                                 { "Product Management", "/admin/products" },
                                 { "Category Management", "/admin/categories" },
                                 { "Brand Management", "/admin/brands" },
-                                { "Seller Payable Summary", "/Admin/SellerPayableSummary" },
-                                { "Payout Batches", "/Admin/PayoutBatches/Index" }
+                                { "Seller Payable Summary", "/admin/seller-payable-summary" },
+                                { "Payout Batches", "/admin/payout-batches" }
                             };
                         }
                         
