@@ -31,8 +31,19 @@ public class VouchersController : BaseApiController
         var summary = await _voucherService.GetVoucherSummaryAsync(CurrentUserId!);
         var categories = await _categoryService.GetAllCategoriesListAsync();
 
-        return OkResponse(new { vouchers, summary, categories });
+        return OkResponse(new SellerVoucherListDto
+        {
+            Vouchers = vouchers,
+            Summary = summary,
+            Categories = categories
+        });
     }
+
+    // GET /api/seller/vouchers/categories — options for the create/edit forms.
+    // Declared before the {id:guid} route; "categories" never matches a GUID anyway.
+    [HttpGet("categories")]
+    public async Task<IActionResult> Categories()
+        => OkResponse(await _categoryService.GetAllCategoriesListAsync());
 
     // GET /api/seller/vouchers/{id}
     [HttpGet("{id:guid}")]

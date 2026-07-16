@@ -3,6 +3,13 @@ using GearZone.Application.Common;
 
 namespace GearZone.Web.Services.Api;
 
+/// <summary>Outcome of a write call, mirroring the API's ApiResponse envelope.</summary>
+public record ApiResult(bool Success, string? Message, IReadOnlyList<string> Errors)
+{
+    /// <summary>First error/message suitable for showing to the user.</summary>
+    public string? FirstError => Errors.Count > 0 ? Errors[0] : Message;
+}
+
 /// <summary>
 /// Thin HTTP client the Razor pages use to consume GearZone.Api. It unwraps the
 /// standard <see cref="ApiResponse{T}"/> envelope so callers get the payload
@@ -12,6 +19,9 @@ public interface IApiClient
 {
     Task<T?> GetAsync<T>(string path, CancellationToken ct = default);
     Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default);
+    Task<ApiResult> PostAsync<TBody>(string path, TBody body, CancellationToken ct = default);
+    Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default);
+    Task<ApiResult> PatchAsync(string path, CancellationToken ct = default);
 }
 
 public class ApiClient : IApiClient
@@ -37,5 +47,47 @@ public class ApiClient : IApiClient
         var response = await _http.GetAsync(path, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsByteArrayAsync(ct);
+    }
+
+    public Task<ApiResult> PostAsync<TBody>(string path, TBody body, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Post, path, body, ct);
+
+    public Task<ApiResult> PutAsync<TBody>(string path, TBody body, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Put, path, body, ct);
+
+    public Task<ApiResult> PatchAsync(string path, CancellationToken ct = default) =>
+        SendAsync<object?>(HttpMethod.Patch, path, null, ct);
+
+    // Write calls must read the body even on 4xx: the API reports failures as
+    // ApiResponse.Fail (message + errors) with a non-success status code.
+    private async Task<ApiResult> SendAsync<TBody>(HttpMethod method, string path, TBody? body, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(method, path);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        var response = await _http.SendAsync(request, ct);
+
+        ApiResponse<object>? payload = null;
+        try
+        {
+            payload = await response.Content.ReadFromJsonAsync<ApiResponse<object>>(cancellationToken: ct);
+        }
+        catch
+        {
+            // Non-JSON body (e.g. an error page) — fall back to the status code below.
+        }
+
+        if (payload is not null)
+        {
+            return new ApiResult(payload.Success, payload.Message, payload.Errors?.ToList() ?? new List<string>());
+        }
+
+        return new ApiResult(
+            response.IsSuccessStatusCode,
+            response.IsSuccessStatusCode ? null : $"Request failed ({(int)response.StatusCode}).",
+            new List<string>());
     }
 }
