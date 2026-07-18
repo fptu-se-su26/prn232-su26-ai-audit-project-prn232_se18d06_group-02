@@ -24,7 +24,7 @@ public class OrdersController : BaseApiController
     {
         var orders = await _orderService.GetOrdersAsync(query);
         var stats = await _orderService.GetOrderStatsAsync();
-        return OkResponse(new { orders, stats });
+        return OkResponse(new AdminOrderListResponseDto { Orders = orders, Stats = stats });
     }
 
     // GET /api/admin/orders/{id}

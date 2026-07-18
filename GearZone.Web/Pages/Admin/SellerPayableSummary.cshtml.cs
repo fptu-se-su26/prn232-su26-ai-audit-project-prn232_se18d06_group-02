@@ -1,32 +1,23 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
-using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Web.Pages.Admin
 {
     [Authorize(Roles = "Super Admin")]
     public class SellerPayableSummaryModel : PageModel
     {
-        private readonly IAdminPayoutService _adminPayoutService;
-        private readonly IPayoutService _payoutService;
-        private readonly IAdminPlatformService _platformService;
+        private readonly IApiClient _api;
 
-        public SellerPayableSummaryModel(
-            IAdminPayoutService adminPayoutService,
-            IPayoutService payoutService,
-            IAdminPlatformService platformService)
+        public SellerPayableSummaryModel(IApiClient api)
         {
-            _adminPayoutService = adminPayoutService;
-            _payoutService = payoutService;
-            _platformService = platformService;
+            _api = api;
         }
 
         public List<AdminSellerPayableSummaryDto> Payables { get; set; } = new();
@@ -48,14 +39,13 @@ namespace GearZone.Web.Pages.Admin
         public DateTime CurrentStart { get; private set; }
         public DateTime CurrentEnd { get; private set; }
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             CalculateDates();
-            Payables = await _adminPayoutService.GetSellerPayableSummaryAsync(CurrentStart, CurrentEnd);
-            await LoadWalletBalanceAsync();
+            await LoadSummaryAndWalletAsync(ct);
         }
 
-        public async Task<IActionResult> OnPostProcessBulkAsync()
+        public async Task<IActionResult> OnPostProcessBulkAsync(CancellationToken ct)
         {
             CalculateDates();
 
@@ -70,10 +60,10 @@ namespace GearZone.Web.Pages.Admin
                 return RedirectToCurrentRange();
             }
 
-            return await ProcessSelectedStoresAsync(storeIds);
+            return await ProcessSelectedStoresAsync(storeIds, null, ct);
         }
 
-        public async Task<IActionResult> OnPostProcessSingleAsync(Guid storeId)
+        public async Task<IActionResult> OnPostProcessSingleAsync(Guid storeId, CancellationToken ct)
         {
             CalculateDates();
 
@@ -83,48 +73,74 @@ namespace GearZone.Web.Pages.Admin
                 return RedirectToCurrentRange();
             }
 
-            return await ProcessSelectedStoresAsync([storeId]);
+            return await ProcessSelectedStoresAsync([storeId], storeId, ct);
         }
 
-        private async Task<IActionResult> ProcessSelectedStoresAsync(IReadOnlyCollection<Guid> storeIds)
+        private async Task<IActionResult> ProcessSelectedStoresAsync(
+            IReadOnlyCollection<Guid> storeIds,
+            Guid? singleStoreId,
+            CancellationToken ct)
         {
-            var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-
             try
             {
-                var payables = await _adminPayoutService.GetSellerPayableSummaryAsync(CurrentStart, CurrentEnd);
-                var requiredAmount = payables
+                var summaryTask = LoadSellerSummaryAsync(ct);
+                var walletTask = GetCurrentWalletBalanceAsync(ct);
+                await Task.WhenAll(summaryTask, walletTask);
+
+                var summary = await summaryTask;
+                var requiredAmount = summary.Summary
                     .Where(x => storeIds.Contains(x.StoreId))
                     .Sum(x => x.TotalNetAmount);
 
-                var walletBalance = await GetCurrentWalletBalanceAsync();
+                var walletBalance = await walletTask;
                 if (walletBalance < requiredAmount)
                 {
                     TempData["ErrorMessage"] = $"Current wallet balance ({walletBalance:N0} VND) is insufficient for payout ({requiredAmount:N0} VND). Please top up before processing.";
                     return RedirectToPage("/Admin/Wallet/Index");
                 }
 
-                var batchCode = await _payoutService.GenerateApprovedBatchForStoresAsync(
-                    CurrentStart,
-                    CurrentEnd,
-                    storeIds,
-                    adminId);
-
-                await _payoutService.ProcessPayoutBatchAsync(batchCode, HttpContext.RequestAborted);
-
-                var paged = await _adminPayoutService.GetPayoutBatchesAsync(new AdminPayoutBatchQueryDto
+                ApiResult<PayoutBatchCreatedDto> generated;
+                var rangeRequest = new
                 {
-                    SearchTerm = batchCode,
-                    PageNumber = 1,
-                    PageSize = 5
-                });
+                    rangeType = RangeType,
+                    customStart = RangeType == "custom" ? CustomStart : null,
+                    customEnd = RangeType == "custom" ? CustomEnd : null
+                };
 
-                var processedBatch = paged.Items.FirstOrDefault(x => x.BatchCode == batchCode);
+                if (singleStoreId.HasValue)
+                {
+                    generated = await _api.PostAndReadAsync<object, PayoutBatchCreatedDto>(
+                        $"/api/admin/payouts/process-single/{singleStoreId.Value}", rangeRequest, ct);
+                }
+                else
+                {
+                    generated = await _api.PostAndReadAsync<object, PayoutBatchCreatedDto>(
+                        "/api/admin/payouts/process-bulk",
+                        new
+                        {
+                            storeIds,
+                            rangeType = RangeType,
+                            customStart = RangeType == "custom" ? CustomStart : null,
+                            customEnd = RangeType == "custom" ? CustomEnd : null
+                        }, ct);
+                }
+
+                if (!generated.Success || string.IsNullOrWhiteSpace(generated.Data?.BatchCode))
+                    throw new InvalidOperationException(generated.FirstError ?? "Failed to generate payout batch.");
+
+                var batchCode = generated.Data.BatchCode;
+                var processed = await _api.PostAndReadAsync<object, AdminPayoutBatchDto>(
+                    "/api/admin/payouts/process-generated", new { batchCode }, ct);
+
+                if (!processed.Success)
+                    throw new InvalidOperationException(processed.FirstError ?? "Failed to process payout batch.");
+
+                var processedBatch = processed.Data;
                 if (processedBatch == null)
                 {
                     TempData["InfoMessage"] = $"Batch '{batchCode}' has been processed. Please check the payout batch list for status details.";
                 }
-                else if (processedBatch.Status == GearZone.Domain.Enums.PayoutBatchStatus.Completed)
+                else if (processedBatch.Status == PayoutBatchStatus.Completed)
                 {
                     TempData["SuccessMessage"] = $"Payout completed successfully. Batch '{batchCode}' finished ({processedBatch.SuccessCount} transactions).";
                 }
@@ -186,27 +202,57 @@ namespace GearZone.Web.Pages.Admin
             return date.AddDays(-diff).Date;
         }
 
-        private async Task LoadWalletBalanceAsync()
+        private async Task LoadSummaryAndWalletAsync(CancellationToken ct)
         {
+            var summaryTask = LoadSellerSummaryAsync(ct);
+            var walletTask = GetCurrentWalletBalanceAsync(ct);
             try
             {
-                CurrentWalletBalance = await GetCurrentWalletBalanceAsync();
+                await Task.WhenAll(summaryTask, walletTask);
+                var summary = await summaryTask;
+                Payables = summary.Summary;
+                CurrentStart = summary.PeriodStart;
+                CurrentEnd = summary.PeriodEnd;
+                CurrentWalletBalance = await walletTask;
                 IsWalletBalanceAvailable = true;
             }
             catch
             {
+                if (summaryTask.IsCompletedSuccessfully)
+                {
+                    var summary = await summaryTask;
+                    Payables = summary.Summary;
+                    CurrentStart = summary.PeriodStart;
+                    CurrentEnd = summary.PeriodEnd;
+                }
                 CurrentWalletBalance = 0m;
                 IsWalletBalanceAvailable = false;
             }
         }
 
-        private async Task<decimal> GetCurrentWalletBalanceAsync()
+        private async Task<AdminSellerPayableResponseDto> LoadSellerSummaryAsync(CancellationToken ct)
         {
-            var summary = await _platformService.GetTransactionSummaryAsync(new PlatformTransactionQuery
+            var query = new
+            {
+                rangeType = RangeType,
+                customStart = RangeType == "custom" ? CustomStart : null,
+                customEnd = RangeType == "custom" ? CustomEnd : null
+            };
+            return await _api.GetAsync<AdminSellerPayableResponseDto>(
+                $"/api/admin/payouts/seller-summary{ApiQueryStringBuilder.Build(query)}", ct)
+                ?? new AdminSellerPayableResponseDto { PeriodStart = CurrentStart, PeriodEnd = CurrentEnd };
+        }
+
+        private async Task<decimal> GetCurrentWalletBalanceAsync(CancellationToken ct)
+        {
+            var query = new PlatformTransactionQuery
             {
                 PageNumber = 1,
                 PageSize = 1
-            });
+            };
+            var summary = await _api.GetAsync<AdminPlatformTransactionSummaryDto>(
+                $"/api/admin/transactions/summary{ApiQueryStringBuilder.Build(query)}", ct);
+            if (summary is null) throw new InvalidOperationException("Wallet balance is unavailable.");
             return summary.WalletBalance;
         }
     }

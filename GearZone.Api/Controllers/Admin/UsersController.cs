@@ -5,6 +5,9 @@ using GearZone.Api.Controllers;
 using GearZone.Application.Features.Admin.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -34,11 +37,11 @@ public class UsersController : BaseApiController
         var stats = await _userService.GetUserStatsAsync();
         var roles = await _userService.GetAllRolesAsync();
 
-        return OkResponse(new
+        return OkResponse(new AdminUserListResponseDto
         {
-            users = new { items = viewModels, result.TotalCount, result.PageNumber, result.PageSize },
-            stats,
-            roles
+            Users = new(viewModels, result.TotalCount, result.PageNumber, result.PageSize),
+            Stats = stats,
+            Roles = roles
         });
     }
 
@@ -53,6 +56,7 @@ public class UsersController : BaseApiController
 
     // POST /api/admin/users
     [HttpPost]
+    [AdminAuditAction(AdminAuditActions.UserCreated, AdminAuditModules.Users, AdminAuditRiskLevel.Medium, EntityType = "ApplicationUser")]
     public async Task<IActionResult> Create([FromBody] CreateUserViewModel request)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
@@ -66,6 +70,7 @@ public class UsersController : BaseApiController
 
     // PUT /api/admin/users
     [HttpPut]
+    [AdminAuditAction(AdminAuditActions.UserUpdated, AdminAuditModules.Users, AdminAuditRiskLevel.Medium, EntityType = "ApplicationUser")]
     public async Task<IActionResult> Update([FromBody] EditUserViewModel request)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
@@ -79,6 +84,7 @@ public class UsersController : BaseApiController
 
     // DELETE /api/admin/users/{id}
     [HttpDelete("{id}")]
+    [AdminAuditAction(AdminAuditActions.UserDeleted, AdminAuditModules.Users, AdminAuditRiskLevel.High, EntityType = "ApplicationUser")]
     public async Task<IActionResult> Delete(string id)
     {
         var result = await _userService.SoftDeleteUserAsync(id, User.Identity!.Name ?? "System");
@@ -87,6 +93,7 @@ public class UsersController : BaseApiController
 
     // POST /api/admin/users/{id}/restore
     [HttpPost("{id}/restore")]
+    [AdminAuditAction(AdminAuditActions.UserRestored, AdminAuditModules.Users, AdminAuditRiskLevel.Medium, EntityType = "ApplicationUser")]
     public async Task<IActionResult> Restore(string id)
     {
         var result = await _userService.RestoreUserAsync(id);

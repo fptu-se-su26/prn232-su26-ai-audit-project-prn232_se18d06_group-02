@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -9,11 +9,11 @@ namespace GearZone.Web.Pages.Admin.Categories
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminCategoryService _adminCategoryService;
+        private readonly IApiClient _api;
 
-        public IndexModel(IAdminCategoryService adminCategoryService)
+        public IndexModel(IApiClient api)
         {
-            _adminCategoryService = adminCategoryService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -22,15 +22,15 @@ namespace GearZone.Web.Pages.Admin.Categories
         public List<CategoryDto> HierarchicalCategories { get; set; } = new();
         public int TotalCount { get; set; }
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
-            await LoadDataAsync();
+            await LoadDataAsync(ct);
         }
 
-        public async Task<IActionResult> OnPostDeleteAsync(int id)
+        public async Task<IActionResult> OnPostDeleteAsync(int id, CancellationToken ct)
         {
-            var result = await _adminCategoryService.SoftDeleteCategoryAsync(id);
-            if (result)
+            var result = await _api.DeleteAsync($"/api/admin/categories/{id}", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Category deleted successfully.";
             }
@@ -41,9 +41,10 @@ namespace GearZone.Web.Pages.Admin.Categories
             return RedirectToPage();
         }
 
-        private async Task LoadDataAsync()
+        private async Task LoadDataAsync(CancellationToken ct)
         {
-            HierarchicalCategories = await _adminCategoryService.GetHierarchicalCategoriesAsync(Query);
+            HierarchicalCategories = await _api.GetAsync<List<CategoryDto>>(
+                $"/api/admin/categories{ApiQueryStringBuilder.Build(Query)}", ct) ?? new();
             TotalCount = HierarchicalCategories.Count + HierarchicalCategories.Sum(c => c.Children.Count);
         }
     }

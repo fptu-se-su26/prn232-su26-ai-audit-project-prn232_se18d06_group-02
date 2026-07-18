@@ -4,6 +4,9 @@ using GearZone.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,15 +38,39 @@ var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
         "No database connection string. Set DB_CONNECTION_STRING (usually via the shared .env) " +
         "or ConnectionStrings:DefaultConnection.");
 
-builder.Services.AddControllers();
+builder.Services.AddScoped<GearZone.Api.Auditing.AdminAuditActionFilter>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddControllers(options =>
+    options.Filters.AddService<GearZone.Api.Auditing.AdminAuditActionFilter>());
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("admin-ai-insights", context =>
+    {
+        var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(15),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
+});
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
+    foreach (var value in (builder.Configuration["TRUSTED_PROXY_IPS"] ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (System.Net.IPAddress.TryParse(value, out var address))
+            options.KnownProxies.Add(address);
+    }
 });
 
 // ---- Shared Data Protection: same path + application name as GearZone.Web so the
@@ -81,6 +108,16 @@ builder.Services.ConfigureApplicationCookie(opt =>
     opt.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     opt.Cookie.HttpOnly = true;
     opt.Cookie.IsEssential = true;
+    opt.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    opt.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
 });
 
 builder.Services.AddAutoMapper(typeof(GearZone.Application.Abstractions.Services.IAuthService).Assembly);
@@ -115,6 +152,7 @@ app.UseCors();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 
 app.Run();

@@ -1,0 +1,319 @@
+@page "/admin/reports"
+@model GearZone.Web.Pages.Admin.Reports.IndexModel
+@using GearZone.Application.Features.Admin.Dtos
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Reports & Business Intelligence";
+    ViewData["PageHeader"] = "Reports & Business Intelligence";
+    ViewData["ActivePage"] = "Reports";
+    ViewData["Breadcrumb"] = new[] { "Dashboard", "Reports & Business Intelligence" };
+    Layout = "_AdminLayout";
+
+    string Money(decimal value) => $"{value:N0} VND";
+    string Percent(decimal value) => $"{value:N2}%";
+    string Change(ComparisonMetricDto metric) => metric.ChangePct.HasValue
+        ? $"{(metric.ChangePct.Value >= 0 ? "+" : string.Empty)}{metric.ChangePct.Value:N2}%"
+        : "New";
+    string ChangeClass(ComparisonMetricDto metric) => metric.ChangePct switch
+    {
+        > 0 => "text-emerald-600 bg-emerald-50",
+        < 0 => "text-red-600 bg-red-50",
+        _ => "text-slate-500 bg-slate-100"
+    };
+    string SeverityClass(string value) => value.ToLowerInvariant() switch
+    {
+        "high" or "critical" => "bg-red-50 text-red-700 border-red-100",
+        "medium" or "warning" => "bg-amber-50 text-amber-700 border-amber-100",
+        "low" or "positive" => "bg-emerald-50 text-emerald-700 border-emerald-100",
+        _ => "bg-blue-50 text-blue-700 border-blue-100"
+    };
+    var period = Model.Overview?.Period ?? Model.Orders?.Period ?? Model.Sellers?.Period;
+}
+
+<div class="flex flex-col gap-6 pb-10">
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-semibold text-emerald-700">
+            <span class="material-symbols-outlined">check_circle</span>@success
+        </div>
+    }
+    @if (TempData["ErrorMessage"] is string toastError)
+    {
+        <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-semibold text-red-700">
+            <span class="material-symbols-outlined">error</span>@toastError
+        </div>
+    }
+
+    <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+        <form method="get" id="report-filter" class="flex flex-col gap-4">
+            <input type="hidden" name="tab" value="@Model.Tab" />
+            <input type="hidden" name="Query.PageNumber" value="1" />
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <div>
+                    <label class="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Period</label>
+                    <select id="range-select" name="Query.Range" class="form-select w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-700 focus:border-primary focus:ring-primary/10">
+                        <option value="today" selected="@(Model.Query.Range == "today")">Today</option>
+                        <option value="7d" selected="@(Model.Query.Range == "7d")">Last 7 days</option>
+                        <option value="30d" selected="@(Model.Query.Range == "30d")">Last 30 days</option>
+                        <option value="thisMonth" selected="@(Model.Query.Range == "thisMonth")">This month</option>
+                        <option value="lastMonth" selected="@(Model.Query.Range == "lastMonth")">Last month</option>
+                        <option value="custom" selected="@(Model.Query.Range == "custom")">Custom</option>
+                    </select>
+                </div>
+                <div class="custom-date">
+                    <label class="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">From</label>
+                    <input type="date" name="Query.From" value="@Model.Query.From?.ToString("yyyy-MM-dd")" class="form-input w-full rounded-lg border-slate-200 text-sm" />
+                </div>
+                <div class="custom-date">
+                    <label class="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">To</label>
+                    <input type="date" name="Query.To" value="@Model.Query.To?.ToString("yyyy-MM-dd")" class="form-input w-full rounded-lg border-slate-200 text-sm" />
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Granularity</label>
+                    <select name="Query.Granularity" class="form-select w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-700">
+                        <option value="" selected="@(string.IsNullOrEmpty(Model.Query.Granularity))">Auto</option>
+                        <option value="day" selected="@(Model.Query.Granularity == "day")">Day</option>
+                        <option value="week" selected="@(Model.Query.Granularity == "week")">Week</option>
+                        <option value="month" selected="@(Model.Query.Granularity == "month")">Month</option>
+                    </select>
+                </div>
+                <div class="flex items-end xl:col-span-2">
+                    <button type="submit" class="report-submit flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary-dark">
+                        <span class="material-symbols-outlined text-[19px]">filter_alt</span><span>Apply filters</span>
+                    </button>
+                </div>
+            </div>
+            <p class="text-xs font-medium text-slate-400">
+                Dates use Asia/Ho_Chi_Minh time. Custom ranges support up to 366 days.
+                @if (period is not null)
+                {
+                    <span class="text-slate-600">Resolved period: @period.Label · @period.Granularity buckets.</span>
+                }
+            </p>
+        </form>
+    </div>
+
+    <div class="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+        <nav class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+            <a href="@Model.BuildPageUrl("overview", 1)" class="rounded-lg px-4 py-2 text-sm font-bold transition-colors @(Model.Tab == "overview" ? "bg-primary text-white" : "text-slate-500 hover:bg-slate-50")">Overview</a>
+            <a href="@Model.BuildPageUrl("orders", 1)" class="rounded-lg px-4 py-2 text-sm font-bold transition-colors @(Model.Tab == "orders" ? "bg-primary text-white" : "text-slate-500 hover:bg-slate-50")">Orders</a>
+            <a href="@Model.BuildPageUrl("sellers", 1)" class="rounded-lg px-4 py-2 text-sm font-bold transition-colors @(Model.Tab == "sellers" ? "bg-primary text-white" : "text-slate-500 hover:bg-slate-50")">Sellers</a>
+        </nav>
+        <div class="flex flex-wrap gap-2">
+            <a href="@Model.BuildExportUrl("csv")" class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50">CSV</a>
+            <a href="@Model.BuildExportUrl("xlsx")" class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50">XLSX</a>
+            <a href="@Model.BuildExportUrl("pdf")" class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50">PDF</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+            <span class="material-symbols-outlined mb-2 text-4xl text-red-500">cloud_off</span>
+            <h2 class="font-bold text-red-800">Unable to load report</h2>
+            <p class="mt-1 text-sm text-red-600">@Model.ErrorMessage</p>
+        </div>
+    }
+    else if (Model.Tab == "overview" && Model.Overview is not null)
+    {
+        var report = Model.Overview;
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach (var metric in new[]
+            {
+                ("Paid GMV", Money(report.PaidGmv.Current), report.PaidGmv, "payments"),
+                ("Platform Commission", Money(report.PlatformCommission.Current), report.PlatformCommission, "account_balance"),
+                ("Seller Net Amount", Money(report.SellerNetAmount.Current), report.SellerNetAmount, "storefront"),
+                ("Parent Orders", report.Orders.Current.ToString("N0"), report.Orders, "shopping_cart"),
+                ("Units Sold", report.UnitsSold.Current.ToString("N0"), report.UnitsSold, "inventory_2"),
+                ("AOV", Money(report.AverageOrderValue.Current), report.AverageOrderValue, "receipt_long"),
+                ("Unique Buyers", report.UniqueBuyers.Current.ToString("N0"), report.UniqueBuyers, "groups"),
+                ("Active Sellers", report.ActiveSellers.Current.ToString("N0"), report.ActiveSellers, "domain")
+            })
+            {
+                <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                    <div class="flex items-start justify-between gap-3">
+                        <div><p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">@metric.Item1</p><p class="mt-2 text-xl font-black text-slate-900">@metric.Item2</p></div>
+                        <span class="material-symbols-outlined rounded-lg bg-blue-50 p-2 text-blue-600">@metric.Item4</span>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between text-xs">
+                        <span class="rounded-full px-2 py-1 font-bold @ChangeClass(metric.Item3)">@Change(metric.Item3)</span>
+                        <span class="text-slate-400">Prev: @(metric.Item1.Contains("GMV") || metric.Item1.Contains("Amount") || metric.Item1.Contains("Commission") || metric.Item1 == "AOV" ? Money(metric.Item3.Previous) : metric.Item3.Previous.ToString("N0"))</span>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card xl:col-span-2">
+                <h3 class="font-bold text-slate-900">Paid GMV, commission & orders</h3>
+                <p class="mb-4 text-xs text-slate-400">Paid, Processing, Delivered and Completed suborders only</p>
+                <div class="h-80"><canvas id="overviewTrend"></canvas></div>
+            </div>
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="font-bold text-slate-900">Revenue by category</h3>
+                <p class="mb-4 text-xs text-slate-400">Uses each product's current category</p>
+                @if (report.RevenueByCategory.Count == 0)
+                {
+                    <div class="flex h-80 items-center justify-center text-sm text-slate-400">No paid revenue in this period.</div>
+                }
+                else
+                {
+                    <div class="h-80"><canvas id="categoryRevenue"></canvas></div>
+                }
+            </div>
+        </div>
+    }
+    else if (Model.Tab == "orders" && Model.Orders is not null)
+    {
+        var report = Model.Orders;
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @foreach (var metric in new[]
+            {
+                ("Parent Orders", report.Orders.Current.ToString("N0"), report.Orders, "shopping_cart"),
+                ("Suborders", report.SubOrders.Current.ToString("N0"), report.SubOrders, "call_split"),
+                ("Paid-like Suborders", report.PaidSubOrders.Current.ToString("N0"), report.PaidSubOrders, "paid"),
+                ("Avg Fulfillment", report.AverageFulfillmentHours.HasValue ? $"{report.AverageFulfillmentHours:N1} h" : "N/A", new ComparisonMetricDto(), "local_shipping")
+            })
+            {
+                <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                    <div class="flex items-start justify-between"><div><p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">@metric.Item1</p><p class="mt-2 text-2xl font-black text-slate-900">@metric.Item2</p></div><span class="material-symbols-outlined rounded-lg bg-blue-50 p-2 text-blue-600">@metric.Item4</span></div>
+                    @if (metric.Item1 != "Avg Fulfillment") { <span class="mt-3 inline-block rounded-full px-2 py-1 text-xs font-bold @ChangeClass(metric.Item3)">@Change(metric.Item3) vs previous</span> }
+                </div>
+            }
+        </div>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><p class="text-xs font-bold text-emerald-700">Completion rate</p><p class="mt-1 text-2xl font-black text-emerald-800">@Percent(report.CompletionRate)</p></div>
+            <div class="rounded-xl border border-red-100 bg-red-50 p-4"><p class="text-xs font-bold text-red-700">Cancellation rate</p><p class="mt-1 text-2xl font-black text-red-800">@Percent(report.CancellationRate)</p></div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50 p-4"><p class="text-xs font-bold text-amber-700">Rejection rate</p><p class="mt-1 text-2xl font-black text-amber-800">@Percent(report.RejectionRate)</p></div>
+            <div class="rounded-xl border border-purple-100 bg-purple-50 p-4"><p class="text-xs font-bold text-purple-700">Refund rate</p><p class="mt-1 text-2xl font-black text-purple-800">@Percent(report.RefundRate)</p></div>
+        </div>
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card"><h3 class="font-bold text-slate-900">Order trend</h3><div class="mt-4 h-72"><canvas id="ordersTrend"></canvas></div></div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card"><h3 class="font-bold text-slate-900">Status distribution</h3><div class="mt-4 h-64"><canvas id="statusBreakdown"></canvas></div></div>
+                <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card"><h3 class="font-bold text-slate-900">Payment methods</h3><div class="mt-4 h-64"><canvas id="paymentBreakdown"></canvas></div></div>
+            </div>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
+            <div class="border-b border-slate-100 px-5 py-4"><h3 class="font-bold text-slate-900">Top 10 high-value orders</h3></div>
+            <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-100 text-sm"><thead class="bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500"><tr><th class="px-5 py-3">Order</th><th class="px-5 py-3">Customer</th><th class="px-5 py-3">Stores</th><th class="px-5 py-3 text-right">Paid GMV</th><th class="px-5 py-3">Created</th></tr></thead><tbody class="divide-y divide-slate-100">
+                @if (report.HighValueOrders.Count == 0) { <tr><td colspan="5" class="px-5 py-10 text-center text-slate-400">No paid orders in this period.</td></tr> }
+                @foreach (var order in report.HighValueOrders) { <tr><td class="px-5 py-3 font-bold text-slate-800">#@order.OrderCode</td><td class="px-5 py-3 text-slate-600">@order.CustomerName</td><td class="px-5 py-3">@order.StoreCount</td><td class="px-5 py-3 text-right font-bold">@Money(order.PaidGmv)</td><td class="px-5 py-3 text-slate-500">@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td></tr> }
+            </tbody></table></div>
+        </div>
+    }
+    else if (Model.Tab == "sellers" && Model.Sellers is not null)
+    {
+        var report = Model.Sellers;
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            @foreach (var metric in new[]
+            {
+                ("Active Sellers", report.ActiveSellers.Current.ToString("N0"), report.ActiveSellers),
+                ("New Approved", report.NewApprovedSellers.Current.ToString("N0"), report.NewApprovedSellers),
+                ("Paid GMV", Money(report.PaidGmv.Current), report.PaidGmv),
+                ("Commission", Money(report.PlatformCommission.Current), report.PlatformCommission),
+                ("Seller Net", Money(report.SellerNetAmount.Current), report.SellerNetAmount)
+            })
+            {
+                <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card"><p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">@metric.Item1</p><p class="mt-2 text-xl font-black text-slate-900">@metric.Item2</p><span class="mt-3 inline-block rounded-full px-2 py-1 text-xs font-bold @ChangeClass(metric.Item3)">@Change(metric.Item3)</span></div>
+            }
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <form method="get" class="grid grid-cols-1 gap-3 lg:grid-cols-6">
+                <input type="hidden" name="tab" value="sellers" /><input type="hidden" name="Query.Range" value="@Model.Query.Range" /><input type="hidden" name="Query.From" value="@Model.Query.From?.ToString("yyyy-MM-dd")" /><input type="hidden" name="Query.To" value="@Model.Query.To?.ToString("yyyy-MM-dd")" /><input type="hidden" name="Query.Granularity" value="@Model.Query.Granularity" /><input type="hidden" name="Query.PageNumber" value="1" />
+                <input name="Query.Search" value="@Model.Query.Search" placeholder="Search store…" class="form-input rounded-lg border-slate-200 text-sm lg:col-span-2" />
+                <select name="Query.StoreStatus" class="form-select rounded-lg border-slate-200 text-sm"><option value="Approved" selected="@(Model.Query.StoreStatus == "Approved")">Approved</option><option value="Locked" selected="@(Model.Query.StoreStatus == "Locked")">Locked</option><option value="All" selected="@(Model.Query.StoreStatus == "All")">All</option></select>
+                <select name="Query.SortBy" class="form-select rounded-lg border-slate-200 text-sm"><option value="revenue" selected="@(Model.Query.SortBy == "revenue")">Revenue</option><option value="orders" selected="@(Model.Query.SortBy == "orders")">Orders</option><option value="growth" selected="@(Model.Query.SortBy == "growth")">Growth</option><option value="cancelRate" selected="@(Model.Query.SortBy == "cancelRate")">Cancel rate</option><option value="refundRate" selected="@(Model.Query.SortBy == "refundRate")">Refund rate</option><option value="rating" selected="@(Model.Query.SortBy == "rating")">Rating</option></select>
+                <select name="Query.SortDirection" class="form-select rounded-lg border-slate-200 text-sm"><option value="desc" selected="@(Model.Query.SortDirection == "desc")">Descending</option><option value="asc" selected="@(Model.Query.SortDirection == "asc")">Ascending</option></select>
+                <button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white">Apply seller filters</button>
+            </form>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
+            <div class="overflow-x-auto"><table class="min-w-[1300px] divide-y divide-slate-100 text-sm"><thead class="bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Store</th><th class="px-4 py-3 text-right">Paid GMV</th><th class="px-4 py-3 text-right">Previous</th><th class="px-4 py-3 text-right">Growth</th><th class="px-4 py-3 text-right">Orders</th><th class="px-4 py-3 text-right">Units</th><th class="px-4 py-3 text-right">AOV</th><th class="px-4 py-3 text-right">Commission</th><th class="px-4 py-3 text-right">Cancel</th><th class="px-4 py-3 text-right">Refund</th><th class="px-4 py-3 text-right">Rating</th></tr></thead><tbody class="divide-y divide-slate-100">
+                @if (report.Sellers.Items.Count == 0) { <tr><td colspan="11" class="px-5 py-12 text-center text-slate-400">No sellers match these filters.</td></tr> }
+                @foreach (var seller in report.Sellers.Items)
+                {
+                    <tr class="hover:bg-slate-50"><td class="px-4 py-3"><a asp-page="/Admin/StoreManagement/Detail" asp-route-id="@seller.StoreId" class="font-bold text-primary hover:underline">@seller.StoreName</a><div class="text-[11px] text-slate-400">@seller.Status</div></td><td class="px-4 py-3 text-right font-bold">@Money(seller.PaidGmv)</td><td class="px-4 py-3 text-right text-slate-500">@Money(seller.PreviousGmv)</td><td class="px-4 py-3 text-right"><span class="font-bold @(seller.GrowthPct >= 0 ? "text-emerald-600" : "text-red-600")">@(seller.GrowthPct.HasValue ? $"{seller.GrowthPct:N2}%" : "New")</span></td><td class="px-4 py-3 text-right">@seller.Orders</td><td class="px-4 py-3 text-right">@seller.Units</td><td class="px-4 py-3 text-right">@Money(seller.AverageOrderValue)</td><td class="px-4 py-3 text-right">@Money(seller.Commission)</td><td class="px-4 py-3 text-right">@Percent(seller.CancellationRate)</td><td class="px-4 py-3 text-right">@Percent(seller.RefundRate)</td><td class="px-4 py-3 text-right font-bold">@seller.AverageRating.ToString("N2")</td></tr>
+                }
+            </tbody></table></div>
+            @if (report.Sellers.TotalPages > 1)
+            {
+                <div class="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm"><span class="text-slate-500">Page @report.Sellers.PageNumber of @report.Sellers.TotalPages · @report.Sellers.TotalCount sellers</span><div class="flex gap-2">@if (report.Sellers.PageNumber > 1) { <a href="@Model.BuildPageUrl("sellers", report.Sellers.PageNumber - 1)" class="rounded-lg border border-slate-200 px-3 py-1.5 font-bold text-slate-600">Previous</a> } @if (report.Sellers.PageNumber < report.Sellers.TotalPages) { <a href="@Model.BuildPageUrl("sellers", report.Sellers.PageNumber + 1)" class="rounded-lg border border-slate-200 px-3 py-1.5 font-bold text-slate-600">Next</a> }</div></div>
+            }
+        </div>
+    }
+
+    @if (string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <section class="overflow-hidden rounded-xl border border-indigo-100 bg-white shadow-card">
+            <div class="flex flex-col justify-between gap-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-5 md:flex-row md:items-center">
+                <div><div class="flex items-center gap-2"><span class="material-symbols-outlined text-indigo-600">auto_awesome</span><h2 class="font-bold text-slate-900">AI Business Insights</h2></div><p class="mt-1 text-xs text-slate-500">Evidence-based analysis from aggregate report metrics. No customer PII or raw orders are sent.</p></div>
+                <form method="post" asp-page-handler="GenerateInsight" class="ai-form">
+                    <input type="hidden" name="tab" value="@Model.Tab" /><input type="hidden" name="forceRefresh" value="@(Model.Insight is not null ? "true" : "false")" /><input type="hidden" name="Query.Range" value="@Model.Query.Range" /><input type="hidden" name="Query.From" value="@Model.Query.From?.ToString("yyyy-MM-dd")" /><input type="hidden" name="Query.To" value="@Model.Query.To?.ToString("yyyy-MM-dd")" /><input type="hidden" name="Query.Granularity" value="@Model.Query.Granularity" /><input type="hidden" name="Query.Search" value="@Model.Query.Search" /><input type="hidden" name="Query.StoreStatus" value="@Model.Query.StoreStatus" /><input type="hidden" name="Query.SortBy" value="@Model.Query.SortBy" /><input type="hidden" name="Query.SortDirection" value="@Model.Query.SortDirection" /><input type="hidden" name="Query.PageNumber" value="@Model.Query.PageNumber" /><input type="hidden" name="Query.PageSize" value="@Model.Query.PageSize" />
+                    <button class="ai-submit flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700"><span class="material-symbols-outlined text-[19px]">auto_awesome</span><span>@(Model.Insight is null ? "Generate Insights" : "Regenerate")</span></button>
+                </form>
+            </div>
+            @if (Model.Insight is null)
+            {
+                <div class="p-8 text-center text-sm text-slate-400">No insight has been generated for this report snapshot.</div>
+            }
+            else if (!Model.Insight.HasEnoughData)
+            {
+                <div class="p-8 text-center"><span class="material-symbols-outlined text-4xl text-slate-300">data_thresholding</span><p class="mt-2 text-sm font-semibold text-slate-500">Not enough data to generate evidence-based insights.</p></div>
+            }
+            else
+            {
+                var insight = Model.Insight;
+                <div class="p-6">
+                    <div class="mb-5 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span class="rounded-full bg-indigo-50 px-2.5 py-1 font-bold text-indigo-700">@insight.Provider / @insight.Model</span><span class="rounded-full px-2.5 py-1 font-bold @(insight.IsCached ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700")">@(insight.IsCached ? "Cached" : "Fresh")</span><span>Generated @insight.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
+                    <p class="rounded-xl bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-700">@insight.Summary</p>
+                    <div class="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
+                        <div><h3 class="mb-3 text-sm font-bold text-emerald-700">Highlights</h3>@foreach (var item in insight.Highlights) { <article class="mb-3 rounded-lg border border-slate-100 p-3"><div class="flex justify-between gap-2"><h4 class="text-sm font-bold text-slate-800">@item.Title</h4><span class="h-fit rounded-full border px-2 py-0.5 text-[10px] font-bold @SeverityClass(item.Severity)">@item.Severity</span></div><p class="mt-1 text-xs leading-5 text-slate-500">@item.Explanation</p></article> }</div>
+                        <div><h3 class="mb-3 text-sm font-bold text-red-700">Risks</h3>@foreach (var item in insight.Risks) { <article class="mb-3 rounded-lg border border-slate-100 p-3"><div class="flex justify-between gap-2"><h4 class="text-sm font-bold text-slate-800">@item.Title</h4><span class="h-fit rounded-full border px-2 py-0.5 text-[10px] font-bold @SeverityClass(item.Severity)">@item.Severity</span></div><p class="mt-1 text-xs leading-5 text-slate-500">@item.Explanation</p></article> }</div>
+                        <div><h3 class="mb-3 text-sm font-bold text-indigo-700">Recommended Actions</h3>@foreach (var item in insight.Recommendations) { <article class="mb-3 rounded-lg border border-slate-100 p-3"><div class="flex justify-between gap-2"><h4 class="text-sm font-bold text-slate-800">@item.Title</h4><span class="h-fit rounded-full border px-2 py-0.5 text-[10px] font-bold @SeverityClass(item.Priority)">@item.Priority</span></div><p class="mt-1 text-xs leading-5 text-slate-500">@item.Action</p></article> }</div>
+                    </div>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (() => {
+            const range = document.getElementById('range-select');
+            const toggleCustom = () => document.querySelectorAll('.custom-date').forEach(x => x.classList.toggle('hidden', range?.value !== 'custom'));
+            range?.addEventListener('change', toggleCustom); toggleCustom();
+            document.querySelectorAll('#report-filter,.ai-form').forEach(form => form.addEventListener('submit', () => {
+                const button = form.querySelector('button'); if (!button) return; button.disabled = true; button.classList.add('opacity-60');
+                const label = button.querySelector('span:last-child'); if (label) label.textContent = form.classList.contains('ai-form') ? 'Generating…' : 'Loading…';
+            }));
+        })();
+    </script>
+    @if (Model.Overview is not null)
+    {
+        <script>
+            (() => {
+                const labels = @Html.Raw(JsonSerializer.Serialize(Model.Overview.Trend.Select(x => x.Label)));
+                new Chart(document.getElementById('overviewTrend'), { type: 'line', data: { labels, datasets: [
+                    { label: 'Paid GMV', data: @Html.Raw(JsonSerializer.Serialize(Model.Overview.Trend.Select(x => x.Gmv))), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.08)', fill: true, tension: .3, yAxisID: 'money' },
+                    { label: 'Commission', data: @Html.Raw(JsonSerializer.Serialize(Model.Overview.Trend.Select(x => x.Commission))), borderColor: '#7c3aed', tension: .3, yAxisID: 'money' },
+                    { label: 'Orders', data: @Html.Raw(JsonSerializer.Serialize(Model.Overview.Trend.Select(x => x.Orders))), borderColor: '#059669', tension: .3, yAxisID: 'orders' }
+                ]}, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { money: { position: 'left', beginAtZero: true }, orders: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } } } } });
+                const category = document.getElementById('categoryRevenue');
+                if (category) new Chart(category, { type: 'doughnut', data: { labels: @Html.Raw(JsonSerializer.Serialize(Model.Overview.RevenueByCategory.Select(x => x.CategoryName))), datasets: [{ data: @Html.Raw(JsonSerializer.Serialize(Model.Overview.RevenueByCategory.Select(x => x.Revenue))), backgroundColor: ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#65a30d','#db2777','#475569'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            })();
+        </script>
+    }
+    @if (Model.Orders is not null)
+    {
+        <script>
+            (() => {
+                const trend = @Html.Raw(JsonSerializer.Serialize(Model.Orders.Trend.Select(x => x)));
+                new Chart(document.getElementById('ordersTrend'), { type: 'line', data: { labels: trend.map(x => x.Label), datasets: [{ label: 'Parent orders', data: trend.map(x => x.Orders), borderColor: '#2563eb', tension: .3 }, { label: 'Suborders', data: trend.map(x => x.SubOrders), borderColor: '#7c3aed', tension: .3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } } });
+                new Chart(document.getElementById('statusBreakdown'), { type: 'doughnut', data: { labels: @Html.Raw(JsonSerializer.Serialize(Model.Orders.StatusBreakdown.Select(x => x.Status))), datasets: [{ data: @Html.Raw(JsonSerializer.Serialize(Model.Orders.StatusBreakdown.Select(x => x.Count))), backgroundColor: ['#2563eb','#059669','#d97706','#dc2626','#7c3aed','#64748b','#0891b2','#db2777'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+                new Chart(document.getElementById('paymentBreakdown'), { type: 'doughnut', data: { labels: @Html.Raw(JsonSerializer.Serialize(Model.Orders.PaymentMethods.Select(x => x.Method))), datasets: [{ data: @Html.Raw(JsonSerializer.Serialize(Model.Orders.PaymentMethods.Select(x => x.Amount))), backgroundColor: ['#059669','#2563eb','#7c3aed','#d97706','#64748b'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+            })();
+        </script>
+    }
+}

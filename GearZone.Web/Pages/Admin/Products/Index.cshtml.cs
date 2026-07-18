@@ -7,28 +7,21 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using GearZone.Application.Abstractions.Services;
-using GearZone.Application.Abstractions.Persistence;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 
 namespace GearZone.Web.Pages.Admin.Products
 {
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminProductService _productService;
-        private readonly IAdminCategoryService _categoryService;
-        private readonly IAdminStoreService _storeService;
-        private readonly IAdminBrandService _brandService;
+        private readonly IApiClient _api;
 
-        public IndexModel(IAdminProductService productService, IAdminCategoryService categoryService, IAdminStoreService storeService, IAdminBrandService brandService)
+        public IndexModel(IApiClient api)
         {
-            _productService = productService;
-            _categoryService = categoryService;
-            _storeService = storeService;
-            _brandService = brandService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -50,7 +43,7 @@ namespace GearZone.Web.Pages.Admin.Products
         /// <summary>Attributes for the currently selected category, used to render dynamic filters.</summary>
         public List<CategoryAttributeDto> CategoryAttributes { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(DateRangeShortcut))
             {
@@ -91,11 +84,32 @@ namespace GearZone.Web.Pages.Admin.Products
                 }
             }
 
-            Stats = await _productService.GetProductStatsAsync();
-            Products = await _productService.GetProductsAsync(Query);
+            Query.PageNumber = Query.PageNumber < 1 ? 1 : Query.PageNumber;
+            Query.PageSize = Query.PageSize < 1 ? 10 : Query.PageSize;
+
+            var productsTask = _api.GetAsync<AdminProductListResponseDto>(
+                $"/api/admin/products{ApiQueryStringBuilder.Build(Query)}", ct);
+            var metadataTask = _api.GetAsync<AdminProductMetadataDto>("/api/admin/products/metadata", ct);
+            Task<List<CategoryAttributeDto>?>? attributesTask = null;
+            if (Query.CategoryId is > 0)
+            {
+                attributesTask = _api.GetAsync<List<CategoryAttributeDto>>(
+                    $"/api/admin/categories/{Query.CategoryId.Value}/attributes", ct);
+            }
+
+            await Task.WhenAll(new Task[] { productsTask, metadataTask }
+                .Concat(attributesTask is null ? Array.Empty<Task>() : new Task[] { attributesTask }));
+
+            var data = await productsTask;
+            if (data is not null)
+            {
+                Stats = data.Stats;
+                Products = data.Products;
+            }
 
             // Build hierarchical category list: roots first, then their children with "└ " prefix
-            var categories = await _categoryService.GetAllCategoriesListAsync();
+            var metadata = await metadataTask ?? new AdminProductMetadataDto();
+            var categories = metadata.Categories;
             var roots = categories.Where(c => c.ParentId == null).OrderBy(c => c.Name);
             var categoryItems = new List<SelectListItem>();
             foreach (var root in roots)
@@ -111,26 +125,25 @@ namespace GearZone.Web.Pages.Admin.Products
             }
             Categories = categoryItems;
 
-            var stores = await _storeService.GetAllStoresAsync();
-            Stores = stores.Select(s => new SelectListItem(s.StoreName, s.Id.ToString())).ToList();
+            Stores = metadata.Stores.Select(s => new SelectListItem(s.StoreName, s.Id.ToString())).ToList();
 
-            var brands = await _brandService.GetAllBrandsListAsync();
-            Brands = brands.Select(b => new SelectListItem(b.Name, b.Id.ToString())).ToList();
+            Brands = metadata.Brands.Select(b => new SelectListItem(b.Name, b.Id.ToString())).ToList();
 
             // Load attributes for the selected category (if any)
             if (Query.CategoryId.HasValue && Query.CategoryId.Value > 0)
             {
-                CategoryAttributes = await _categoryService.GetAttributesByCategoryIdAsync(Query.CategoryId.Value);
+                CategoryAttributes = await attributesTask! ?? new();
             }
         }
 
         /// <summary>AJAX endpoint: returns category attributes as JSON for dynamic filter rendering.</summary>
-        public async Task<JsonResult> OnGetCategoryAttributesAsync(int categoryId)
+        public async Task<JsonResult> OnGetCategoryAttributesAsync(int categoryId, CancellationToken ct)
         {
             if (categoryId <= 0)
                 return new JsonResult(new List<object>());
 
-            var attrs = await _categoryService.GetAttributesByCategoryIdAsync(categoryId);
+            var attrs = await _api.GetAsync<List<CategoryAttributeDto>>(
+                $"/api/admin/categories/{categoryId}/attributes", ct) ?? new();
             var result = attrs
                 .Where(a => a.IsFilterable)
                 .Select(a => new
@@ -143,44 +156,19 @@ namespace GearZone.Web.Pages.Admin.Products
             return new JsonResult(result);
         }
 
-        public async Task<IActionResult> OnPostBulkUpdateStatusAsync(List<Guid> productIds, string actionType, string? reason = null)
+        public async Task<IActionResult> OnPostBulkUpdateStatusAsync(
+            List<Guid> productIds, string actionType, string? reason = null, CancellationToken ct = default)
         {
             if (productIds == null || !productIds.Any())
                 return RedirectToPage();
 
-            if (actionType.Equals("Delete", StringComparison.OrdinalIgnoreCase))
-            {
-                int deleteCount = 0;
-                foreach (var id in productIds)
-                {
-                    if (await _productService.DeleteProductAsync(id, reason ?? "No reason provided"))
-                        deleteCount++;
-                }
-                TempData["SuccessMessage"] = $"Successfully deleted {deleteCount} product(s).";
-                return RedirectToPage(new { Query.SearchTerm, Query.Status, Query.CategoryId, Query.BrandId, Query.StoreId, Query.PageNumber, DateRangeShortcut, DateRange });
-            }
+            var result = await _api.PostAsync(
+                "/api/admin/products/bulk-update-status",
+                new { productIds, action = actionType, reason }, ct);
 
-            ProductStatus status;
-            switch (actionType.ToLower())
+            if (result.Success)
             {
-                case "approve":
-                    status = ProductStatus.Active;
-                    break;
-                case "reject":
-                    status = ProductStatus.Rejected;
-                    break;
-                case "inactive":
-                    status = ProductStatus.Inactive;
-                    break;
-                default:
-                    return RedirectToPage();
-            }
-
-            var success = await _productService.BulkUpdateStatusAsync(productIds, status, reason);
-
-            if (success)
-            {
-                TempData["SuccessMessage"] = $"Successfully updated {productIds.Count} product(s) to {status}.";
+                TempData["SuccessMessage"] = result.Message ?? "Products updated successfully.";
             }
             else
             {
@@ -190,10 +178,10 @@ namespace GearZone.Web.Pages.Admin.Products
             return RedirectToPage(new { Query.SearchTerm, Query.Status, Query.CategoryId, Query.BrandId, Query.StoreId, Query.PageNumber, DateRangeShortcut, DateRange });
         }
 
-        public async Task<IActionResult> OnPostApproveAsync(Guid id)
+        public async Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct)
         {
-            var success = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Active);
-            if (success)
+            var result = await _api.PostAsync($"/api/admin/products/{id}/approve", ct);
+            if (result.Success)
                 TempData["SuccessMessage"] = "Product approved successfully.";
             else
                 TempData["ErrorMessage"] = "Failed to approve product.";
@@ -201,10 +189,11 @@ namespace GearZone.Web.Pages.Admin.Products
             return RedirectToPage(new { Query.SearchTerm, Query.Status, Query.CategoryId, Query.BrandId, Query.StoreId, Query.PageNumber, DateRangeShortcut, DateRange });
         }
 
-        public async Task<IActionResult> OnPostRejectAsync(Guid id)
+        public async Task<IActionResult> OnPostRejectAsync(Guid id, CancellationToken ct)
         {
-            var success = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Rejected);
-            if (success)
+            var result = await _api.PostAsync(
+                $"/api/admin/products/{id}/reject", new { reason = (string?)null }, ct);
+            if (result.Success)
                 TempData["SuccessMessage"] = "Product rejected.";
             else
                 TempData["ErrorMessage"] = "Failed to reject product.";

@@ -3,6 +3,9 @@ using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -27,7 +30,7 @@ public class BrandsController : BaseApiController
 
         var brands = await _brandService.GetBrandsAsync(query);
         var stats = await _brandService.GetBrandStatsAsync();
-        return OkResponse(new { brands, stats });
+        return OkResponse(new AdminBrandListResponseDto { Brands = brands, Stats = stats });
     }
 
     // GET /api/admin/brands/{id}
@@ -49,6 +52,7 @@ public class BrandsController : BaseApiController
 
     // POST /api/admin/brands
     [HttpPost]
+    [AdminAuditAction(AdminAuditActions.BrandCreated, AdminAuditModules.Brands, AdminAuditRiskLevel.Medium, EntityType = "Brand")]
     public async Task<IActionResult> Create([FromForm] CreateBrandDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
@@ -58,6 +62,7 @@ public class BrandsController : BaseApiController
 
     // PUT /api/admin/brands
     [HttpPut]
+    [AdminAuditAction(AdminAuditActions.BrandUpdated, AdminAuditModules.Brands, AdminAuditRiskLevel.Medium, EntityType = "Brand")]
     public async Task<IActionResult> Update([FromForm] EditBrandDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
@@ -67,6 +72,7 @@ public class BrandsController : BaseApiController
 
     // POST /api/admin/brands/{id}/approve
     [HttpPost("{id:int}/approve")]
+    [AdminAuditAction(AdminAuditActions.BrandApproved, AdminAuditModules.Brands, AdminAuditRiskLevel.Medium, EntityType = "Brand")]
     public async Task<IActionResult> Approve(int id)
     {
         var ok = await _brandService.ApproveBrandAsync(id);
@@ -75,6 +81,7 @@ public class BrandsController : BaseApiController
 
     // POST /api/admin/brands/{id}/reject
     [HttpPost("{id:int}/reject")]
+    [AdminAuditAction(AdminAuditActions.BrandRejected, AdminAuditModules.Brands, AdminAuditRiskLevel.Medium, EntityType = "Brand")]
     public async Task<IActionResult> Reject(int id)
     {
         var ok = await _brandService.RejectBrandAsync(id);
@@ -83,6 +90,7 @@ public class BrandsController : BaseApiController
 
     // DELETE /api/admin/brands/{id}
     [HttpDelete("{id:int}")]
+    [AdminAuditAction(AdminAuditActions.BrandDeleted, AdminAuditModules.Brands, AdminAuditRiskLevel.Medium, EntityType = "Brand")]
     public async Task<IActionResult> Delete(int id)
     {
         var ok = await _brandService.DeleteBrandAsync(id);

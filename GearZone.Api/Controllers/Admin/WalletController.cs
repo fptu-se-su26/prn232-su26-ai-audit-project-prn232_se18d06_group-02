@@ -3,6 +3,9 @@ using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -25,11 +28,17 @@ public class WalletController : BaseApiController
         var summary = await _walletService.GetWalletSummaryAsync();
         var transactions = await _walletService.GetTransactionsAsync(query);
         var cashFlow = await _walletService.GetCashFlowHistoryAsync(recentMonths: 6);
-        return OkResponse(new { summary, transactions, cashFlow });
+        return OkResponse(new AdminWalletResponseDto
+        {
+            Summary = summary,
+            Transactions = transactions,
+            CashFlow = cashFlow
+        });
     }
 
     // POST /api/admin/wallet/top-up
     [HttpPost("top-up")]
+    [AdminAuditAction(AdminAuditActions.WalletToppedUp, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "WalletTransaction")]
     public async Task<IActionResult> TopUp([FromBody] TopupWalletDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();

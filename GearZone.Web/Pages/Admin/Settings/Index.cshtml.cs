@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Features.Admin;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Domain.Enums;
+using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,11 +10,11 @@ namespace GearZone.Web.Pages.Admin.Settings;
 [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
 {
-    private readonly ISystemSettingService _settingService;
+    private readonly IApiClient _api;
 
-    public IndexModel(ISystemSettingService settingService)
+    public IndexModel(IApiClient api)
     {
-        _settingService = settingService;
+        _api = api;
     }
 
     [BindProperty]
@@ -22,30 +22,28 @@ namespace GearZone.Web.Pages.Admin.Settings;
 
     public string LastSynced { get; set; } = "";
 
-    public async Task OnGetAsync()
+    public async Task OnGetAsync(CancellationToken ct)
     {
-        var settings = await _settingService.GetAllSettingsAsync();
-        SettingsData = settings.ToDictionary(s => s.Key, s => s.Value);
-
-        var latestUpdate = settings.Max(s => s.UpdatedAt);
-        LastSynced = latestUpdate?.ToLocalTime().ToString("f") ?? "Never";
+        var data = await _api.GetAsync<AdminSettingsResponseDto>("/api/admin/settings", ct);
+        SettingsData = data?.Settings ?? new();
+        LastSynced = data?.LastSynced ?? "Never";
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public async Task<IActionResult> OnPostAsync(CancellationToken ct)
     {
         if (!ModelState.IsValid)
         {
             return Page();
         }
 
-        try
+        var result = await _api.PutAsync("/api/admin/settings", SettingsData, ct);
+        if (result.Success)
         {
-            await _settingService.UpdateSettingsAsync(SettingsData);
             TempData["SuccessMessage"] = "Platform settings have been successfully updated!";
         }
-        catch (Exception ex)
+        else
         {
-            TempData["ErrorMessage"] = $"Failed to update settings: {ex.Message}";
+            TempData["ErrorMessage"] = result.FirstError ?? "Failed to update settings.";
         }
 
         return RedirectToPage();

@@ -211,14 +211,14 @@
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">System</span>
             </div>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Revenue" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
-                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Revenue" ? "filled" : "")">monitoring</span>
-                <span class="font-medium text-sm sidebar-text">Revenue</span>
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Reports" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/Reports/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Reports" ? "filled" : "")">monitoring</span>
+                <span class="font-medium text-sm sidebar-text">Reports &amp; BI</span>
             </a>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Logs" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
-                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Logs" ? "filled" : "")">receipt_long</span>
-                <span class="font-medium text-sm sidebar-text">System Logs</span>
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "AuditLogs" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/AuditLogs/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "AuditLogs" ? "filled" : "")">policy</span>
+                <span class="font-medium text-sm sidebar-text">Audit Logs</span>
             </a>
 
             <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/Settings/Index">
@@ -280,8 +280,10 @@
                                 { "Product Management", "/admin/products" },
                                 { "Category Management", "/admin/categories" },
                                 { "Brand Management", "/admin/brands" },
-                                { "Seller Payable Summary", "/admin/seller-payable-summary" },
-                                { "Payout Batches", "/admin/payout-batches" }
+                                { "Seller Payable Summary", "/Admin/SellerPayableSummary" },
+                                { "Payout Batches", "/Admin/PayoutBatches/Index" },
+                                { "Reports & Business Intelligence", "/admin/reports" },
+                                { "Audit Logs", "/admin/audit-logs" }
                             };
                         }
                         

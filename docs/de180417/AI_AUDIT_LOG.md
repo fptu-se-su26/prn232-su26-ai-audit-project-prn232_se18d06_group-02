@@ -112,3 +112,14 @@
 
 ## Usage Note
 For these admin features, AI was used as an implementation and debugging assistant. The work was documented as new React admin functionality: the dashboard overview, shared admin layout, store-application management pages, store management, user management, order management, product management, category management, brand management, voucher management, wallet management, local database restoration, and the role-based access fix were reviewed manually and verified with local build commands.
+
+## Log #11
+- Date: 2026-07-18
+- Author: Đàm Nguyên Khang (DE180417)
+- AI Tool: Codex
+- Purpose: Implement Admin Reports / Business Intelligence v1 across Application, Infrastructure, API, and Web.
+- Prompt Reference: PROMPTS.md#prompt-10
+- AI Output Summary: Implemented the Overview, Orders, and Sellers report tabs, Vietnam-time period resolution and comparisons, report caching, CSV/XLSX/PDF exports, OpenAI/Gemini structured insight providers, evidence validation, rate limiting, Razor UI, API client file downloads, and an xUnit/SQLite test project.
+- Human Decision: The supplied formulas, paid-like status set, Super Admin access rule, AI privacy boundary, provider selection, and v1 scope were treated as authoritative. API keys were deliberately excluded from source-controlled configuration.
+- Applied To: `GearZone.Application/Features/Admin`, `GearZone.Infrastructure/External`, `GearZone.Api/Controllers/Admin/ReportsController.cs`, `GearZone.Web/Pages/Admin/Reports`, `GearZone.Tests`, and related dependency/configuration files.
+- Verification: `dotnet test GearZone.Tests/GearZone.Tests.csproj` passed 10 tests; `GearZone.Web` and `GearZone.Api` compiled successfully. Full-solution build was used as the final verification checkpoint.

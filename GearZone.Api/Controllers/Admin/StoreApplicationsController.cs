@@ -4,6 +4,8 @@ using GearZone.Domain.Enums;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -47,6 +49,7 @@ public class StoreApplicationsController : BaseApiController
 
     // POST /api/admin/store-applications/{id}/approve
     [HttpPost("{id:guid}/approve")]
+    [AdminAuditAction(AdminAuditActions.StoreApproved, AdminAuditModules.Stores, AdminAuditRiskLevel.Medium, EntityType = "Store")]
     public async Task<IActionResult> Approve(Guid id)
     {
         var ok = await _storeService.UpdateStoreStatusAsync(id, StoreStatus.Approved);
@@ -55,6 +58,7 @@ public class StoreApplicationsController : BaseApiController
 
     // POST /api/admin/store-applications/{id}/reject
     [HttpPost("{id:guid}/reject")]
+    [AdminAuditAction(AdminAuditActions.StoreRejected, AdminAuditModules.Stores, AdminAuditRiskLevel.High, EntityType = "Store", ReasonArgumentName = "request")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectStoreRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Reason))
@@ -70,6 +74,7 @@ public class StoreApplicationsController : BaseApiController
 
     // POST /api/admin/store-applications/{id}/request-info
     [HttpPost("{id:guid}/request-info")]
+    [AdminAuditAction(AdminAuditActions.StoreInfoRequested, AdminAuditModules.Stores, AdminAuditRiskLevel.Medium, EntityType = "Store", ReasonArgumentName = "request", ReasonPropertyName = "Note")]
     public async Task<IActionResult> RequestInfo(Guid id, [FromBody] RequestInfoRequest request)
     {
         var ok = await _storeService.RequestInfoAsync(id, request.Note);
