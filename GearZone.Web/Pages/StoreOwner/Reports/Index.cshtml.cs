@@ -34,6 +34,13 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
         [BindProperty(SupportsGet = true)]
         public DateTime? To { get; set; }
 
+        [BindProperty(SupportsGet = true)]
+        public int? StaleDays { get; set; }
+
+        // Slow-moving table page (paginated in the view; not sent to the API).
+        [BindProperty(SupportsGet = true)]
+        public int? SmPage { get; set; }
+
         public bool HasStore { get; set; }
 
         public SalesReportDto? Sales { get; private set; }
@@ -114,6 +121,75 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
             return File(bytes, "text/csv", $"sales-report-{DateTime.UtcNow:yyyyMMdd}.csv");
         }
 
+        public async Task<IActionResult> OnGetExportTopProductsAsync(CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(User.FindFirstValue(ClaimTypes.NameIdentifier)))
+                return RedirectToPage("/Public/Auth/Login");
+
+            var data = await _api.GetAsync<ProductPerformanceReportDto>($"/api/seller/reports/products{BuildQueryString()}", ct);
+            var rows = (data?.TopProducts ?? new List<ProductStatDto>())
+                .Select(p => $"{Csv(p.ProductName)},{p.UnitsSold},{p.OrderCount},{p.Revenue}");
+            return CsvFile("top-products", "Product,Units Sold,Orders,Revenue", rows);
+        }
+
+        public async Task<IActionResult> OnGetExportLowStockAsync(CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(User.FindFirstValue(ClaimTypes.NameIdentifier)))
+                return RedirectToPage("/Public/Auth/Login");
+
+            var data = await _api.GetAsync<ProductPerformanceReportDto>($"/api/seller/reports/products{BuildQueryString()}", ct);
+            var rows = (data?.LowStock ?? new List<LowStockDto>())
+                .Select(v => $"{Csv(v.ProductName)},{Csv(v.VariantName)},{Csv(v.Sku)},{v.StockQuantity}");
+            return CsvFile("low-stock", "Product,Variant,SKU,Stock", rows);
+        }
+
+        public async Task<IActionResult> OnGetExportSlowMovingAsync(CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(User.FindFirstValue(ClaimTypes.NameIdentifier)))
+                return RedirectToPage("/Public/Auth/Login");
+
+            var data = await _api.GetAsync<ProductPerformanceReportDto>($"/api/seller/reports/products{BuildQueryString()}", ct);
+            var rows = (data?.SlowMovingItems ?? new List<SlowMovingItemDto>())
+                .Select(x => string.Join(",",
+                    Csv(x.ProductName), Csv(x.VariantName), Csv(x.Sku), Csv(x.Category),
+                    x.StockQuantity, x.StockValue,
+                    x.DaysSinceLastSale?.ToString() ?? "Never",
+                    x.UnitsSoldWindow,
+                    x.DaysToSellOut?.ToString("0") ?? "",
+                    x.AgeDays));
+            return CsvFile("slow-moving-stock",
+                "Product,Variant,SKU,Status,Stock,Stock Value,Days Since Last Sale,Units Sold (window),Est. Days To Sell Out,Age (days)", rows);
+        }
+
+        public async Task<IActionResult> OnGetExportVouchersAsync(CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(User.FindFirstValue(ClaimTypes.NameIdentifier)))
+                return RedirectToPage("/Public/Auth/Login");
+
+            var data = await _api.GetAsync<MarketingReportDto>($"/api/seller/reports/marketing{BuildQueryString()}", ct);
+            var rows = (data?.Vouchers ?? new List<VoucherStatDto>())
+                .Select(v => $"{Csv(v.Code)},{Csv(v.Name)},{v.UsageCount},{v.TotalDiscount}");
+            return CsvFile("voucher-performance", "Code,Name,Uses,Total Discount", rows);
+        }
+
+        // Builds a UTF-8 (BOM) CSV download from a header line + pre-formatted rows.
+        private FileContentResult CsvFile(string namePrefix, string header, IEnumerable<string> rows)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(header);
+            foreach (var row in rows) sb.AppendLine(row);
+            var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+            return File(bytes, "text/csv", $"{namePrefix}-{DateTime.UtcNow:yyyyMMdd}.csv");
+        }
+
+        private static string Csv(string? value)
+        {
+            value ??= string.Empty;
+            if (value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0)
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+
         private string BuildQueryString()
         {
             var parts = new List<string>();
@@ -121,6 +197,7 @@ namespace GearZone.Web.Pages.StoreOwner.Reports
             if (!string.IsNullOrWhiteSpace(Granularity)) parts.Add($"granularity={Uri.EscapeDataString(Granularity)}");
             if (From.HasValue) parts.Add($"from={From.Value:yyyy-MM-dd}");
             if (To.HasValue) parts.Add($"to={To.Value:yyyy-MM-dd}");
+            if (StaleDays.HasValue) parts.Add($"staleDays={StaleDays.Value}");
             return parts.Count > 0 ? "?" + string.Join("&", parts) : string.Empty;
         }
 

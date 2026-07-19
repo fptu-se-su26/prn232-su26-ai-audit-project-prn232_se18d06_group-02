@@ -99,6 +99,13 @@ namespace GearZone.Application.Features.Seller
                 if (idx < 0) continue;
                 series[idx].Units += r.Quantity;
             }
+            // Overlay the previous period bucketed against the same axis (index-aligned).
+            foreach (var r in prevOrders)
+            {
+                var idx = BucketIndex(r.CreatedAt, p.PrevStart, p.Granularity, buckets.Count);
+                if (idx < 0) continue;
+                series[idx].PreviousRevenue += r.Subtotal;
+            }
 
             return new SalesReportDto
             {
@@ -182,14 +189,102 @@ namespace GearZone.Application.Features.Seller
                 .Take(50)
                 .ToListAsync(ct);
 
+            var slow = await BuildSlowMovingAsync(store.Id, query.StaleDays, ct);
+
             return new ProductPerformanceReportDto
             {
                 HasStore = true,
                 Period = ToPeriodDto(p),
                 TopProducts = topProducts,
                 LowStock = lowStock,
-                LowStockThreshold = LowStockThreshold
+                LowStockThreshold = LowStockThreshold,
+                SlowMovingItems = slow.Items,
+                SlowMovingSkuCount = slow.TotalCount,
+                SlowMovingCapital = slow.TotalCapital,
+                StaleDays = slow.StaleDays
             };
+        }
+
+        // Flags variants that are still in stock but selling slowly or not at all, so the seller
+        // can clear ageing capital. "Slow" sells but would take > 90 days to clear at the current
+        // pace; "Dead" has stock but no sale within the window; "NeverSold" has never sold at all.
+        private async Task<(List<SlowMovingItemDto> Items, int TotalCount, decimal TotalCapital, int StaleDays)>
+            BuildSlowMovingAsync(Guid storeId, int? requestedStaleDays, CancellationToken ct)
+        {
+            var staleDays = requestedStaleDays is > 0 ? requestedStaleDays.Value : 60;
+            var today = DateTime.UtcNow.Date;
+            var staleCutoff = today.AddDays(-staleDays);
+
+            var variants = await _variantRepository.Query()
+                .Where(v => v.Product.StoreId == storeId && !v.IsDeleted && v.IsActive && v.StockQuantity > 0)
+                .Select(v => new
+                {
+                    v.Id,
+                    ProductName = v.Product.Name,
+                    v.VariantName,
+                    v.Sku,
+                    v.Price,
+                    v.StockQuantity,
+                    v.CreatedAt
+                })
+                .ToListAsync(ct);
+
+            // All realised sale lines for the store (lightweight columns, aggregated in memory).
+            var saleRows = await _orderItemRepository.Query()
+                .Where(oi => oi.SubOrder.StoreId == storeId && !NonRevenueStatuses.Contains(oi.SubOrder.Status))
+                .Select(oi => new { oi.VariantId, oi.SubOrder.CreatedAt, oi.Quantity })
+                .ToListAsync(ct);
+
+            var lastSaleByVariant = saleRows
+                .GroupBy(r => r.VariantId)
+                .ToDictionary(g => g.Key, g => g.Max(x => x.CreatedAt));
+            var windowUnitsByVariant = saleRows
+                .Where(r => r.CreatedAt >= staleCutoff)
+                .GroupBy(r => r.VariantId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
+            var items = new List<SlowMovingItemDto>();
+            foreach (var v in variants)
+            {
+                windowUnitsByVariant.TryGetValue(v.Id, out var soldWindow);
+                bool hasLastSale = lastSaleByVariant.TryGetValue(v.Id, out var lastSale);
+                int age = Math.Max(0, (int)(today - v.CreatedAt.Date).TotalDays);
+
+                string? category;
+                double? daysToSellOut = null;
+                if (soldWindow > 0)
+                {
+                    var dailyVelocity = (double)soldWindow / staleDays;
+                    daysToSellOut = dailyVelocity > 0 ? Math.Round(v.StockQuantity / dailyVelocity, 0) : null;
+                    category = daysToSellOut is > 90 ? "Slow" : null; // sells fine → not stagnant
+                }
+                else
+                {
+                    // No sale within the window: only flag once the item has had a fair chance to sell.
+                    category = age >= staleDays ? (hasLastSale ? "Dead" : "NeverSold") : null;
+                }
+                if (category == null) continue;
+
+                items.Add(new SlowMovingItemDto
+                {
+                    VariantId = v.Id,
+                    ProductName = v.ProductName,
+                    VariantName = v.VariantName,
+                    Sku = v.Sku,
+                    StockQuantity = v.StockQuantity,
+                    Price = v.Price,
+                    StockValue = v.StockQuantity * v.Price,
+                    DaysSinceLastSale = hasLastSale ? Math.Max(0, (int)(today - lastSale.Date).TotalDays) : null,
+                    UnitsSoldWindow = soldWindow,
+                    DaysToSellOut = daysToSellOut,
+                    AgeDays = age,
+                    Category = category
+                });
+            }
+
+            var ordered = items.OrderByDescending(x => x.StockValue).ToList();
+            // Return the full stagnant set (capped for safety); the UI paginates client-side.
+            return (ordered.Take(500).ToList(), ordered.Count, ordered.Sum(x => x.StockValue), staleDays);
         }
 
         // ------------------------------------------------------------ Operations
@@ -307,9 +402,19 @@ namespace GearZone.Application.Features.Seller
 
             var p = ResolvePeriod(query);
 
+            // The voucher domain (SellerVoucherService / VoucherService) stores StartAt, EndAt
+            // and UsedAt in server-local time (DateTime.Now), whereas the report period is UTC.
+            // Shift the whole window to local so every voucher comparison here lines up; otherwise
+            // usages and validity near the UTC/local boundary (e.g. a voucher starting "today")
+            // get miscounted or dropped.
+            var localOffset = TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow);
+            var winPrevStart = p.PrevStart.Add(localOffset);
+            var winStart = p.Start.Add(localOffset);
+            var winEnd = p.End.Add(localOffset);
+
             var usageRows = await _voucherUsageRepository.Query()
                 .Where(u => u.Voucher.StoreId == store.Id
-                    && u.UsedAt >= p.PrevStart && u.UsedAt <= p.End)
+                    && u.UsedAt >= winPrevStart && u.UsedAt <= winEnd)
                 .Select(u => new
                 {
                     u.VoucherId,
@@ -320,20 +425,37 @@ namespace GearZone.Application.Features.Seller
                 })
                 .ToListAsync(ct);
 
-            var cur = usageRows.Where(r => r.UsedAt >= p.Start).ToList();
-            var prev = usageRows.Where(r => r.UsedAt < p.Start).ToList();
+            var cur = usageRows.Where(r => r.UsedAt >= winStart).ToList();
+            var prev = usageRows.Where(r => r.UsedAt < winStart).ToList();
 
-            var vouchers = cur
+            // Aggregate redemptions per voucher for the current period.
+            var vouchersById = cur
                 .GroupBy(r => new { r.VoucherId, r.Code, r.Name })
-                .Select(g => new VoucherStatDto
+                .ToDictionary(g => g.Key.VoucherId, g => new VoucherStatDto
                 {
                     VoucherId = g.Key.VoucherId,
                     Code = g.Key.Code,
                     Name = g.Key.Name,
                     UsageCount = g.Count(),
                     TotalDiscount = g.Sum(x => x.DiscountAmount)
-                })
+                });
+
+            // Also list this store's vouchers whose validity window overlaps the period,
+            // so brand-new / unused vouchers still show up (with 0 uses) instead of vanishing.
+            var periodVouchers = await _voucherRepository.Query()
+                .Where(v => v.StoreId == store.Id && v.StartAt <= winEnd && v.EndAt >= winStart)
+                .Select(v => new { v.Id, v.Code, v.Name })
+                .ToListAsync(ct);
+
+            foreach (var v in periodVouchers)
+            {
+                if (!vouchersById.ContainsKey(v.Id))
+                    vouchersById[v.Id] = new VoucherStatDto { VoucherId = v.Id, Code = v.Code, Name = v.Name };
+            }
+
+            var vouchers = vouchersById.Values
                 .OrderByDescending(v => v.UsageCount)
+                .ThenBy(v => v.Code)
                 .ToList();
 
             return new MarketingReportDto

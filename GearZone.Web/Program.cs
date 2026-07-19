@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Rewrite;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -204,6 +205,12 @@ using (var scope = app.Services.CreateScope())
     var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var configuration = services.GetRequiredService<IConfiguration>();
+
+    // Apply any pending EF Core migrations on startup so `dotnet run` keeps the
+    // database schema up to date without a manual `dotnet ef database update`.
+    // Runs before the seeders so the tables they populate already exist.
+    await dbContext.Database.MigrateAsync();
+    Console.WriteLine("Migrations: applied.");
 
     try
     {

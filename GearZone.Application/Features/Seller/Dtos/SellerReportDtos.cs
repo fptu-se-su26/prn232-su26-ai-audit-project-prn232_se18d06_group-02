@@ -14,6 +14,8 @@ namespace GearZone.Application.Features.Seller.Dtos
         public DateTime? From { get; set; }
         public DateTime? To { get; set; }
         public string? Granularity { get; set; }
+        /// <summary>Slow-moving/dead-stock window in days (products report). Defaults to 60.</summary>
+        public int? StaleDays { get; set; }
     }
 
     /// <summary>A single metric with its previous-period value and percentage change.</summary>
@@ -47,6 +49,8 @@ namespace GearZone.Application.Features.Seller.Dtos
         public string Label { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public decimal Revenue { get; set; }
+        /// <summary>Revenue in the equivalent bucket of the previous period (for trend comparison).</summary>
+        public decimal PreviousRevenue { get; set; }
         public int Orders { get; set; }
         public int Units { get; set; }
     }
@@ -83,6 +87,29 @@ namespace GearZone.Application.Features.Seller.Dtos
         public int StockQuantity { get; set; }
     }
 
+    /// <summary>A stagnant variant: still in stock but selling slowly / not at all.</summary>
+    public class SlowMovingItemDto
+    {
+        public Guid VariantId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string VariantName { get; set; } = string.Empty;
+        public string Sku { get; set; } = string.Empty;
+        public int StockQuantity { get; set; }
+        public decimal Price { get; set; }
+        /// <summary>Capital tied up in this variant = StockQuantity * Price.</summary>
+        public decimal StockValue { get; set; }
+        /// <summary>Days since the last realised sale. Null when it has never sold.</summary>
+        public int? DaysSinceLastSale { get; set; }
+        /// <summary>Units sold within the stale window.</summary>
+        public int UnitsSoldWindow { get; set; }
+        /// <summary>Estimated days to clear current stock at the window's pace. Null = no sales (never at current pace).</summary>
+        public double? DaysToSellOut { get; set; }
+        /// <summary>Days since the variant was listed.</summary>
+        public int AgeDays { get; set; }
+        /// <summary>Dead | Slow | NeverSold.</summary>
+        public string Category { get; set; } = string.Empty;
+    }
+
     public class ProductPerformanceReportDto
     {
         public bool HasStore { get; set; } = true;
@@ -90,6 +117,12 @@ namespace GearZone.Application.Features.Seller.Dtos
         public List<ProductStatDto> TopProducts { get; set; } = new();
         public List<LowStockDto> LowStock { get; set; } = new();
         public int LowStockThreshold { get; set; }
+
+        // Slow-moving / dead stock.
+        public List<SlowMovingItemDto> SlowMovingItems { get; set; } = new();
+        public int SlowMovingSkuCount { get; set; }
+        public decimal SlowMovingCapital { get; set; }
+        public int StaleDays { get; set; }
     }
 
     // ---------- Operations ----------
