@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
@@ -15,38 +15,27 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
     {
         private const int MaxReasonLength = 500;
 
-        private readonly IAdminStoreService _adminStoreService;
-        private readonly IAdminProductService _adminProductService;
-        private readonly IAdminOrderService _adminOrderService;
+        private readonly IApiClient _api;
 
-        public DetailModel(IAdminStoreService adminStoreService, IAdminProductService adminProductService, IAdminOrderService adminOrderService)
+        public DetailModel(IApiClient api)
         {
-            _adminStoreService = adminStoreService;
-            _adminProductService = adminProductService;
-            _adminOrderService = adminOrderService;
+            _api = api;
         }
 
         public StoreApplicationDto? StoreApplication { get; set; }
         public PagedResult<AdminProductDto> Products { get; set; } = new(new List<AdminProductDto>(), 0, 1, 5);
         public PagedResult<AdminOrderDto> Orders { get; set; } = new(new List<AdminOrderDto>(), 0, 1, 5);
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
-            StoreApplication = await _adminStoreService.GetStoreApplicationByIdAsync(id);
-
-            if (StoreApplication == null)
-                return NotFound();
-
-            var query = new AdminProductQueryDto 
-            { 
-                StoreId = id, 
-                PageNumber = 1, 
+            var productQuery = new AdminProductQueryDto
+            {
+                StoreId = id,
+                PageNumber = 1,
                 PageSize = 5,
                 SortBy = "createdAt",
                 SortDirection = "desc"
             };
-            Products = await _adminProductService.GetProductsAsync(query);
-
             var orderQuery = new AdminOrderQueryDto
             {
                 StoreId = id,
@@ -55,12 +44,27 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
                 SortBy = "createdAt",
                 SortDirection = "desc"
             };
-            Orders = await _adminOrderService.GetOrdersAsync(orderQuery);
+
+            var storeTask = _api.GetAsync<StoreApplicationDto>($"/api/admin/stores/{id}", ct);
+            var productsTask = _api.GetAsync<AdminProductListResponseDto>(
+                $"/api/admin/products{ApiQueryStringBuilder.Build(productQuery)}", ct);
+            var ordersTask = _api.GetAsync<AdminOrderListResponseDto>(
+                $"/api/admin/orders{ApiQueryStringBuilder.Build(orderQuery)}", ct);
+            await Task.WhenAll(storeTask, productsTask, ordersTask);
+
+            StoreApplication = await storeTask;
+
+            if (StoreApplication == null)
+                return NotFound();
+
+            Products = (await productsTask)?.Products ?? Products;
+            Orders = (await ordersTask)?.Orders ?? Orders;
 
             return Page();
         }
 
-        public async Task<IActionResult> OnPostChangeStatusAsync(Guid id, StoreStatus status, string reason = "")
+        public async Task<IActionResult> OnPostChangeStatusAsync(
+            Guid id, StoreStatus status, string reason = "", CancellationToken ct = default)
         {
             var normalizedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
             if ((status == StoreStatus.Locked || status == StoreStatus.Rejected) && string.IsNullOrWhiteSpace(normalizedReason))
@@ -75,9 +79,11 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
                 return RedirectToPage(new { id });
             }
 
-            var success = await _adminStoreService.UpdateStoreStatusAsync(id, status, normalizedReason);
+            var result = await _api.PostAsync(
+                $"/api/admin/stores/{id}/change-status",
+                new { status, reason = normalizedReason }, ct);
 
-            if (!success)
+            if (!result.Success)
             {
                 TempData["ErrorMessage"] = "Failed to change store status.";
                 return RedirectToPage(new { id });

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,11 +10,11 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminStoreService _adminStoreService;
+        private readonly IApiClient _api;
 
-        public IndexModel(IAdminStoreService adminStoreService)
+        public IndexModel(IApiClient api)
         {
-            _adminStoreService = adminStoreService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -29,7 +29,7 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
         public PagedResult<StoreApplicationDto> StoreApplications { get; set; } = new() { Items = new(), TotalCount = 0, PageNumber = 1, PageSize = 10 };
         public StoreApplicationStatsDto Stats { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(DateRangeShortcut))
             {
@@ -73,8 +73,13 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
             if (Query.PageNumber < 1) Query.PageNumber = 1;
             if (Query.PageSize < 1) Query.PageSize = 10;
 
-            StoreApplications = await _adminStoreService.GetStoreApplicationsAsync(Query);
-            Stats = await _adminStoreService.GetStoreApplicationStatsAsync();
+            var applicationsTask = _api.GetAsync<PagedResult<StoreApplicationDto>>(
+                $"/api/admin/store-applications{ApiQueryStringBuilder.Build(Query, nameof(Query.ExcludeStatuses))}", ct);
+            var statsTask = _api.GetAsync<StoreApplicationStatsDto>("/api/admin/store-applications/stats", ct);
+            await Task.WhenAll(applicationsTask, statsTask);
+
+            StoreApplications = await applicationsTask ?? StoreApplications;
+            Stats = await statsTask ?? Stats;
         }
     }
 }

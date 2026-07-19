@@ -1,8 +1,13 @@
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Api.Controllers;
+using GearZone.Infrastructure.Jobs;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -13,11 +18,16 @@ public class PayoutsController : BaseApiController
 {
     private readonly IAdminPayoutService _adminPayoutService;
     private readonly IPayoutService _payoutService;
+    private readonly IBackgroundJobClient _backgroundJobs;
 
-    public PayoutsController(IAdminPayoutService adminPayoutService, IPayoutService payoutService)
+    public PayoutsController(
+        IAdminPayoutService adminPayoutService,
+        IPayoutService payoutService,
+        IBackgroundJobClient backgroundJobs)
     {
         _adminPayoutService = adminPayoutService;
         _payoutService = payoutService;
+        _backgroundJobs = backgroundJobs;
     }
 
     // GET /api/admin/payouts?[query]
@@ -26,7 +36,7 @@ public class PayoutsController : BaseApiController
     {
         var transactions = await _adminPayoutService.GetPayoutTransactionsAsync(query);
         var summary = await _adminPayoutService.GetPayoutTransactionSummaryAsync(query);
-        return OkResponse(new { transactions, summary });
+        return OkResponse(new AdminPayoutListResponseDto { Transactions = transactions, Summary = summary });
     }
 
     // GET /api/admin/payouts/batches?[query]
@@ -36,6 +46,11 @@ public class PayoutsController : BaseApiController
         var batches = await _adminPayoutService.GetPayoutBatchesAsync(query);
         return OkResponse(batches);
     }
+
+    // GET /api/admin/payouts/batches/summary?[query]
+    [HttpGet("batches/summary")]
+    public async Task<IActionResult> BatchSummary([FromQuery] AdminPayoutBatchQueryDto query)
+        => OkResponse(await _adminPayoutService.GetPayoutSummaryAsync(query));
 
     // GET /api/admin/payouts/batches/{id}
     [HttpGet("batches/{id:guid}")]
@@ -48,51 +63,99 @@ public class PayoutsController : BaseApiController
 
     // POST /api/admin/payouts/batches/{id}/approve
     [HttpPost("batches/{id:guid}/approve")]
+    [AdminAuditAction(AdminAuditActions.PayoutBatchApproved, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutBatch")]
     public async Task<IActionResult> ApproveBatch(Guid id, CancellationToken ct)
     {
-        await _payoutService.ApproveBatchAsync(id, CurrentUserId!, ct);
-        return OkResponse("Batch approved.");
+        try
+        {
+            await _payoutService.ApproveBatchAsync(id, CurrentUserId!, ct);
+            return OkResponse("Batch approved.");
+        }
+        catch (Exception ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/admin/payouts/batches/{id}/hold
     [HttpPost("batches/{id:guid}/hold")]
+    [AdminAuditAction(AdminAuditActions.PayoutBatchHeld, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutBatch", ReasonArgumentName = "request")]
     public async Task<IActionResult> HoldBatch(Guid id, [FromBody] BatchHoldRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Reason))
             return FailResponse("A reason is required to hold a batch.");
 
-        await _payoutService.HoldBatchAsync(id, request.Reason, ct);
-        return OkResponse("Batch put on hold.");
+        try
+        {
+            await _payoutService.HoldBatchAsync(id, request.Reason, ct);
+            return OkResponse("Batch put on hold.");
+        }
+        catch (Exception ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/admin/payouts/batches/{id}/process
     [HttpPost("batches/{id:guid}/process")]
+    [AdminAuditAction(AdminAuditActions.PayoutProcessQueued, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutBatch", SuccessOutcome = AdminAuditOutcome.Queued)]
     public async Task<IActionResult> ProcessBatch(Guid id, [FromBody] BatchProcessRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.BatchCode))
             return FailResponse("BatchCode is required.");
 
-        await _payoutService.ProcessPayoutBatchAsync(request.BatchCode, ct);
-        return OkResponse("Batch processing started.");
+        var batch = await _adminPayoutService.GetPayoutBatchDetailAsync(id);
+        if (batch == null || !string.Equals(batch.BatchCode, request.BatchCode, StringComparison.OrdinalIgnoreCase))
+            return FailResponse("Batch not found or batch code does not match.", 404);
+
+        try
+        {
+            var correlationId = HttpContext.Response.Headers["X-Correlation-ID"].FirstOrDefault()
+                ?? HttpContext.TraceIdentifier;
+            var actorId = CurrentUserId;
+            _backgroundJobs.Enqueue<PayoutBatchJob>(job =>
+                job.ProcessApprovedBatchAsync(request.BatchCode, correlationId, actorId));
+            return OkResponse("Batch processing queued.");
+        }
+        catch (Exception ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/admin/payouts/batches/{batchId}/transactions/{txId}/retry
     [HttpPost("batches/{batchId:guid}/transactions/{txId:guid}/retry")]
+    [AdminAuditAction(AdminAuditActions.PayoutTransactionRetried, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutTransaction", RouteIdName = "txId", SuccessOutcome = AdminAuditOutcome.Queued)]
     public async Task<IActionResult> RetryTransaction(Guid batchId, Guid txId, CancellationToken ct)
     {
-        await _payoutService.RetryTransactionAsync(txId, ct);
-        return OkResponse("Transaction retry queued.");
+        try
+        {
+            await _payoutService.RetryTransactionAsync(txId, ct);
+            return OkResponse("Transaction retry queued.");
+        }
+        catch (Exception ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // POST /api/admin/payouts/batches/{batchId}/transactions/{txId}/exclude
     [HttpPost("batches/{batchId:guid}/transactions/{txId:guid}/exclude")]
+    [AdminAuditAction(AdminAuditActions.PayoutTransactionExcluded, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutTransaction", RouteIdName = "txId", ReasonArgumentName = "request")]
     public async Task<IActionResult> ExcludeTransaction(Guid batchId, Guid txId, [FromBody] ExcludeTransactionRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Reason))
             return FailResponse("A reason is required to exclude a transaction.");
 
-        await _payoutService.ExcludeTransactionAsync(txId, request.Reason, ct);
-        return OkResponse("Transaction excluded.");
+        try
+        {
+            await _payoutService.ExcludeTransactionAsync(txId, request.Reason, ct);
+            return OkResponse("Transaction excluded.");
+        }
+        catch (Exception ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     // GET /api/admin/payouts/transactions/{id}
@@ -113,11 +176,17 @@ public class PayoutsController : BaseApiController
     {
         var (start, end) = ResolveSellerSummaryDateRange(rangeType, customStart, customEnd);
         var summary = await _adminPayoutService.GetSellerPayableSummaryAsync(start, end);
-        return OkResponse(new { summary, periodStart = start, periodEnd = end });
+        return OkResponse(new AdminSellerPayableResponseDto
+        {
+            Summary = summary,
+            PeriodStart = start,
+            PeriodEnd = end
+        });
     }
 
     // POST /api/admin/payouts/process-bulk
     [HttpPost("process-bulk")]
+    [AdminAuditAction(AdminAuditActions.PayoutBatchGenerated, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutBatch")]
     public async Task<IActionResult> ProcessBulk([FromBody] ProcessPayoutRequest request, CancellationToken ct)
     {
         if (request.StoreIds == null || !request.StoreIds.Any())
@@ -125,16 +194,47 @@ public class PayoutsController : BaseApiController
 
         var (start, end) = ResolveSellerSummaryDateRange(request.RangeType, request.CustomStart, request.CustomEnd);
         var batchCode = await _payoutService.GenerateApprovedBatchForStoresAsync(start, end, request.StoreIds, CurrentUserId!, ct);
-        return OkResponse(new { batchCode }, "Payout batch generated.");
+        return OkResponse(new PayoutBatchCreatedDto { BatchCode = batchCode }, "Payout batch generated.");
     }
 
     // POST /api/admin/payouts/process-single/{storeId}
     [HttpPost("process-single/{storeId:guid}")]
+    [AdminAuditAction(AdminAuditActions.PayoutBatchGenerated, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutBatch", RouteIdName = "storeId")]
     public async Task<IActionResult> ProcessSingle(Guid storeId, [FromBody] ProcessSinglePayoutRequest request, CancellationToken ct)
     {
         var (start, end) = ResolveSellerSummaryDateRange(request.RangeType, request.CustomStart, request.CustomEnd);
         var batchCode = await _payoutService.GenerateApprovedBatchForStoresAsync(start, end, new[] { storeId }, CurrentUserId!, ct);
-        return OkResponse(new { batchCode }, "Payout batch generated.");
+        return OkResponse(new PayoutBatchCreatedDto { BatchCode = batchCode }, "Payout batch generated.");
+    }
+
+    // POST /api/admin/payouts/process-generated
+    // Used by the Razor seller-payable workflow, which historically waited for
+    // processing to finish before showing the final batch result.
+    [HttpPost("process-generated")]
+    [AdminAuditAction(AdminAuditActions.PayoutProcessSucceeded, AdminAuditModules.Finance, AdminAuditRiskLevel.Critical, EntityType = "PayoutBatch")]
+    public async Task<IActionResult> ProcessGenerated([FromBody] BatchProcessRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.BatchCode))
+            return FailResponse("BatchCode is required.");
+
+        try
+        {
+            await _payoutService.ProcessPayoutBatchAsync(request.BatchCode, ct);
+            var batches = await _adminPayoutService.GetPayoutBatchesAsync(new AdminPayoutBatchQueryDto
+            {
+                SearchTerm = request.BatchCode,
+                PageNumber = 1,
+                PageSize = 5
+            });
+            var batch = batches.Items.FirstOrDefault(x => x.BatchCode == request.BatchCode);
+            return batch is null
+                ? FailResponse("Batch was processed but could not be reloaded.")
+                : OkResponse(batch, "Payout batch processed.");
+        }
+        catch (Exception ex)
+        {
+            return FailResponse(ex.Message);
+        }
     }
 
     private static (DateTime start, DateTime end) ResolveSellerSummaryDateRange(
@@ -142,15 +242,22 @@ public class PayoutsController : BaseApiController
     {
         var now = DateTime.UtcNow;
         var today = now.Date;
+        var currentWeekStart = StartOfWeek(today, DayOfWeek.Monday);
 
         return rangeType?.ToLower() switch
         {
-            "this-week" => (today.AddDays(-(int)today.DayOfWeek + 1), today.AddDays(1).AddTicks(-1)),
-            "last-week" => (today.AddDays(-(int)today.DayOfWeek - 6), today.AddDays(-(int)today.DayOfWeek + 1).AddTicks(-1)),
-            "custom" when customStart.HasValue && customEnd.HasValue =>
-                (customStart.Value.ToUniversalTime(), customEnd.Value.ToUniversalTime()),
-            _ => (now.AddMonths(-1), now)
+            "last-week" => (currentWeekStart.AddDays(-7), currentWeekStart.AddTicks(-1)),
+            "custom" => (
+                (customStart ?? now.AddDays(-7)).Date,
+                (customEnd ?? now).Date.AddDays(1).AddTicks(-1)),
+            _ => (currentWeekStart, now)
         };
+    }
+
+    private static DateTime StartOfWeek(DateTime date, DayOfWeek startOfWeek)
+    {
+        var diff = (7 + (date.DayOfWeek - startOfWeek)) % 7;
+        return date.AddDays(-diff).Date;
     }
 }
 

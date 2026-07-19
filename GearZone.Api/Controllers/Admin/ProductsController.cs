@@ -4,6 +4,8 @@ using GearZone.Domain.Enums;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -35,7 +37,7 @@ public class ProductsController : BaseApiController
     {
         var products = await _productService.GetProductsAsync(query);
         var stats = await _productService.GetProductStatsAsync();
-        return OkResponse(new { products, stats });
+        return OkResponse(new AdminProductListResponseDto { Products = products, Stats = stats });
     }
 
     // GET /api/admin/products/{id}
@@ -54,11 +56,17 @@ public class ProductsController : BaseApiController
         var categories = await _categoryService.GetAllCategoriesListAsync();
         var stores = await _storeService.GetAllStoresAsync();
         var brands = await _brandService.GetAllBrandsListAsync();
-        return OkResponse(new { categories, stores, brands });
+        return OkResponse(new AdminProductMetadataDto
+        {
+            Categories = categories,
+            Stores = stores,
+            Brands = brands
+        });
     }
 
     // POST /api/admin/products/{id}/approve
     [HttpPost("{id:guid}/approve")]
+    [AdminAuditAction(AdminAuditActions.ProductApproved, AdminAuditModules.Products, AdminAuditRiskLevel.Medium, EntityType = "Product")]
     public async Task<IActionResult> Approve(Guid id)
     {
         var ok = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Active);
@@ -67,6 +75,7 @@ public class ProductsController : BaseApiController
 
     // POST /api/admin/products/{id}/reject
     [HttpPost("{id:guid}/reject")]
+    [AdminAuditAction(AdminAuditActions.ProductRejected, AdminAuditModules.Products, AdminAuditRiskLevel.Medium, EntityType = "Product", ReasonArgumentName = "request")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectRequest? request)
     {
         var ok = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Rejected, request?.Reason);
@@ -75,6 +84,7 @@ public class ProductsController : BaseApiController
 
     // POST /api/admin/products/{id}/suspend
     [HttpPost("{id:guid}/suspend")]
+    [AdminAuditAction(AdminAuditActions.ProductSuspended, AdminAuditModules.Products, AdminAuditRiskLevel.High, EntityType = "Product", ReasonArgumentName = "request")]
     public async Task<IActionResult> Suspend(Guid id, [FromBody] RejectRequest? request)
     {
         var ok = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Inactive, request?.Reason);
@@ -83,6 +93,7 @@ public class ProductsController : BaseApiController
 
     // DELETE /api/admin/products/{id}
     [HttpDelete("{id:guid}")]
+    [AdminAuditAction(AdminAuditActions.ProductDeleted, AdminAuditModules.Products, AdminAuditRiskLevel.High, EntityType = "Product", ReasonArgumentName = "request")]
     public async Task<IActionResult> Delete(Guid id, [FromBody] RejectRequest? request)
     {
         var ok = await _productService.DeleteProductAsync(id, request?.Reason ?? "Deleted by admin.");
@@ -91,6 +102,7 @@ public class ProductsController : BaseApiController
 
     // POST /api/admin/products/bulk-update-status
     [HttpPost("bulk-update-status")]
+    [AdminAuditAction(AdminAuditActions.ProductBulkStatusChanged, AdminAuditModules.Products, AdminAuditRiskLevel.High, EntityType = "Product", ReasonArgumentName = "request")]
     public async Task<IActionResult> BulkUpdateStatus([FromBody] BulkStatusRequest request)
     {
         if (request.ProductIds == null || !request.ProductIds.Any())

@@ -1,22 +1,20 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using GearZone.Application.Abstractions.Persistence;
-using GearZone.Application.Abstractions.Services;
-using System.Threading.Tasks;
 using GearZone.Application.Common.Models; // Keep this as PagedResult is used
 using GearZone.Application.Features.Admin.Dtos; // Keep this as AdminPlatformTransactionSummaryDto and PlatformTransactionDto are used
+using GearZone.Web.Services.Api;
 
 namespace GearZone.Web.Pages.Admin.Transactions
 {
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminPlatformService _platformService;
+        private readonly IApiClient _api;
 
-        public IndexModel(IAdminPlatformService platformService)
+        public IndexModel(IApiClient api)
         {
-            _platformService = platformService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -28,10 +26,10 @@ namespace GearZone.Web.Pages.Admin.Transactions
         [BindProperty(SupportsGet = true)]
         public string? DateRangeShortcut { get; set; }
 
-        public PagedResult<PlatformTransactionDto> Transactions { get; set; }
-        public AdminPlatformTransactionSummaryDto Summary { get; set; }
+        public PagedResult<PlatformTransactionDto> Transactions { get; set; } = new();
+        public AdminPlatformTransactionSummaryDto Summary { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(DateRangeShortcut))
             {
@@ -72,8 +70,16 @@ namespace GearZone.Web.Pages.Admin.Transactions
                 }
             }
 
-            Transactions = await _platformService.GetTransactionsAsync(Query);
-            Summary = await _platformService.GetTransactionSummaryAsync(Query);
+            Query.PageNumber = Query.PageNumber < 1 ? 1 : Query.PageNumber;
+            Query.PageSize = Query.PageSize < 1 ? 10 : Query.PageSize;
+            var queryString = ApiQueryStringBuilder.Build(Query);
+            var transactionsTask = _api.GetAsync<PagedResult<PlatformTransactionDto>>(
+                $"/api/admin/transactions{queryString}", ct);
+            var summaryTask = _api.GetAsync<AdminPlatformTransactionSummaryDto>(
+                $"/api/admin/transactions/summary{queryString}", ct);
+            await Task.WhenAll(transactionsTask, summaryTask);
+            Transactions = await transactionsTask ?? Transactions;
+            Summary = await summaryTask ?? Summary;
         }
     }
 }

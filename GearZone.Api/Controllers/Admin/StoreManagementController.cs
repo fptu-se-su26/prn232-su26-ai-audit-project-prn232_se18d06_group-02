@@ -3,6 +3,8 @@ using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -49,6 +51,7 @@ public class StoreManagementController : BaseApiController
 
     // POST /api/admin/stores/{id}/change-status
     [HttpPost("{id:guid}/change-status")]
+    [AdminAuditAction(AdminAuditActions.StoreStatusChanged, AdminAuditModules.Stores, AdminAuditRiskLevel.High, EntityType = "Store", ReasonArgumentName = "request")]
     public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeStoreStatusRequest request)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();

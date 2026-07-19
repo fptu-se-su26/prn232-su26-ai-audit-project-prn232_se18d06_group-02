@@ -3,6 +3,9 @@ using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GearZone.Api.Auditing;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Api.Controllers.Admin;
 
@@ -27,7 +30,12 @@ public class VouchersController : BaseApiController
         var vouchers = await _voucherService.GetPaginatedVouchersAsync(query);
         var summary = await _voucherService.GetVoucherSummaryAsync();
         var categories = await _categoryService.GetAllCategoriesListAsync();
-        return OkResponse(new { vouchers, summary, categories });
+        return OkResponse(new AdminVoucherListResponseDto
+        {
+            Vouchers = vouchers,
+            Summary = summary,
+            Categories = categories
+        });
     }
 
     // GET /api/admin/vouchers/{id}
@@ -41,6 +49,7 @@ public class VouchersController : BaseApiController
 
     // POST /api/admin/vouchers
     [HttpPost]
+    [AdminAuditAction(AdminAuditActions.VoucherCreated, AdminAuditModules.Vouchers, AdminAuditRiskLevel.Medium, EntityType = "Voucher")]
     public async Task<IActionResult> Create([FromBody] CreateVoucherDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
@@ -54,6 +63,7 @@ public class VouchersController : BaseApiController
 
     // PUT /api/admin/vouchers/{id}
     [HttpPut("{id:guid}")]
+    [AdminAuditAction(AdminAuditActions.VoucherUpdated, AdminAuditModules.Vouchers, AdminAuditRiskLevel.Medium, EntityType = "Voucher")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateVoucherDto dto)
     {
         if (!ModelState.IsValid) return ValidationFailResponse();
@@ -64,6 +74,7 @@ public class VouchersController : BaseApiController
 
     // PATCH /api/admin/vouchers/{id}/toggle-status
     [HttpPatch("{id:guid}/toggle-status")]
+    [AdminAuditAction(AdminAuditActions.VoucherStatusChanged, AdminAuditModules.Vouchers, AdminAuditRiskLevel.Medium, EntityType = "Voucher")]
     public async Task<IActionResult> ToggleStatus(Guid id)
     {
         var ok = await _voucherService.ToggleVoucherStatusAsync(id);

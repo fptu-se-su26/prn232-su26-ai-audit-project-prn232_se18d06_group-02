@@ -42,3 +42,6 @@ Thumbs.db
 # Rider / VS Code
 .idea/
 *.code-workspace
+
+# Local verification build outputs
+.artifacts/

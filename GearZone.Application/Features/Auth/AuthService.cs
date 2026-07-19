@@ -2,7 +2,10 @@
 using GearZone.Application.Abstractions.External;
 using GearZone.Domain.Entities;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Linq;
@@ -17,12 +20,21 @@ namespace GearZone.Application.Features.Auth
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailService _emailService;
+        private readonly IAdminAuditRecorder _auditRecorder;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AuthService(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, IEmailService emailService)
+        public AuthService(
+            SignInManager<ApplicationUser> signInManager,
+            UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
+            IAdminAuditRecorder auditRecorder,
+            IHttpContextAccessor httpContextAccessor)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _emailService = emailService;
+            _auditRecorder = auditRecorder;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<LoginResponse> LoginAsync(string username, string password, bool rememberMe)
@@ -30,10 +42,17 @@ namespace GearZone.Application.Features.Auth
             var user = await _userManager.FindByNameAsync(username) ?? await _userManager.FindByEmailAsync(username);
             if (user == null) return new LoginResponse { Status = LoginStatus.InvalidCredentials };
 
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Super Admin");
+
             var result = await _signInManager.PasswordSignInAsync(user, password, rememberMe, lockoutOnFailure: false);
 
             if (result.Succeeded)
+            {
+                if (isAdmin) await RecordAdminAuthAsync(user, AdminAuditActions.AdminLoginSucceeded, AdminAuditOutcome.Succeeded);
                 return new LoginResponse { Status = LoginStatus.Success, UserId = user.Id };
+            }
+
+            if (isAdmin) await RecordAdminAuthAsync(user, AdminAuditActions.AdminLoginFailed, AdminAuditOutcome.Failed);
 
             if (result.IsNotAllowed)
                 return new LoginResponse { Status = LoginStatus.EmailNotConfirmed, UserId = user.Id };
@@ -55,7 +74,45 @@ namespace GearZone.Application.Features.Auth
 
         public async Task SignOutAsync()
         {
+            var principal = _httpContextAccessor.HttpContext?.User;
+            if (principal?.Identity?.IsAuthenticated == true)
+            {
+                var user = await _userManager.GetUserAsync(principal);
+                if (user is not null && await _userManager.IsInRoleAsync(user, "Super Admin"))
+                    await RecordAdminAuthAsync(user, AdminAuditActions.AdminLogout, AdminAuditOutcome.Succeeded);
+            }
             await _signInManager.SignOutAsync();
+        }
+
+        private Task RecordAdminAuthAsync(ApplicationUser user, string action, AdminAuditOutcome outcome)
+        {
+            var http = _httpContextAccessor.HttpContext;
+            var correlationId = http?.Request.Headers["X-Correlation-ID"].FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(correlationId) || correlationId.Length > 128)
+                correlationId = http?.TraceIdentifier;
+
+            return _auditRecorder.RecordAsync(new AdminAuditEvent
+            {
+                ActorUserId = user.Id,
+                ActorDisplayName = user.FullName ?? user.UserName,
+                ActorEmail = user.Email,
+                Action = action,
+                Module = AdminAuditModules.Security,
+                Outcome = outcome,
+                RiskLevel = outcome == AdminAuditOutcome.Failed
+                    ? AdminAuditRiskLevel.High
+                    : AdminAuditRiskLevel.Medium,
+                EntityType = "ApplicationUser",
+                EntityId = user.Id,
+                EntityDisplayName = user.FullName ?? user.UserName,
+                Description = action.Replace('_', ' ').ToLowerInvariant(),
+                HttpMethod = http?.Request.Method,
+                RequestPath = http?.Request.Path.Value,
+                StatusCode = outcome == AdminAuditOutcome.Failed ? 401 : 200,
+                IpAddress = http?.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = http?.Request.Headers.UserAgent.ToString(),
+                CorrelationId = correlationId
+            });
         }
 
         public async Task<UserDto?> GetUserAsync(ClaimsPrincipal principal)

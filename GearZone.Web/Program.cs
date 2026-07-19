@@ -96,8 +96,12 @@ builder.Services.AddScoped<BuyerInboxComposer>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
+    foreach (var value in (builder.Configuration["TRUSTED_PROXY_IPS"] ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (System.Net.IPAddress.TryParse(value, out var address))
+            options.KnownProxies.Add(address);
+    }
 });
 
 // Shared Data Protection key ring. Persisting the keys with a fixed application

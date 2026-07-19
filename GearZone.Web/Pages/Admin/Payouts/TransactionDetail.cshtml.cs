@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -9,18 +9,19 @@ namespace GearZone.Web.Pages.Admin.Payouts
     [Authorize(Roles = "Super Admin")]
     public class TransactionDetailModel : PageModel
     {
-        private readonly IAdminPayoutService _payoutService;
+        private readonly IApiClient _api;
 
-        public TransactionDetailModel(IAdminPayoutService payoutService)
+        public TransactionDetailModel(IApiClient api)
         {
-            _payoutService = payoutService;
+            _api = api;
         }
 
         public AdminPayoutTransactionDetailDto Transaction { get; set; } = null!;
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
-            var tx = await _payoutService.GetPayoutTransactionDetailAsync(id);
+            var tx = await _api.GetAsync<AdminPayoutTransactionDetailDto>(
+                $"/api/admin/payouts/transactions/{id}", ct);
             if (tx == null)
             {
                 return NotFound();

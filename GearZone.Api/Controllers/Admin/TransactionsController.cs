@@ -24,4 +24,9 @@ public class TransactionsController : BaseApiController
         var transactions = await _platformService.GetTransactionsAsync(query, ct);
         return OkResponse(transactions);
     }
+
+    // GET /api/admin/transactions/summary?[query]
+    [HttpGet("summary")]
+    public async Task<IActionResult> Summary([FromQuery] PlatformTransactionQuery query, CancellationToken ct)
+        => OkResponse(await _platformService.GetTransactionSummaryAsync(query, ct));
 }

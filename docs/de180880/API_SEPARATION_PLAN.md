@@ -168,6 +168,8 @@ Nhánh: `bugfix/de180880-fix-api`
 | **1 — Tách `GearZone.Api`** | ✅ Xong, **verified runtime** | Move 31 controller + `BaseApiController`; Web proxy `/api/*` bằng **YARP**; Hangfire server chỉ chạy ở Web. Xác nhận: `/api/catalog/categories` trả JSON giống nhau ở `:5200` và `:5107`. |
 | **2 — Pilot Reports** | ✅ Xong, **auth verified** | Dựng `IApiClient` + `CookieForwardingHandler`; Reports gọi `/api/seller/reports/*`. Log Api cho thấy nó resolve store theo userId ⟹ **cookie auth qua ranh giới project PASS**. |
 | **3 — Trang tiêu biểu** | ✅ Xong (theo phạm vi đã chốt) | **Revenue** (read-only: filter/sort/paging) và **Vouchers** (full CRUD: POST/PUT/PATCH + map lỗi về `ModelState`). |
+| **4 — Admin management pages** | ✅ Xong, **build verified** | 16 PageModel của Store Applications, Stores, Users, Orders, Products, Categories, Brands và Vouchers đã chuyển sang `IApiClient`; bổ sung typed response DTO, DELETE, multipart upload và category attributes qua API. |
+| **5 — Toàn bộ Admin còn lại** | ✅ Xong, **build verified** | Dashboard, Wallet, Transactions, Settings, Payouts, Payout Batches, Payout Transaction Detail và Seller Payable Summary đã chuyển sang `IApiClient`. Toàn bộ Admin PageModel hiện consume API. |
 | **Dọn ref Infrastructure khỏi Web** | ❌ Không làm | Vì chỉ migrate trang tiêu biểu, các trang còn lại vẫn cần gọi service in-process. |
 
 ### Phạm vi đã chốt: chỉ migrate trang tiêu biểu
@@ -180,7 +182,18 @@ Mục tiêu môn học là **chứng minh có consume Web API**, không phải v
 | **Vouchers** | **Full CRUD** — POST, PUT, PATCH + hiển thị lỗi validation từ API |
 
 ### Các trang CHƯA migrate (cố ý)
-Toàn bộ trang còn lại (StoreOwner: Orders/Products/Reviews/Settings/Messages/Disputes; Admin: 13 trang; Cart/Checkout/Public) **vẫn chạy cửa cũ** (PageModel → service in-process) và **hoạt động bình thường**. Kiến trúc cho phép dừng ở đây mà app vẫn đủ tính năng.
+Các trang ngoài phạm vi hiện tại (StoreOwner: Orders/Products/Reviews/Settings/Messages/Disputes; Cart/Checkout/Public) **vẫn chạy cửa cũ** (PageModel → service in-process) và **hoạt động bình thường**. Toàn bộ PageModel thuộc `Pages/Admin` đã chuyển sang API.
+
+### Chi tiết wave Admin đã migrate
+- **Read-only:** Orders list/detail.
+- **Workflow:** Store Applications approve/reject/request-info; Store Management lock/unlock/status.
+- **CRUD:** Users, Vouchers, Categories và Brands.
+- **Moderation:** Products list/detail, approve/reject/suspend/delete và bulk status.
+- **Platform operations:** Dashboard, Wallet top-up, Transactions, Settings.
+- **Payout:** transaction list/detail, batch list/detail/actions và Seller Payable Summary; batch thông thường enqueue Hangfire tại API, còn luồng payable giữ xử lý đồng bộ để trả kết quả cuối như trước.
+- API trả typed DTO thay cho anonymous object; Category create trả ID để lưu attributes; Brand upload giữ `multipart/form-data`.
+- `GearZone.Api` trả **401/403** cho authentication/authorization failure thay vì redirect HTML tới trang login.
+- Checkpoint: `dotnet build GearZone.sln --no-restore` thành công và không còn Admin service injection trong 16 PageModel thuộc wave này.
 
 Muốn migrate tiếp trang nào thì lặp lại đúng công thức:
 1. Audit: API đã có endpoint trả đúng data chưa? (thiếu thì thêm — **Disputes chưa có API nào**)
@@ -190,7 +203,7 @@ Muốn migrate tiếp trang nào thì lặp lại đúng công thức:
 5. Build (Razor view compile = bằng chứng shape khớp) → test runtime.
 
 ### ⚠️ Vận hành
-Từ giờ **phải chạy cả 2 project**: `GearZone.Api` (:5200) và `GearZone.Web` (:5107). Tắt Api thì Reports/Revenue/Vouchers + React + các JS gọi `/api` sẽ lỗi; các trang chưa migrate vẫn chạy.
+Từ giờ **phải chạy cả 2 project**: `GearZone.Api` (:5200) và `GearZone.Web` (:5107). Tắt Api thì Reports/Revenue/Vouchers của Seller, toàn bộ khu vực Admin, React và các JS gọi `/api` sẽ lỗi; các trang chưa migrate vẫn chạy.
 
 ---
 

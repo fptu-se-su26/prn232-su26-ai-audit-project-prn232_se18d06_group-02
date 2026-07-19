@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Application.Common.Models;
+using GearZone.Web.Services.Api;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,11 +11,11 @@ namespace GearZone.Web.Pages.Admin.Brands
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminBrandService _adminBrandService;
+        private readonly IApiClient _api;
 
-        public IndexModel(IAdminBrandService adminBrandService)
+        public IndexModel(IApiClient api)
         {
-            _adminBrandService = adminBrandService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -29,12 +30,12 @@ namespace GearZone.Web.Pages.Admin.Brands
         public PagedResult<AdminBrandDto> Brands { get; set; } = new PagedResult<AdminBrandDto>();
         public AdminBrandStatsDto BrandStats { get; set; } = new AdminBrandStatsDto();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
-            await LoadDataAsync();
+            await LoadDataAsync(ct);
         }
 
-        public async Task<IActionResult> OnPostCreateAsync()
+        public async Task<IActionResult> OnPostCreateAsync(CancellationToken ct)
         {
             if (!ModelState.IsValid)
             {
@@ -42,8 +43,10 @@ namespace GearZone.Web.Pages.Admin.Brands
                 return RedirectToPage();
             }
 
-            var result = await _adminBrandService.CreateBrandAsync(CreateInput);
-            if (result)
+            using var content = BuildMultipartContent(CreateInput.Name, CreateInput.Slug,
+                CreateInput.LogoUrl, CreateInput.IsApproved, CreateInput.LogoFile);
+            var result = await _api.PostContentAsync("/api/admin/brands", content, ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Brand created successfully.";
             }
@@ -55,7 +58,7 @@ namespace GearZone.Web.Pages.Admin.Brands
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostEditAsync()
+        public async Task<IActionResult> OnPostEditAsync(CancellationToken ct)
         {
             if (!ModelState.IsValid)
             {
@@ -63,8 +66,10 @@ namespace GearZone.Web.Pages.Admin.Brands
                 return RedirectToPage();
             }
 
-            var result = await _adminBrandService.UpdateBrandAsync(EditInput);
-            if (result)
+            using var content = BuildMultipartContent(EditInput.Name, EditInput.Slug,
+                EditInput.LogoUrl, EditInput.IsApproved, EditInput.LogoFile, EditInput.Id);
+            var result = await _api.PutContentAsync("/api/admin/brands", content, ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Brand updated successfully.";
             }
@@ -76,10 +81,10 @@ namespace GearZone.Web.Pages.Admin.Brands
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostApproveAsync(int id)
+        public async Task<IActionResult> OnPostApproveAsync(int id, CancellationToken ct)
         {
-            var result = await _adminBrandService.ApproveBrandAsync(id);
-            if (result)
+            var result = await _api.PostAsync($"/api/admin/brands/{id}/approve", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Brand approved successfully.";
             }
@@ -90,10 +95,10 @@ namespace GearZone.Web.Pages.Admin.Brands
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostRejectAsync(int id)
+        public async Task<IActionResult> OnPostRejectAsync(int id, CancellationToken ct)
         {
-            var result = await _adminBrandService.RejectBrandAsync(id);
-            if (result)
+            var result = await _api.PostAsync($"/api/admin/brands/{id}/reject", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Brand rejected successfully.";
             }
@@ -104,10 +109,10 @@ namespace GearZone.Web.Pages.Admin.Brands
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostDeleteAsync(int id)
+        public async Task<IActionResult> OnPostDeleteAsync(int id, CancellationToken ct)
         {
-            var result = await _adminBrandService.DeleteBrandAsync(id);
-            if (result)
+            var result = await _api.DeleteAsync($"/api/admin/brands/{id}", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Brand deleted successfully.";
             }
@@ -118,21 +123,54 @@ namespace GearZone.Web.Pages.Admin.Brands
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnGetBrandDetailsAsync(int brandId)
+        public async Task<IActionResult> OnGetBrandDetailsAsync(int brandId, CancellationToken ct)
         {
-            var brand = await _adminBrandService.GetBrandByIdAsync(brandId);
+            var brand = await _api.GetAsync<AdminBrandDto>($"/api/admin/brands/{brandId}", ct);
             if (brand == null) return NotFound();
 
             return new JsonResult(brand);
         }
 
-        private async Task LoadDataAsync()
+        private async Task LoadDataAsync(CancellationToken ct)
         {
             if (Query.PageNumber < 1) Query.PageNumber = 1;
             if (Query.PageSize < 1) Query.PageSize = 10;
 
-            Brands = await _adminBrandService.GetBrandsAsync(Query);
-            BrandStats = await _adminBrandService.GetBrandStatsAsync();
+            var data = await _api.GetAsync<AdminBrandListResponseDto>(
+                $"/api/admin/brands{ApiQueryStringBuilder.Build(Query)}", ct);
+            if (data is not null)
+            {
+                Brands = data.Brands;
+                BrandStats = data.Stats;
+            }
+        }
+
+        private static MultipartFormDataContent BuildMultipartContent(
+            string name,
+            string slug,
+            string? logoUrl,
+            bool isApproved,
+            IFormFile? logoFile,
+            int? id = null)
+        {
+            var content = new MultipartFormDataContent();
+            if (id.HasValue) content.Add(new StringContent(id.Value.ToString()), "Id");
+            content.Add(new StringContent(name ?? string.Empty), "Name");
+            content.Add(new StringContent(slug ?? string.Empty), "Slug");
+            content.Add(new StringContent(logoUrl ?? string.Empty), "LogoUrl");
+            content.Add(new StringContent(isApproved ? "true" : "false"), "IsApproved");
+
+            if (logoFile is not null && logoFile.Length > 0)
+            {
+                var fileContent = new StreamContent(logoFile.OpenReadStream());
+                if (!string.IsNullOrWhiteSpace(logoFile.ContentType))
+                {
+                    fileContent.Headers.TryAddWithoutValidation("Content-Type", logoFile.ContentType);
+                }
+                content.Add(fileContent, "LogoFile", logoFile.FileName);
+            }
+
+            return content;
         }
     }
 }

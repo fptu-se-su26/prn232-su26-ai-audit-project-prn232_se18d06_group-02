@@ -5,20 +5,20 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 
 namespace GearZone.Web.Pages.Admin.Orders
 {
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminOrderService _orderService;
+        private readonly IApiClient _api;
 
-        public IndexModel(IAdminOrderService orderService)
+        public IndexModel(IApiClient api)
         {
-            _orderService = orderService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -30,7 +30,7 @@ namespace GearZone.Web.Pages.Admin.Orders
         public PagedResult<AdminOrderDto> Orders { get; set; } = new PagedResult<AdminOrderDto>();
         public AdminOrderStatsDto Stats { get; set; } = new AdminOrderStatsDto();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(DateRangeShortcut))
             {
@@ -71,8 +71,16 @@ namespace GearZone.Web.Pages.Admin.Orders
                 }
             }
 
-            Stats = await _orderService.GetOrderStatsAsync();
-            Orders = await _orderService.GetOrdersAsync(Query);
+            Query.PageNumber = Query.PageNumber < 1 ? 1 : Query.PageNumber;
+            Query.PageSize = Query.PageSize < 1 ? 10 : Query.PageSize;
+
+            var data = await _api.GetAsync<AdminOrderListResponseDto>(
+                $"/api/admin/orders{ApiQueryStringBuilder.Build(Query)}", ct);
+            if (data is not null)
+            {
+                Stats = data.Stats;
+                Orders = data.Orders;
+            }
         }
     }
 }

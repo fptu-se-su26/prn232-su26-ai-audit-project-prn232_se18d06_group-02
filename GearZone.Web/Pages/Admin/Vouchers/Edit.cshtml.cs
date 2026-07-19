@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
@@ -13,13 +13,11 @@ namespace GearZone.Web.Pages.Admin.Vouchers
     [Authorize(Roles = "Super Admin")]
     public class EditModel : PageModel
     {
-        private readonly IAdminVoucherService _voucherService;
-        private readonly IAdminCategoryService _categoryService;
+        private readonly IApiClient _api;
 
-        public EditModel(IAdminVoucherService voucherService, IAdminCategoryService categoryService)
+        public EditModel(IApiClient api)
         {
-            _voucherService = voucherService;
-            _categoryService = categoryService;
+            _api = api;
         }
 
         [BindProperty]
@@ -30,9 +28,9 @@ namespace GearZone.Web.Pages.Admin.Vouchers
 
         public List<CategoryDto> Categories { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
-            var voucher = await _voucherService.GetVoucherByIdAsync(id);
+            var voucher = await _api.GetAsync<AdminVoucherDto>($"/api/admin/vouchers/{id}", ct);
             if (voucher == null)
             {
                 TempData["ErrorMessage"] = "Voucher not found.";
@@ -40,7 +38,7 @@ namespace GearZone.Web.Pages.Admin.Vouchers
             }
 
             Id = id;
-            Categories = await _categoryService.GetAllCategoriesListAsync();
+            Categories = await LoadCategoriesAsync(ct);
             
             // Map AdminVoucherDto properties to UpdateVoucherDto
             Input.Name = voucher.Name;
@@ -61,7 +59,7 @@ namespace GearZone.Web.Pages.Admin.Vouchers
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(CancellationToken ct)
         {
             // Custom Validation
             if (Input.DiscountType == "Percent" && Input.DiscountValue > 100)
@@ -86,20 +84,25 @@ namespace GearZone.Web.Pages.Admin.Vouchers
             {
                 var firstError = ModelState.Values.SelectMany(v => v.Errors).FirstOrDefault()?.ErrorMessage;
                 TempData["ErrorMessage"] = firstError ?? "Please check the form for errors.";
-                Categories = await _categoryService.GetAllCategoriesListAsync();
+                Categories = await LoadCategoriesAsync(ct);
                 return Page();
             }
 
-            var result = await _voucherService.UpdateVoucherAsync(Id, Input);
-            if (result)
+            var result = await _api.PutAsync($"/api/admin/vouchers/{Id}", Input, ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Voucher updated successfully!";
                 return RedirectToPage("./Index");
             }
 
-            TempData["ErrorMessage"] = "Failed to update voucher. Please try again.";
-            Categories = await _categoryService.GetAllCategoriesListAsync();
+            var error = result.FirstError ?? "Failed to update voucher. Please try again.";
+            TempData["ErrorMessage"] = error;
+            ModelState.AddModelError(string.Empty, error);
+            Categories = await LoadCategoriesAsync(ct);
             return Page();
         }
+
+        private async Task<List<CategoryDto>> LoadCategoriesAsync(CancellationToken ct) =>
+            await _api.GetAsync<List<CategoryDto>>("/api/admin/categories/all", ct) ?? new();
     }
 }
