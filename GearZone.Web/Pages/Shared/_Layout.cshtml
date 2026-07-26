@@ -25,6 +25,7 @@
         && currentTab.Equals("messages", StringComparison.OrdinalIgnoreCase);
     var showBuyerChatWidget = !currentPath.Equals("/messages", StringComparison.OrdinalIgnoreCase)
         && !isBuyerMessagesProfile;
+    var showAiChatWidget = User.Identity?.IsAuthenticated != true || User.IsInRole("Customer");
     
     int cartCount = 0;
     int buyerUnreadCount = 0;
@@ -133,6 +134,10 @@
     {
         <partial name="/Pages/Shared/_ChatInboxStyles.cshtml" />
         <partial name="/Pages/Shared/_BuyerChatWidgetStyles.cshtml" />
+    }
+    @if (showAiChatWidget)
+    {
+        <partial name="/Pages/Shared/_AiChatWidgetStyles.cshtml" />
     }
     @await RenderSectionAsync("Styles", required: false)
 </head>
@@ -516,6 +521,10 @@
                      MessagesUrl = "/profile?tab=messages"
                  }' />
     }
+    @if (showAiChatWidget)
+    {
+        <partial name="/Pages/Shared/_AiChatWidget.cshtml" />
+    }
 
     <!-- Login Redirect Modal -->
     <div id="login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -569,6 +578,10 @@
     @if (showBuyerChatWidget)
     {
         <partial name="/Pages/Shared/_BuyerChatWidgetScripts.cshtml" />
+    }
+    @if (showAiChatWidget)
+    {
+        <partial name="/Pages/Shared/_AiChatWidgetScripts.cshtml" />
     }
     <script>
         document.addEventListener('DOMContentLoaded', function() {

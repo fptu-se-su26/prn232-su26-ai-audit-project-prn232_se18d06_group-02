@@ -14,6 +14,7 @@ namespace GearZone.Application.Features.Admin
 {
     public class AdminProductService : IAdminProductService
     {
+        private const int ExportPageSize = 500;
         private readonly IProductRepository _productRepository;
         private readonly IMapper _mapper;
         private readonly IUnitOfWork _unitOfWork;
@@ -38,6 +39,30 @@ namespace GearZone.Application.Features.Admin
             var items = _mapper.Map<List<AdminProductDto>>(pagedProducts.Items);
 
             return new PagedResult<AdminProductDto>(items, pagedProducts.TotalCount, pagedProducts.PageNumber, pagedProducts.PageSize);
+        }
+
+        public async Task<AdminCsvFileDto> ExportProductsCsvAsync(
+            AdminProductQueryDto queryDto,
+            CancellationToken ct = default)
+        {
+            var exportQuery = CloneForExport(queryDto);
+            var products = new List<AdminProductDto>();
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                var page = await _productRepository.GetAdminProductsAsync(exportQuery);
+                products.AddRange(_mapper.Map<List<AdminProductDto>>(page.Items));
+
+                if (page.Items.Count == 0 || products.Count >= page.TotalCount)
+                {
+                    break;
+                }
+
+                exportQuery.PageNumber++;
+            }
+
+            return AdminCsvExporter.ExportProducts(products, DateTime.UtcNow);
         }
 
         public async Task<AdminProductStatsDto> GetProductStatsAsync()
@@ -114,5 +139,25 @@ namespace GearZone.Application.Features.Admin
 
             return success;
         }
+
+        private static AdminProductQueryDto CloneForExport(AdminProductQueryDto source) =>
+            new()
+            {
+                SearchTerm = source.SearchTerm,
+                Status = source.Status,
+                CategoryId = source.CategoryId,
+                BrandId = source.BrandId,
+                StoreId = source.StoreId,
+                MinPrice = source.MinPrice,
+                MaxPrice = source.MaxPrice,
+                StartDate = source.StartDate,
+                EndDate = source.EndDate,
+                OutOfStock = source.OutOfStock,
+                AttributeOptionIds = source.AttributeOptionIds?.ToList() ?? new List<int>(),
+                SortBy = source.SortBy,
+                SortDirection = source.SortDirection,
+                PageNumber = 1,
+                PageSize = ExportPageSize
+            };
     }
 }

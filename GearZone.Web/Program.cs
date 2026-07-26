@@ -262,6 +262,12 @@ using (var scope = app.Services.CreateScope())
         job => job.AutoCompleteOrdersAsync(),
         Cron.Daily(),
         TimeZoneInfo.Utc);
+
+    RecurringJob.AddOrUpdate<AiChatCleanupJob>(
+        "ai-chat-retention-cleanup",
+        job => job.DeleteExpiredAsync(),
+        "17 2 * * *",
+        TimeZoneInfo.Utc);
 }
 
 app.UseStaticFiles();

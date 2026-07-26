@@ -128,6 +128,7 @@
                 controller?.scrollActiveThreadToLatest?.();
             }, animationDurationMs + 40);
             writeState({ status: 'open' });
+            window.dispatchEvent(new CustomEvent('gearzone:buyer-chat-opened'));
         }
 
         function hideDrawer(nextStatus) {
@@ -336,6 +337,12 @@
                 writeState(controller.getState());
             }
         });
+        window.addEventListener('gearzone:ai-chat-opened', () => hideDrawer('minimized'));
+
+        window.GearZoneBuyerChatWidget = {
+            open: (context) => bootstrapWidget(normalizeLaunchContext(context || {})),
+            minimize: () => hideDrawer('minimized')
+        };
 
         const initialState = readState();
         updateExpandLink(initialState);

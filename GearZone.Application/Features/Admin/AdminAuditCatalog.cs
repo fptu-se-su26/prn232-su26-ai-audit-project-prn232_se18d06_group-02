@@ -3,6 +3,7 @@ namespace GearZone.Application.Features.Admin;
 public static class AdminAuditModules
 {
     public const string Users = "Users";
+    public const string Orders = "Orders";
     public const string Stores = "Stores";
     public const string Products = "Products";
     public const string Brands = "Brands";
@@ -13,6 +14,7 @@ public static class AdminAuditModules
     public const string Reports = "Reports";
     public const string Security = "Security";
     public const string Audit = "Audit";
+    public const string AiKnowledge = "AI Knowledge";
 }
 
 public static class AdminAuditActions
@@ -30,6 +32,8 @@ public static class AdminAuditActions
     public const string ProductSuspended = "PRODUCT_SUSPENDED";
     public const string ProductDeleted = "PRODUCT_DELETED";
     public const string ProductBulkStatusChanged = "PRODUCT_BULK_STATUS_CHANGED";
+    public const string ProductListExported = "PRODUCT_LIST_EXPORTED";
+    public const string OrderListExported = "ORDER_LIST_EXPORTED";
     public const string BrandCreated = "BRAND_CREATED";
     public const string BrandUpdated = "BRAND_UPDATED";
     public const string BrandApproved = "BRAND_APPROVED";
@@ -59,4 +63,8 @@ public static class AdminAuditActions
     public const string AdminLoginFailed = "ADMIN_LOGIN_FAILED";
     public const string AdminLogout = "ADMIN_LOGOUT";
     public const string AuditLogExported = "AUDIT_LOG_EXPORTED";
+    public const string AiKnowledgeCreated = "AI_KNOWLEDGE_CREATED";
+    public const string AiKnowledgeUpdated = "AI_KNOWLEDGE_UPDATED";
+    public const string AiKnowledgePublished = "AI_KNOWLEDGE_PUBLISHED";
+    public const string AiKnowledgeArchived = "AI_KNOWLEDGE_ARCHIVED";
 }

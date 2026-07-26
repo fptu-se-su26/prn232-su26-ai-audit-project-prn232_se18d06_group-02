@@ -1,6 +1,8 @@
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Application.Features.Admin;
 using GearZone.Api.Controllers;
+using GearZone.Api.Auditing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,6 +27,19 @@ public class OrdersController : BaseApiController
         var orders = await _orderService.GetOrdersAsync(query);
         var stats = await _orderService.GetOrderStatsAsync();
         return OkResponse(new AdminOrderListResponseDto { Orders = orders, Stats = stats });
+    }
+
+    // GET /api/admin/orders/export?[query]
+    [HttpGet("export")]
+    [AdminAuditAction(
+        AdminAuditActions.OrderListExported,
+        AdminAuditModules.Orders,
+        GearZone.Domain.Enums.AdminAuditRiskLevel.Low,
+        Description = "Exported the filtered admin order list")]
+    public async Task<IActionResult> Export([FromQuery] AdminOrderQueryDto query, CancellationToken ct)
+    {
+        var file = await _orderService.ExportOrdersCsvAsync(query, ct);
+        return File(file.Content, file.ContentType, file.FileName);
     }
 
     // GET /api/admin/orders/{id}

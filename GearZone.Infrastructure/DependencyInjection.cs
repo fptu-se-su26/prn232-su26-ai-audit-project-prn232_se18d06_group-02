@@ -93,6 +93,27 @@ namespace GearZone.Infrastructure
                     ? geminiModel
                     : "gemini-3.5-flash";
             });
+            services.Configure<AiChatSettings>(options =>
+            {
+                options.Enabled = bool.TryParse(
+                    ReadFirstNonEmpty(configuration, "AI_CHAT_ENABLED", "AI_INSIGHTS_ENABLED", "AI:Enabled"),
+                    out var enabled) && enabled;
+                options.TimeoutSeconds = int.TryParse(
+                    ReadFirstNonEmpty(configuration, "AI_CHAT_TIMEOUT_SECONDS", "AI_TIMEOUT_SECONDS", "AI:TimeoutSeconds"),
+                    out var timeout)
+                    ? Math.Clamp(timeout, 5, 120)
+                    : 30;
+                options.MaxOutputTokens = int.TryParse(
+                    ReadFirstNonEmpty(configuration, "AI_CHAT_MAX_OUTPUT_TOKENS"),
+                    out var maxTokens)
+                    ? Math.Clamp(maxTokens, 200, 2048)
+                    : 700;
+                options.GeminiApiKey = ReadFirstNonEmpty(configuration, "GEMINI_API_KEY");
+                options.GeminiModel = ReadFirstNonEmpty(configuration, "GEMINI_MODEL", "AI:Gemini:Model")
+                    is { Length: > 0 } model
+                    ? model
+                    : "gemini-3.1-flash-lite";
+            });
 
             services.AddMemoryCache();
             services.AddScoped<AdminAuditContext>();
@@ -116,6 +137,15 @@ namespace GearZone.Infrastructure
                 client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
                 client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
             });
+            services.AddHttpClient<GeminiAiChatProvider>((sp, client) =>
+            {
+                var settings = sp.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<AiChatSettings>>().Value;
+                client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+                client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+            });
+            services.AddScoped<IAiChatProvider>(sp =>
+                sp.GetRequiredService<GeminiAiChatProvider>());
             services.AddTransient<IAiInsightProvider>(sp => sp.GetRequiredService<OpenAiInsightProvider>());
             services.AddTransient<IAiInsightProvider>(sp => sp.GetRequiredService<GeminiInsightProvider>());
             services.AddScoped<IAiInsightProviderResolver, AiInsightProviderResolver>();
@@ -151,11 +181,15 @@ namespace GearZone.Infrastructure
             services.AddScoped<IVoucherRepository, VoucherRepository>();
             services.AddScoped<IVoucherUsageRepository, VoucherUsageRepository>();
             services.AddScoped<IUserAddressRepository, UserAddressRepository>();
+            services.AddScoped<IAiConversationRepository, AiConversationRepository>();
+            services.AddScoped<IAiMessageRepository, AiMessageRepository>();
+            services.AddScoped<IAiKnowledgeRepository, AiKnowledgeRepository>();
 
             // Jobs
             services.AddScoped<PayoutBatchJob>();
             services.AddScoped<OrderAutoCompleteJob>();
             services.AddScoped<PaymentTimeoutJob>();
+            services.AddScoped<AiChatCleanupJob>();
             services.AddScoped<IBackgroundJobService, BackgroundJobService>();
 
             // Payment strategies

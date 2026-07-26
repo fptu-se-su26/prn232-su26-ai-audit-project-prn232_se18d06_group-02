@@ -40,6 +40,19 @@ public class ProductsController : BaseApiController
         return OkResponse(new AdminProductListResponseDto { Products = products, Stats = stats });
     }
 
+    // GET /api/admin/products/export?[query]
+    [HttpGet("export")]
+    [AdminAuditAction(
+        AdminAuditActions.ProductListExported,
+        AdminAuditModules.Products,
+        AdminAuditRiskLevel.Low,
+        Description = "Exported the filtered admin product list")]
+    public async Task<IActionResult> Export([FromQuery] AdminProductQueryDto query, CancellationToken ct)
+    {
+        var file = await _productService.ExportProductsCsvAsync(query, ct);
+        return File(file.Content, file.ContentType, file.FileName);
+    }
+
     // GET /api/admin/products/{id}
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
