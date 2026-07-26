@@ -1,0 +1,140 @@
+@page "/storeowner/promotions"
+@model GearZone.Web.Pages.StoreOwner.Promotions.IndexModel
+@using GearZone.Domain.Enums
+@{
+    ViewData["Title"] = "Promotions";
+    ViewData["PageHeader"] = "Promotion Campaigns";
+    ViewData["ActivePage"] = "Promotions";
+    ViewData["Breadcrumb"] = new[] { "Marketing", "Promotions" };
+    Layout = "_StoreOwnerLayout";
+    var campaigns = Model.Data.Campaigns;
+}
+
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Promotion campaigns</h1>
+            <p class="mt-1 text-sm text-slate-500">Automatic product discounts with shared unit quota.</p>
+        </div>
+        <a asp-page="./Manage" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">
+            <span class="material-symbols-outlined text-lg">add</span>
+            Create campaign
+        </a>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Campaigns</p>
+            <p class="mt-2 text-2xl font-bold text-slate-900">@Model.Data.Summary.TotalCampaigns</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active</p>
+            <p class="mt-2 text-2xl font-bold text-emerald-600">@Model.Data.Summary.ActiveCampaigns</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Reserved units</p>
+            <p class="mt-2 text-2xl font-bold text-amber-600">@Model.Data.Summary.ReservedUnits</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Redeemed units</p>
+            <p class="mt-2 text-2xl font-bold text-primary">@Model.Data.Summary.RedeemedUnits</p>
+        </div>
+    </div>
+
+    <form method="get" class="flex flex-col gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-card sm:flex-row">
+        <div class="relative flex-1">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-lg text-slate-400">search</span>
+            <input asp-for="Search" class="w-full rounded-lg border-slate-200 py-2 pl-10 text-sm focus:border-primary focus:ring-primary" placeholder="Search campaigns" />
+        </div>
+        <select asp-for="Status" asp-items="Html.GetEnumSelectList<PromotionStatus>()" class="rounded-lg border-slate-200 text-sm focus:border-primary focus:ring-primary">
+            <option value="">All statuses</option>
+        </select>
+        <button class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Filter</button>
+    </form>
+
+    @if (!campaigns.Items.Any())
+    {
+        <div class="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+            <span class="material-symbols-outlined text-5xl text-slate-300">sell</span>
+            <h2 class="mt-3 font-semibold text-slate-800">No promotion campaigns found</h2>
+            <p class="mt-1 text-sm text-slate-500">Create a campaign and select the products you want to discount.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-5 xl:grid-cols-2">
+            @foreach (var campaign in campaigns.Items)
+            {
+                var occupied = campaign.ReservedQuantity + campaign.RedeemedQuantity;
+                var progress = campaign.TotalQuantityLimit == 0
+                    ? 0
+                    : Math.Min(100m, occupied * 100m / campaign.TotalQuantityLimit);
+                <article class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 class="truncate text-lg font-bold text-slate-900">@campaign.Name</h2>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-bold @GearZone.Web.Pages.StoreOwner.Promotions.IndexModel.StatusClasses(campaign.Status)">@campaign.Status</span>
+                            </div>
+                            <p class="mt-1 text-sm font-semibold text-primary">
+                                @(campaign.DiscountType == DiscountType.Percent ? $"{campaign.DiscountValue:0.##}%" : $"{campaign.DiscountValue:N0} VND") off each unit
+                            </p>
+                        </div>
+                        <a asp-page="./Manage" asp-route-id="@campaign.Id" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-primary" title="Edit">
+                            <span class="material-symbols-outlined">edit</span>
+                        </a>
+                    </div>
+
+                    <p class="mt-4 line-clamp-2 min-h-10 text-sm text-slate-500">@(campaign.Description ?? "No description")</p>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        @foreach (var product in campaign.Products.Take(4))
+                        {
+                            <span class="max-w-52 truncate rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">@product.Name</span>
+                        }
+                        @if (campaign.Products.Count > 4)
+                        {
+                            <span class="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">+@(campaign.Products.Count - 4)</span>
+                        }
+                    </div>
+
+                    <div class="mt-5">
+                        <div class="mb-2 flex justify-between text-xs font-medium text-slate-500">
+                            <span>Quota occupied</span>
+                            <span>@occupied / @campaign.TotalQuantityLimit</span>
+                        </div>
+                        <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-primary" style="width:@progress.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                        </div>
+                        <div class="mt-2 flex justify-between text-xs text-slate-400">
+                            <span>@campaign.ReservedQuantity reserved · @campaign.RedeemedQuantity redeemed</span>
+                            <span>@campaign.RemainingQuantity remaining</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-xs text-slate-500">
+                            @campaign.StartAt.ToLocalTime().ToString("dd MMM yyyy HH:mm") — @campaign.EndAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")
+                        </p>
+                        <form method="post" asp-page-handler="Toggle">
+                            <input type="hidden" name="id" value="@campaign.Id" />
+                            <button class="rounded-lg border px-3 py-2 text-xs font-semibold @(campaign.IsEnabled ? "border-amber-200 text-amber-700 hover:bg-amber-50" : "border-emerald-200 text-emerald-700 hover:bg-emerald-50")">
+                                @(campaign.IsEnabled ? "Pause" : "Resume")
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+
+    @if (campaigns.TotalPages > 1)
+    {
+        <div class="flex items-center justify-center gap-2">
+            @for (var pageNumber = 1; pageNumber <= campaigns.TotalPages; pageNumber++)
+            {
+                <a asp-route-pageNumber="@pageNumber" asp-route-search="@Model.Search" asp-route-status="@Model.Status"
+                   class="rounded-lg px-3 py-2 text-sm font-semibold @(pageNumber == campaigns.PageNumber ? "bg-primary text-white" : "border border-slate-200 bg-white text-slate-600")">@pageNumber</a>
+            }
+        </div>
+    }
+</div>

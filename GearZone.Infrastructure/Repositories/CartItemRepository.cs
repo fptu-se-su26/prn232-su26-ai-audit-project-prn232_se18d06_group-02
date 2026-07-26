@@ -34,10 +34,19 @@ namespace GearZone.Infrastructure.Repositories
 
         public async Task DeleteRangeByIdsAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
         {
-            var items = await _dbSet
-                .Where(ci => ids.Contains(ci.Id))
-                .ToListAsync(ct);
-            _dbSet.RemoveRange(items);
+            var itemIds = ids.Distinct().ToArray();
+            if (itemIds.Length == 0)
+            {
+                return;
+            }
+
+            // Clearing purchased cart lines is intentionally idempotent. A tracked
+            // RemoveRange issues one DELETE per entity and EF throws a concurrency
+            // exception when another checkout request has already removed a line.
+            // A conditional set-based delete treats "already gone" as success.
+            await _dbSet
+                .Where(ci => itemIds.Contains(ci.Id))
+                .ExecuteDeleteAsync(ct);
         }
     }
 }

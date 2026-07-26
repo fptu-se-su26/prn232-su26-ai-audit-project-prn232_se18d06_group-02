@@ -9,6 +9,11 @@ namespace GearZone.Application.Features.Cart.DTOs
         public string? ImageUrl { get; set; }
         public string? VariantName { get; set; } // e.g., "Color: Red, Size: L"
         public decimal Price { get; set; }
+        public decimal OriginalPrice { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public Guid? PromotionCampaignId { get; set; }
+        public string? PromotionName { get; set; }
+        public DateTime? PromotionEndAt { get; set; }
         public int Quantity { get; set; }
         public int StockQuantity { get; set; }
         public decimal Subtotal => Price * Quantity;

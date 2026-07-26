@@ -11,5 +11,9 @@ namespace GearZone.Application.Abstractions.Services
     {
         Task<CheckoutResponseDto> ProcessCheckoutAsync(string userId, CheckoutRequestDto request, CancellationToken ct = default);
         Task<List<CartItem>> GetCheckoutItemsAsync(string userId, List<Guid> cartItemIds, CancellationToken ct = default);
+        Task<CheckoutQuoteDto> GetQuoteAsync(
+            string userId,
+            CheckoutQuoteRequestDto request,
+            CancellationToken ct = default);
     }
 }

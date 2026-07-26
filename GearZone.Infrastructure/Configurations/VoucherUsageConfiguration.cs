@@ -13,6 +13,9 @@ namespace GearZone.Infrastructure.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.DiscountAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
+            builder.HasIndex(x => new { x.VoucherId, x.OrderId }).IsUnique();
+            builder.HasIndex(x => new { x.VoucherId, x.UserId, x.Status });
 
             builder.HasOne(x => x.Voucher)
                    .WithMany(x => x.Usages)

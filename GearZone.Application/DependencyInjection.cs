@@ -11,6 +11,7 @@ using GearZone.Application.Features.Map;
 using GearZone.Application.Features.Orders;
 using GearZone.Application.Features.Payment;
 using GearZone.Application.Features.Payout;
+using GearZone.Application.Features.Promotions;
 using GearZone.Application.Features.Reviews;
 using GearZone.Application.Features.Seller;
 using GearZone.Application.Features.Shipping;
@@ -24,6 +25,7 @@ namespace GearZone.Application
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
             services.AddMemoryCache();
+            services.AddSingleton(TimeProvider.System);
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IAiChatService, AiChatService>();
             services.AddScoped<IAiChatToolExecutor, AiChatToolExecutor>();
@@ -60,6 +62,9 @@ namespace GearZone.Application
             services.AddScoped<IMapService, MapService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ISellerVoucherService, SellerVoucherService>();
+            services.AddScoped<ISellerPromotionService, SellerPromotionService>();
+            services.AddScoped<IPromotionPricingService, PromotionPricingService>();
+            services.AddScoped<IPromotionLifecycleService, PromotionLifecycleService>();
             services.AddScoped<ISellerReportService, SellerReportService>();
             services.AddScoped<ISellerRevenueService, SellerRevenueService>();
             services.AddScoped<IPaymentService, PaymentService>();

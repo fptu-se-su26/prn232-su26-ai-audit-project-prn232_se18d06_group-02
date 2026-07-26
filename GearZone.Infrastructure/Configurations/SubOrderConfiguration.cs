@@ -26,6 +26,9 @@ namespace GearZone.Infrastructure.Configurations
                    .IsRequired();
 
             builder.Property(x => x.Subtotal).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.PromotionDiscountAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.SellerVoucherDiscountAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.CommissionableAmount).HasColumnType("decimal(18,2)");
             builder.Property(x => x.CommissionAmount).HasColumnType("decimal(18,2)");
             builder.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");
             builder.Property(x => x.CommissionRateSnapshot).HasColumnType("decimal(5,2)");

@@ -397,6 +397,9 @@ namespace GearZone.Infrastructure.Repositories
                             VariantName = item.VariantNameSnapshot,
                             Quantity = item.Quantity,
                             UnitPrice = item.UnitPriceSnapshot,
+                            OriginalUnitPrice = item.OriginalUnitPriceSnapshot,
+                            PromotionDiscountAmount = item.PromotionDiscountAmount,
+                            PromotionName = item.PromotionNameSnapshot,
                             CanReview = x.Status == OrderStatus.Delivered
                                 && (x.DeliveredAt ?? x.UpdatedAt ?? x.CreatedAt) >= reviewWindowStart
                                 && !_context.ProductReviews.Any(review => review.OrderItemId == item.Id && !review.IsDeleted),
@@ -549,6 +552,8 @@ namespace GearZone.Infrastructure.Repositories
                 .AsNoTracking()
                 .Include(x => x.Order)
                 .ThenInclude(o => o.User)
+                .Include(x => x.Order)
+                .ThenInclude(o => o.Shipments)
                 .Include(x => x.Store)
                 .Include(x => x.Items)
                 .FirstOrDefaultAsync(x => x.Id == subOrderId && x.Store.OwnerUserId == ownerUserId, ct);
@@ -558,6 +563,8 @@ namespace GearZone.Infrastructure.Repositories
                 return null;
             }
 
+            var shipment = subOrder.Order.Shipments
+                .FirstOrDefault(x => x.StoreId == subOrder.StoreId);
             var statusHistory = await _context.OrderStatusHistories
                 .AsNoTracking()
                 .Where(x => x.OrderId == subOrder.OrderId)
@@ -587,7 +594,16 @@ namespace GearZone.Infrastructure.Repositories
                 UpdatedAt = subOrder.UpdatedAt,
                 Status = subOrder.Status,
                 Subtotal = subOrder.Subtotal,
-                ShippingFee = subOrder.Order.ShippingFee,
+                PromotionDiscountAmount = subOrder.PromotionDiscountAmount,
+                SellerVoucherDiscountAmount = subOrder.SellerVoucherDiscountAmount,
+                CommissionableAmount = subOrder.CommissionableAmount,
+                ShippingFee = shipment?.ShippingFee ?? 0m,
+                ShippingVoucherDiscountAmount =
+                    shipment?.ShippingDiscountAmount ?? 0m,
+                NetShippingFee = shipment?.NetShippingFee ?? 0m,
+                StoreOrderTotal =
+                    subOrder.CommissionableAmount +
+                    (shipment?.NetShippingFee ?? 0m),
                 GrandTotal = subOrder.Order.GrandTotal,
                 CommissionRateSnapshot = subOrder.CommissionRateSnapshot,
                 CommissionAmount = subOrder.CommissionAmount,
@@ -608,7 +624,10 @@ namespace GearZone.Infrastructure.Repositories
                         VariantName = x.VariantNameSnapshot,
                         Sku = x.SkuSnapshot,
                         Quantity = x.Quantity,
+                        OriginalUnitPrice = x.OriginalUnitPriceSnapshot,
                         UnitPrice = x.UnitPriceSnapshot,
+                        PromotionDiscountAmount = x.PromotionDiscountAmount,
+                        PromotionName = x.PromotionNameSnapshot,
                         LineTotal = x.LineTotal
                     })
                     .ToList(),

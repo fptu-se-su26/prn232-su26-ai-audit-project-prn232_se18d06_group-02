@@ -51,6 +51,9 @@ namespace GearZone.Infrastructure
         
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<VoucherUsage> VoucherUsages { get; set; }
+        public DbSet<PromotionCampaign> PromotionCampaigns { get; set; }
+        public DbSet<PromotionProduct> PromotionProducts { get; set; }
+        public DbSet<PromotionReservation> PromotionReservations { get; set; }
         public DbSet<UserAddress> UserAddresses { get; set; }
         
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }

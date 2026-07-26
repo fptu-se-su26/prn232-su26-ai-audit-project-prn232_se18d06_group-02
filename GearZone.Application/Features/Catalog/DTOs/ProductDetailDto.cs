@@ -12,6 +12,10 @@ namespace GearZone.Application.Features.Catalog.DTOs
         public string Slug { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public decimal BasePrice { get; set; }
+        public decimal? OriginalPrice { get; set; }
+        public Guid? PromotionCampaignId { get; set; }
+        public string? PromotionName { get; set; }
+        public DateTime? PromotionEndAt { get; set; }
         public int SoldCount { get; set; }
         public decimal Rating { get; set; }
         public int ReviewCount { get; set; }
@@ -65,6 +69,11 @@ namespace GearZone.Application.Features.Catalog.DTOs
         public string Sku { get; set; } = string.Empty;
         public string VariantName { get; set; } = string.Empty;
         public decimal Price { get; set; }
+        public decimal OriginalPrice { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public Guid? PromotionCampaignId { get; set; }
+        public string? PromotionName { get; set; }
+        public DateTime? PromotionEndAt { get; set; }
         public int StockQuantity { get; set; }
         public List<int> SelectedOptionIds { get; set; } = new();
     }
