@@ -8,6 +8,7 @@ namespace GearZone.Application.Abstractions.Services
     public interface IAdminProductService
     {
         Task<PagedResult<AdminProductDto>> GetProductsAsync(AdminProductQueryDto queryDto);
+        Task<AdminCsvFileDto> ExportProductsCsvAsync(AdminProductQueryDto queryDto, CancellationToken ct = default);
         Task<AdminProductStatsDto> GetProductStatsAsync();
         Task<AdminProductDetailDto?> GetProductDetailAsync(Guid id);
         Task<bool> DeleteProductAsync(Guid id, string reason);

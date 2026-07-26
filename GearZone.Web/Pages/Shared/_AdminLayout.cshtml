@@ -216,6 +216,11 @@
                 <span class="font-medium text-sm sidebar-text">Reports &amp; BI</span>
             </a>
 
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "AiKnowledge" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/AiKnowledge/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "AiKnowledge" ? "filled" : "")">library_books</span>
+                <span class="font-medium text-sm sidebar-text">AI Knowledge</span>
+            </a>
+
             <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "AuditLogs" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/AuditLogs/Index">
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "AuditLogs" ? "filled" : "")">policy</span>
                 <span class="font-medium text-sm sidebar-text">Audit Logs</span>

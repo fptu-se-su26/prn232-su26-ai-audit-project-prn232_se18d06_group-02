@@ -804,17 +804,19 @@ body.gz-nav-open {
 
 .gz-rail-card__media {
     display: block;
+    position: relative;
     aspect-ratio: 4 / 3;
     overflow: hidden;
     border-bottom: 1px solid #dfe5ea;
-    background: #f6f8fa;
+    background: #eef2f5;
 }
 
 .gz-rail-card__media img {
+    display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    padding: 1.1rem;
+    object-fit: cover;
+    object-position: center;
     transition: transform 650ms var(--gz-ease);
 }
 
@@ -1004,6 +1006,7 @@ body.gz-nav-open {
 }
 
 .gz-discovery-card__media {
+    position: relative;
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #eceff3;
@@ -1016,10 +1019,11 @@ body.gz-nav-open {
 }
 
 .gz-discovery-card__media img {
+    display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    padding: clamp(0.8rem, 2vw, 1.5rem);
+    object-fit: cover;
+    object-position: center;
     transition: transform 650ms var(--gz-ease);
 }
 

@@ -45,44 +45,7 @@ namespace GearZone.Web.Pages.Admin.Products
 
         public async Task OnGetAsync(CancellationToken ct)
         {
-            if (!string.IsNullOrEmpty(DateRangeShortcut))
-            {
-                var today = DateTime.UtcNow.Date;
-                switch (DateRangeShortcut.ToLower())
-                {
-                    case "today":
-                        Query.StartDate = today;
-                        Query.EndDate = today;
-                        break;
-                    case "week":
-                        Query.StartDate = today.AddDays(-7);
-                        Query.EndDate = today;
-                        break;
-                    case "month":
-                        Query.StartDate = today.AddDays(-30);
-                        Query.EndDate = today;
-                        break;
-                    case "custom":
-                        if (!string.IsNullOrEmpty(DateRange))
-                        {
-                            var dates = DateRange.Split(" to ");
-                            if (dates.Length == 2)
-                            {
-                                if (DateTime.TryParse(dates[0], out var start)) Query.StartDate = start;
-                                if (DateTime.TryParse(dates[1], out var end)) Query.EndDate = end;
-                            }
-                            else if (dates.Length == 1)
-                            {
-                                if (DateTime.TryParse(dates[0], out var start))
-                                {
-                                    Query.StartDate = start;
-                                    Query.EndDate = start;
-                                }
-                            }
-                        }
-                        break;
-                }
-            }
+            ApplyDateRange();
 
             Query.PageNumber = Query.PageNumber < 1 ? 1 : Query.PageNumber;
             Query.PageSize = Query.PageSize < 1 ? 10 : Query.PageSize;
@@ -133,6 +96,23 @@ namespace GearZone.Web.Pages.Admin.Products
             if (Query.CategoryId.HasValue && Query.CategoryId.Value > 0)
             {
                 CategoryAttributes = await attributesTask! ?? new();
+            }
+        }
+
+        public async Task<IActionResult> OnGetExportAsync(CancellationToken ct)
+        {
+            ApplyDateRange();
+
+            try
+            {
+                var file = await _api.GetFileAsync(
+                    $"/api/admin/products/export{ApiQueryStringBuilder.Build(Query)}", ct);
+                return File(file.Content, file.ContentType, file.FileName);
+            }
+            catch (HttpRequestException)
+            {
+                TempData["ErrorMessage"] = "The product export could not be generated. Please try again.";
+                return RedirectToPage();
             }
         }
 
@@ -199,6 +179,49 @@ namespace GearZone.Web.Pages.Admin.Products
                 TempData["ErrorMessage"] = "Failed to reject product.";
 
             return RedirectToPage(new { Query.SearchTerm, Query.Status, Query.CategoryId, Query.BrandId, Query.StoreId, Query.PageNumber, DateRangeShortcut, DateRange });
+        }
+
+        private void ApplyDateRange()
+        {
+            if (string.IsNullOrEmpty(DateRangeShortcut))
+            {
+                return;
+            }
+
+            var today = DateTime.UtcNow.Date;
+            switch (DateRangeShortcut.ToLowerInvariant())
+            {
+                case "today":
+                    Query.StartDate = today;
+                    Query.EndDate = today;
+                    break;
+                case "week":
+                    Query.StartDate = today.AddDays(-7);
+                    Query.EndDate = today;
+                    break;
+                case "month":
+                    Query.StartDate = today.AddDays(-30);
+                    Query.EndDate = today;
+                    break;
+                case "custom":
+                    if (string.IsNullOrEmpty(DateRange))
+                    {
+                        break;
+                    }
+
+                    var dates = DateRange.Split(" to ");
+                    if (dates.Length == 2)
+                    {
+                        if (DateTime.TryParse(dates[0], out var start)) Query.StartDate = start;
+                        if (DateTime.TryParse(dates[1], out var end)) Query.EndDate = end;
+                    }
+                    else if (dates.Length == 1 && DateTime.TryParse(dates[0], out var date))
+                    {
+                        Query.StartDate = date;
+                        Query.EndDate = date;
+                    }
+                    break;
+            }
         }
     }
 }

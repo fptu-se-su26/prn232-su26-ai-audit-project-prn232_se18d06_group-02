@@ -60,6 +60,20 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         });
     });
+    options.AddPolicy("ai-chat", context =>
+    {
+        var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.Request.Cookies[GearZone.Api.Controllers.AiChatController.GuestCookieName]
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    });
 });
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>

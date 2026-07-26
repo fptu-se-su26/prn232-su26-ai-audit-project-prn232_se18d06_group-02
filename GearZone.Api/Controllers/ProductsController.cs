@@ -47,7 +47,7 @@ public class ProductsController : BaseApiController
     // Query keys that map onto ProductFilterDto itself; everything else is an attribute filter.
     private static readonly HashSet<string> FilterQueryKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "storeId", "search", "categorySlug", "brand", "brandSlugs", "minPrice", "maxPrice",
+        "storeId", "search", "categorySlug", "categorySlugs", "brand", "brandSlugs", "minPrice", "maxPrice",
         "inStockOnly", "inStock", "sortBy", "sort", "viewMode", "pageNumber", "page", "pageSize",
         "attributes", "handler"
     };
