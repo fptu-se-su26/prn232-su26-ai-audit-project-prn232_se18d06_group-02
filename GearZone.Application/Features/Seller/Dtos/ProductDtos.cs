@@ -67,6 +67,8 @@ namespace GearZone.Application.Features.Seller.Dtos
         public List<ProductSpecDto> Specifications { get; set; } = new();
         public List<ProductVariantDto> Variants { get; set; } = new();
         public List<IFormFile> Images { get; set; } = new();
+        /// <summary>Remote image URLs (e.g. from bulk import) to fetch and re-host. Combined with Images, capped at 5.</summary>
+        public List<string> ImageUrls { get; set; } = new();
     }
 
     public class UpdateProductDto

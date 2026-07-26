@@ -191,12 +191,12 @@
                 <span class="font-medium text-sm sidebar-text">Payouts</span>
             </a>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/SellerPayableSummary">
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/admin/seller-payable-summary">
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "SellerPayableSummary" ? "filled" : "")">summarize</span>
                 <span class="font-medium text-sm sidebar-text">Seller Payable</span>
             </a>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/Admin/PayoutBatches/Index">
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/admin/payout-batches">
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "PayoutBatches" ? "filled" : "")">account_balance_wallet</span>
                 <span class="font-medium text-sm sidebar-text">Payout Batches</span>
             </a>
@@ -211,14 +211,19 @@
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">System</span>
             </div>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Revenue" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
-                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Revenue" ? "filled" : "")">monitoring</span>
-                <span class="font-medium text-sm sidebar-text">Revenue</span>
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Reports" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/Reports/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Reports" ? "filled" : "")">monitoring</span>
+                <span class="font-medium text-sm sidebar-text">Reports &amp; BI</span>
             </a>
 
-            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Logs" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" href="#">
-                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Logs" ? "filled" : "")">receipt_long</span>
-                <span class="font-medium text-sm sidebar-text">System Logs</span>
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "AiKnowledge" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/AiKnowledge/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "AiKnowledge" ? "filled" : "")">library_books</span>
+                <span class="font-medium text-sm sidebar-text">AI Knowledge</span>
+            </a>
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "AuditLogs" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/AuditLogs/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "AuditLogs" ? "filled" : "")">policy</span>
+                <span class="font-medium text-sm sidebar-text">Audit Logs</span>
             </a>
 
             <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Settings" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/Admin/Settings/Index">
@@ -245,12 +250,12 @@
                         <span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary">home</span>
                         Go to Home
                     </a>
-                    <a href="/Public/User/Profile" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors group">
+                    <a href="/profile" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors group">
                         <span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary">person</span>
                         Account Settings
                     </a>
                     <div class="border-t border-border-light my-1"></div>
-                    <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
+                    <a href="/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
                         <span class="material-symbols-outlined text-[20px] group-hover:text-red-700">logout</span>
                         Log Out
                     </a>
@@ -281,7 +286,9 @@
                                 { "Category Management", "/admin/categories" },
                                 { "Brand Management", "/admin/brands" },
                                 { "Seller Payable Summary", "/Admin/SellerPayableSummary" },
-                                { "Payout Batches", "/Admin/PayoutBatches/Index" }
+                                { "Payout Batches", "/Admin/PayoutBatches/Index" },
+                                { "Reports & Business Intelligence", "/admin/reports" },
+                                { "Audit Logs", "/admin/audit-logs" }
                             };
                         }
                         

@@ -10,6 +10,7 @@ namespace GearZone.Application.Features.Admin
 {
     public class AdminOrderService : IAdminOrderService
     {
+        private const int ExportPageSize = 500;
         private readonly IOrderRepository _orderRepository;
         private readonly IMapper _mapper;
 
@@ -26,6 +27,30 @@ namespace GearZone.Application.Features.Admin
             return new PagedResult<AdminOrderDto>(items, pagedOrders.TotalCount, pagedOrders.PageNumber, pagedOrders.PageSize);
         }
 
+        public async Task<AdminCsvFileDto> ExportOrdersCsvAsync(
+            AdminOrderQueryDto queryDto,
+            CancellationToken ct = default)
+        {
+            var exportQuery = CloneForExport(queryDto);
+            var orders = new List<AdminOrderDto>();
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                var page = await _orderRepository.GetAdminOrdersAsync(exportQuery);
+                orders.AddRange(_mapper.Map<List<AdminOrderDto>>(page.Items));
+
+                if (page.Items.Count == 0 || orders.Count >= page.TotalCount)
+                {
+                    break;
+                }
+
+                exportQuery.PageNumber++;
+            }
+
+            return AdminCsvExporter.ExportOrders(orders, DateTime.UtcNow);
+        }
+
         public async Task<AdminOrderDetailDto?> GetOrderDetailAsync(Guid id)
         {
             var order = await _orderRepository.GetAdminOrderDetailAsync(id);
@@ -38,5 +63,23 @@ namespace GearZone.Application.Features.Admin
         {
             return await _orderRepository.GetAdminOrderStatsAsync();
         }
+
+        private static AdminOrderQueryDto CloneForExport(AdminOrderQueryDto source) =>
+            new()
+            {
+                SearchTerm = source.SearchTerm,
+                IsPaid = source.IsPaid,
+                PaymentMethod = source.PaymentMethod,
+                StoreId = source.StoreId,
+                StartDate = source.StartDate,
+                EndDate = source.EndDate,
+                DateRange = source.DateRange,
+                MinPrice = source.MinPrice,
+                MaxPrice = source.MaxPrice,
+                SortBy = source.SortBy,
+                SortDirection = source.SortDirection,
+                PageNumber = 1,
+                PageSize = ExportPageSize
+            };
     }
 }

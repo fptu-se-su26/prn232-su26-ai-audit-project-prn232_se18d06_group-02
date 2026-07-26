@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Collections;
@@ -14,13 +14,13 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
     {
         private const int MaxReasonLength = 500;
 
-        private readonly IAdminStoreService _adminStoreService;
+        private readonly IApiClient _api;
         public StoreApplicationDto StoreApplication { get; set; } = new StoreApplicationDto();
 
 
-        public IndexModel(IAdminStoreService adminStoreService)
+        public IndexModel(IApiClient api)
         {
-            _adminStoreService = adminStoreService;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -35,7 +35,7 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
         public PagedResult<StoreApplicationDto> StoreApplications { get; set; } = new() { Items = new(), TotalCount = 0, PageNumber = 1, PageSize = 10 };
         public StoreApplicationStatsDto Stats { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(DateRangeShortcut))
             {
@@ -80,11 +80,17 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
             if (Query.PageSize < 1) Query.PageSize = 10;
             Query.ExcludeStatuses = new List<StoreStatus> { StoreStatus.Draft, StoreStatus.Pending, StoreStatus.Rejected };
 
-            StoreApplications = await _adminStoreService.GetStoreApplicationsAsync(Query);
-            Stats = await _adminStoreService.GetStoreApplicationStatsAsync();
+            var storesTask = _api.GetAsync<PagedResult<StoreApplicationDto>>(
+                $"/api/admin/stores{ApiQueryStringBuilder.Build(Query, nameof(Query.ExcludeStatuses))}", ct);
+            var statsTask = _api.GetAsync<StoreApplicationStatsDto>("/api/admin/stores/stats", ct);
+            await Task.WhenAll(storesTask, statsTask);
+
+            StoreApplications = await storesTask ?? StoreApplications;
+            Stats = await statsTask ?? Stats;
         }
 
-        public async Task<IActionResult> OnPostChangeStatusAsync(Guid storeId, StoreStatus status, string reason = "")
+        public async Task<IActionResult> OnPostChangeStatusAsync(
+            Guid storeId, StoreStatus status, string reason = "", CancellationToken ct = default)
         {
             var normalizedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
             if ((status == StoreStatus.Locked || status == StoreStatus.Rejected) && string.IsNullOrWhiteSpace(normalizedReason))
@@ -99,9 +105,11 @@ namespace GearZone.Web.Pages.Admin.StoreManagement
                 return RedirectToPage();
             }
 
-            var success = await _adminStoreService.UpdateStoreStatusAsync(storeId, status, normalizedReason);
+            var result = await _api.PostAsync(
+                $"/api/admin/stores/{storeId}/change-status",
+                new { status, reason = normalizedReason }, ct);
            
-            if (!success)
+            if (!result.Success)
             {
                 TempData["ErrorMessage"] = "Failed to change store application's status.";
                 return RedirectToPage();

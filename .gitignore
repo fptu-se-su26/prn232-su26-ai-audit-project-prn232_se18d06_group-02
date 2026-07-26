@@ -9,6 +9,9 @@ obj/
 node_modules/
 dist/
 dist-ssr/
+# ...but ASP.NET client-side libraries live in wwwroot/lib/*/dist and MUST be committed,
+# otherwise jQuery 404s and every page script dies with "$ is not defined".
+!GearZone.Web/wwwroot/lib/**
 .vite/
 *.local
 logs/
@@ -23,6 +26,9 @@ lerna-debug.log*
 .vscode/*
 !.vscode/extensions.json
 
+# Data Protection shared key ring (not secrets to commit)
+shared-keys/
+
 # Env / secrets
 *.env
 appsettings.*.json
@@ -36,3 +42,6 @@ Thumbs.db
 # Rider / VS Code
 .idea/
 *.code-workspace
+
+# Local verification build outputs
+.artifacts/

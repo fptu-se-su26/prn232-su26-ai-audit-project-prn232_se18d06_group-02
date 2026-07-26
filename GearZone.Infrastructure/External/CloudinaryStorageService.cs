@@ -59,6 +59,42 @@ namespace GearZone.Infrastructure.External
 
             return imageUrls;
         }
+        public async Task<List<string>> UploadFromUrlsAsync(List<string> urls, string folder = "GearZone/images")
+        {
+            var imageUrls = new List<string>();
+            var targetFolder = string.IsNullOrWhiteSpace(folder) ? "GearZone/images" : folder;
+
+            foreach (var url in urls ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(url)) continue;
+
+                try
+                {
+                    // Passing a remote URL makes Cloudinary fetch and re-host the image itself.
+                    var uploadParams = new ImageUploadParams
+                    {
+                        File = new FileDescription(url),
+                        Folder = targetFolder,
+                        Transformation = new Transformation()
+                            .Quality("auto")
+                            .FetchFormat("auto")
+                    };
+
+                    var result = await _cloudinary.UploadAsync(uploadParams);
+                    if (result.StatusCode == System.Net.HttpStatusCode.OK && result.SecureUrl != null)
+                    {
+                        imageUrls.Add(result.SecureUrl.ToString());
+                    }
+                }
+                catch
+                {
+                    // Skip a bad/unreachable URL rather than failing the whole import.
+                }
+            }
+
+            return imageUrls;
+        }
+
         public async Task DeleteAsync(string fileUrl)
         {
             if (string.IsNullOrEmpty(fileUrl)) return;

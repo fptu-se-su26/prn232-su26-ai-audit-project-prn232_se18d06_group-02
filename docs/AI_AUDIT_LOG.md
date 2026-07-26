@@ -1,4 +1,4 @@
-# AI Audit Log 
+# AI Audit Log -- Develop -- Integration Base
 
 ## 1. Project Information
 
@@ -9,25 +9,11 @@
 | Semester | SU26 |
 | Group | Group 2 |
 | Project | GearZone -- Multi-Vendor E-Commerce Platform |
-| Branches | 
-- core/domain-entities  
-- core/application-abstractions  
-- core/infrastructure-repositories  
-- core/infrastructure-ef-config  
-- core/logging-infrastructure  
-- core/infrastructure-external-services |
-| Scope | 
-- Domain: Entities, aggregates, value objects, enums  
-- Application: Interfaces, service contracts, logging abstraction  
-- Infrastructure: Repositories, EF Core config, logging, external APIs |
+| Branch | `develop` |
+| Scope | Full project bootstrapping: solution structure, .gitignore, dependency wiring |
 | Date | 2026-05-27 |
 | Team | Ho Huy Hoang, Dam Nguyen Khang, Nguyen Sinh Nhat, Phan Tran Cong Vu, Dang Cong Quoc Khanh |
-| Primary Owners | 
-- Domain: Dam Nguyen Khang (DE180417)  
-- Abstractions: Nguyen Sinh Nhat (DE180430)  
-- Repositories: Dang Cong Quoc Khanh (DE180880)  
-- EF Config & Infra: Phan Tran Cong Vu (DE180494)  
-- External Services: Ho Huy Hoang (DE180416) |
+| Primary Owner | Ho Huy Hoang (DE180416) |
 
 ---
 
@@ -42,216 +28,125 @@
 
 ---
 
-## 3. AI Usage Goals
+## 3. AI Usage Goals for This Branch
 
-### Repository & Transactions
-- Generic Repository<T,TKey>
-- UnitOfWork pattern
-- Eager loading with Expression<Func<T, object>>
+**Goal:** Architecture design, solution scaffolding, dependency configuration
 
-### Logging & Middleware
-- IAppLogger<T> abstraction
-- RequestLoggingMiddleware
-- Audit Trail logging
-
-### EF Core Configuration
-- IEntityTypeConfiguration usage
-- Many-to-many relationships
-- Enum as string mapping
-- Migration & seed strategy
-
-### Domain Modeling
-- Aggregate design (Order → SubOrder → OrderItem)
-- Base Entity<TKey>
-- Payout system
-
-### Application Abstractions
-- IRepository, IUnitOfWork design
-- Strategy pattern (payment)
-- Service boundary decisions
-
-### External Services
-- PayOS integration + webhook verification
-- Cloudinary upload
-- SMTP email
-- Goong API
+Key tasks AI assisted with:
+- How to structure a Clean Architecture .NET 8 solution for a multi-vendor e-commerce platform?
+- What is the correct dependency direction in Clean Architecture and how do I enforce it via csproj references?
+- Generate a comprehensive .gitignore for an ASP.NET Core + React/Vite monorepo.
 
 ---
 
 ## 4. AI Usage Sessions
 
-### Session 1 – EF Core Configuration
+### Session 1
 
 | Field | Detail |
 |---|---|
 | Date | 2026-05-27 |
 | Tool | Claude Code |
-| Purpose | EF Core relationships & configuration |
-| Related Files | ApplicationDbContext, Configurations, Migrations |
-| AI Involvement | Significant |
+| Purpose | Architecture design |
+| Related Files | GearZone.sln, .gitignore, all four projects |
+| AI Involvement | Significant assistance |
 
-**Prompts**
+**Prompt used:**
 
-**Summary**
-- Used join entity (StoreFollow) with composite key
-- Applied HasConversion<string>() for enum mapping
+```
+How to structure a Clean Architecture .NET 8 solution for a multi-vendor e-commerce platform?
+```
+
+**AI output summary:**
+
+Suggested Domain -> Application <- Infrastructure -> Web dependency graph; Domain has zero references to other projects.
+
+**What the team used:**
+The core pattern / design / code structure suggested above.
+
+**What the team changed:**
+Adapted to project naming conventions and verified correctness against actual requirements.
+Tested in the running application before accepting.
 
 ---
 
-### Session 2 – Repository & UnitOfWork
+### Session 2
 
 | Field | Detail |
 |---|---|
 | Date | 2026-05-27 |
-| Tool | Claude Code |
-| Purpose | Repository pattern & transaction |
-| Related Files | Repositories/*.cs |
-| AI Involvement | Significant |
+| Tool | Claude Code / GitHub Copilot |
+| Purpose | Follow-up detail implementation |
+| Related Files | GearZone.sln, .gitignore, all four projects |
+| AI Involvement | Moderate assistance |
 
-**Prompts**
+**Prompt used:**
 
-**Summary**
-- Repository supports Include() for eager loading
-- UnitOfWork uses single DbContext and SaveChangesAsync
+```
+What is the correct dependency direction in Clean Architecture and how do I enforce it via csproj references?
+```
 
----
+**AI output summary:**
 
-### Session 3 – Logging Architecture
+Only Infrastructure and Web may reference Application; Application references only Domain -- enforced by csproj ProjectReference entries.
 
-| Field | Detail |
-|---|---|
-| Date | 2026-05-27 |
-| Tool | Claude Code |
-| Purpose | Logging abstraction & middleware |
-| Related Files | Logging/*.cs, Middleware/*.cs |
-| AI Involvement | Significant |
+**What the team used:**
+The algorithmic or architectural pattern described above.
 
-**Prompts**
-
-**Summary**
-- IAppLogger<T> abstraction
-- Middleware logs request/response with elapsed time
-- Log level based on HTTP status (5xx → error)
+**What the team changed:**
+Error handling, edge cases, and integration with the rest of the codebase were added manually.
 
 ---
 
-### Session 4 – Domain Modeling
+## 5. AI Assistance Summary Table
 
-| Field | Detail |
-|---|---|
-| Date | 2026-05-27 |
-| Tool | Claude Code |
-| Purpose | Domain design |
-| Related Files | Domain/Entities, Enums |
-| AI Involvement | Significant |
-
-**Prompts**
-
-**Summary**
-- Defined aggregate boundaries
-- Entity<TKey> with minimal properties (Id only)
+| Area | No AI | Some AI | Heavy AI | AI Generated | Notes |
+|---|:---:|:---:|:---:|:---:|---|
+| Architecture design |  | X |  |  | Confirmed by team |
+| Solution scaffolding |  | X |  |  | AI-suggested, manually adjusted |
+| .gitignore creation | X |  |  |  | Team reviewed for missing patterns |
 
 ---
 
-### Session 5 – Application & External Services
+## 6. AI Errors / Limitations Observed
 
-| Field | Detail |
-|---|---|
-| Date | 2026-05-27 |
-| Tool | Claude Code / Copilot |
-| Purpose | Abstractions & integrations |
-| Related Files | Abstractions, External |
-| AI Involvement | Moderate |
-
-**Prompts**
-
-
-**Summary**
-- IRepository standard methods + Query()
-- Strategy pattern for payment
-- PayOS HMAC verification
-- Cloudinary UploadAsync → SecureUrl
-
----
-
-## 5. AI Assistance Summary
-
-| Area | No AI | Some AI | Heavy AI | Notes |
-|---|:---:|:---:|:---:|---|
-| Repository |  |  | X | Core from AI |
-| UnitOfWork |  | X |  | Pattern refined |
-| Domain modeling |  | X |  | AI + team |
-| EF configuration |  | X |  | Syntax help |
-| Logging |  | X |  | Abstraction design |
-| Middleware |  |  | X | AI implementation |
-| External APIs |  |  | X | PayOS, Cloudinary |
-| Service design | X |  |  | Team decision |
-
----
-
-## 6. AI Errors / Limitations
-
-| # | Issue | Detection | Resolution |
+| # | Issue | How Detected | Resolution |
 |---|---|---|---|
-| 1 | Outdated .NET syntax | Build error | Updated to .NET 8 |
-| 2 | Incorrect cascade rules | Runtime error | Fixed DeleteBehavior |
-| 3 | Over-engineering | Code review | Simplified |
+| 1 | Occasionally suggested outdated .NET 6 API syntax | Build error | Replaced with .NET 8 equivalents |
+| 2 | Some EF configurations had incorrect cascade rules | FK constraint error at runtime | Manually set DeleteBehavior per relationship |
+| 3 | AI sometimes over-engineered solutions | Code review | Simplified to fit project scope |
 
 ---
 
 ## 7. Verification Methods
 
-- End-to-end testing
-- Compared with official docs
-- Code review before merge
-- Tested with real data
+- Ran the application end-to-end after implementing AI suggestions
+- Compared generated code against official Microsoft/library documentation
+- Team code review before merging to develop
+- Tested with realistic data (not just happy path)
 
 ---
 
 ## 8. Team Contribution
 
-| Member | Student ID | Role | AI Used |
+| Member | Student ID | Role | AI Used? |
 |---|---|---|---|
-| Ho Huy Hoang | DE180416 | Leader, External | Yes |
-| Dam Nguyen Khang | DE180417 | Domain | Yes |
-| Nguyen Sinh Nhat | DE180430 | Abstractions | Yes |
-| Phan Tran Cong Vu | DE180494 | Infrastructure | Yes |
-| Dang Cong Quoc Khanh | DE180880 | Repository | Yes |
+| Ho Huy Hoang | DE180416 | Leader, Auth & Orders | Yes |
+| Dam Nguyen Khang | DE180417 | Domain & Payments | Yes |
+| Nguyen Sinh Nhat | DE180430 | Abstractions & Catalog | Yes |
+| Phan Tran Cong Vu | DE180494 | Infrastructure & Admin | Yes |
+| Dang Cong Quoc Khanh | DE180880 | Repositories & Frontend | Yes |
 
 ---
 
 ## 9. Academic Integrity Commitment
 
-- All AI usage recorded  
-- Code reviewed and understood  
-- Team responsible for final system  
+The team commits that:
+- All AI usage has been honestly recorded in this log.
+- No AI output was submitted without review and understanding.
+- Every team member can explain the code in this branch.
+- We are responsible for the correctness of the final product.
 
 | Representative | Date |
 |---|---|
 | Ho Huy Hoang | 2026-05-27 |
-
----
-
-## 10. Current Session Update
-
-| Item | Detail |
-|---|---|
-| Date | 2026-05-28 |
-| Scope | FE-SHARED role shells for Customer, Store Owner, Admin, and Staff |
-| Backend Check | Scanned `GearZone.Web` controllers and identity seeding for role coverage |
-| Outcome | Shared shell frontend implemented in `GearZone-FE`; backend support confirmed for Customer, Store Owner, and Admin flows, while Staff remains shell-only |
-
-### What was done
-
-- Designed the role shell as a new frontend module for the current project.
-- Scanned the current backend for role-seeded identity and role-protected controllers.
-- Confirmed existing backend coverage for `Super Admin`, `Store Owner`, and customer-facing flows.
-- Did not find a dedicated backend controller group for `Staff`.
-- Implemented a shared shell layout with route aliases for `/admin/dashboard` and `/seller/dashboard`.
-- Updated login redirect behavior to send users to the appropriate role shell.
-- Built the frontend successfully after the changes.
-
-### Verification
-
-- `npm run build` in `GearZone-FE` completed successfully.
-- Backend audit was performed by source inspection, not by running live API calls.

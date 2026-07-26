@@ -1,46 +1,29 @@
-using GearZone.Application.Abstractions.Persistence;
-using GearZone.Application.Abstractions.Services;
+using System.Globalization;
+using System.Security.Claims;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Chat.Dtos;
-using GearZone.Domain.Entities;
+using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace GearZone.Web.Pages.StoreOwner.Orders
 {
     [Authorize(Roles = "Store Owner")]
     public class IndexModel : PageModel
     {
-        private static readonly OrderStatus[] NonRevenueStatuses =
-        {
-            OrderStatus.Cancelled,
-            OrderStatus.Rejected,
-            OrderStatus.Refunded
-        };
+        // Consumes GearZone.Api over HTTP instead of the chat/order services in-process.
+        private readonly IApiClient _api;
 
-        private readonly IChatService _chatService;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IStoreRepository _storeRepository;
-        private readonly ISubOrderRepository _subOrderRepository;
-
-        public IndexModel(
-            IChatService chatService,
-            UserManager<ApplicationUser> userManager,
-            IStoreRepository storeRepository,
-            ISubOrderRepository subOrderRepository)
+        public IndexModel(IApiClient api)
         {
-            _chatService = chatService;
-            _userManager = userManager;
-            _storeRepository = storeRepository;
-            _subOrderRepository = subOrderRepository;
+            _api = api;
         }
 
         public PagedResult<SellerChatOrderListItemDto> Orders { get; set; } = new();
-        public SellerOrderStatsViewModel Stats { get; set; } = new();
+        public SellerOrderStatsDto Stats { get; set; } = new();
 
         [BindProperty(SupportsGet = true)]
         public string? SearchTerm { get; set; }
@@ -69,9 +52,9 @@ namespace GearZone.Web.Pages.StoreOwner.Orders
         [BindProperty(SupportsGet = true)]
         public string? DateRange { get; set; }
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(CancellationToken ct)
         {
-            var userId = _userManager.GetUserId(User);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId))
             {
                 return Redirect("/Public/Auth/Login");
@@ -81,43 +64,42 @@ namespace GearZone.Web.Pages.StoreOwner.Orders
             SortBy = string.IsNullOrWhiteSpace(SortBy) ? "createdAt" : SortBy;
             SortDirection = string.Equals(SortDirection, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
 
-            var (startDate, endDate) = ResolveDateRange();
-
-            Orders = await _chatService.GetSellerChatOrdersAsync(userId, new SellerChatOrderQueryDto
+            var data = await _api.GetAsync<SellerOrderListDto>($"/api/seller/orders{BuildQueryString()}", ct);
+            if (data is not null)
             {
-                SearchTerm = SearchTerm,
-                PageNumber = PageNumber,
-                PageSize = 10,
-                Status = Status,
-                MinSubtotal = MinSubtotal,
-                MaxSubtotal = MaxSubtotal,
-                StartDate = startDate,
-                EndDate = endDate,
-                SortBy = SortBy,
-                SortDirection = SortDirection
-            });
+                Orders = data.Orders;
+                Stats = data.Stats;
+            }
 
-            await LoadStatsAsync(userId);
             return Page();
         }
 
-        public async Task<IActionResult> OnPostApproveAsync(Guid subOrderId)
+        public Task<IActionResult> OnPostApproveAsync(Guid subOrderId, CancellationToken ct) =>
+            RunActionAsync(subOrderId, "approve", "Order approved and moved to processing.",
+                "Cannot approve this order. Only pending orders can be approved.", ct);
+
+        public Task<IActionResult> OnPostRejectAsync(Guid subOrderId, CancellationToken ct) =>
+            RunActionAsync(subOrderId, "reject", "Order rejected successfully.",
+                "Cannot reject this order. Only pending orders can be rejected.", ct);
+
+        public Task<IActionResult> OnPostMarkProcessingAsync(Guid subOrderId, CancellationToken ct) =>
+            RunActionAsync(subOrderId, "mark-processing", "Order marked as processing.",
+                "Cannot mark this order as processing. Valid states: Approved or Paid.", ct);
+
+        public Task<IActionResult> OnPostMarkDeliveredAsync(Guid subOrderId, CancellationToken ct) =>
+            RunActionAsync(subOrderId, "mark-delivered", "Order marked as delivered.",
+                "Cannot mark this order as delivered. Valid state: Processing.", ct);
+
+        private async Task<IActionResult> RunActionAsync(Guid subOrderId, string action, string successMessage, string errorMessage, CancellationToken ct)
         {
-            var userId = _userManager.GetUserId(User);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId))
             {
                 return Redirect("/Public/Auth/Login");
             }
 
-            var ok = await _chatService.ApproveSellerOrderAsync(userId, subOrderId);
-            if (ok)
-            {
-                await _chatService.MarkSellerOrderProcessingAsync(userId, subOrderId);
-            }
-
-            TempData[ok ? "SuccessMessage" : "ErrorMessage"] = ok
-                ? "Order approved and moved to processing."
-                : "Cannot approve this order. Only pending orders can be approved.";
+            var result = await _api.PostAsync($"/api/seller/orders/{subOrderId}/{action}", ct);
+            TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Success ? successMessage : errorMessage;
 
             return RedirectToPage(new
             {
@@ -133,85 +115,25 @@ namespace GearZone.Web.Pages.StoreOwner.Orders
             });
         }
 
-        public async Task<IActionResult> OnPostRejectAsync(Guid subOrderId)
+        private string BuildQueryString()
         {
-            var userId = _userManager.GetUserId(User);
-            if (string.IsNullOrWhiteSpace(userId))
+            var (startDate, endDate) = ResolveDateRange();
+            var parts = new List<string>
             {
-                return Redirect("/Public/Auth/Login");
-            }
+                $"pageNumber={PageNumber}",
+                "pageSize=10",
+                $"sortBy={Uri.EscapeDataString(SortBy)}",
+                $"sortDirection={Uri.EscapeDataString(SortDirection)}"
+            };
 
-            var ok = await _chatService.RejectSellerOrderAsync(userId, subOrderId);
-            TempData[ok ? "SuccessMessage" : "ErrorMessage"] = ok
-                ? "Order rejected successfully."
-                : "Cannot reject this order. Only pending orders can be rejected.";
+            if (!string.IsNullOrWhiteSpace(SearchTerm)) parts.Add($"searchTerm={Uri.EscapeDataString(SearchTerm)}");
+            if (Status.HasValue) parts.Add($"status={Status.Value}");
+            if (MinSubtotal.HasValue) parts.Add($"minSubtotal={MinSubtotal.Value.ToString(CultureInfo.InvariantCulture)}");
+            if (MaxSubtotal.HasValue) parts.Add($"maxSubtotal={MaxSubtotal.Value.ToString(CultureInfo.InvariantCulture)}");
+            if (startDate.HasValue) parts.Add($"startDate={startDate.Value:yyyy-MM-dd}");
+            if (endDate.HasValue) parts.Add($"endDate={endDate.Value:yyyy-MM-dd}");
 
-            return RedirectToPage(new
-            {
-                SearchTerm,
-                PageNumber,
-                Status,
-                SortBy,
-                SortDirection,
-                MinSubtotal,
-                MaxSubtotal,
-                DateRangeShortcut,
-                DateRange
-            });
-        }
-
-        public async Task<IActionResult> OnPostMarkProcessingAsync(Guid subOrderId)
-        {
-            var userId = _userManager.GetUserId(User);
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Redirect("/Public/Auth/Login");
-            }
-
-            var ok = await _chatService.MarkSellerOrderProcessingAsync(userId, subOrderId);
-            TempData[ok ? "SuccessMessage" : "ErrorMessage"] = ok
-                ? "Order marked as processing."
-                : "Cannot mark this order as processing. Valid states: Approved or Paid.";
-
-            return RedirectToPage(new
-            {
-                SearchTerm,
-                PageNumber,
-                Status,
-                SortBy,
-                SortDirection,
-                MinSubtotal,
-                MaxSubtotal,
-                DateRangeShortcut,
-                DateRange
-            });
-        }
-
-        public async Task<IActionResult> OnPostMarkDeliveredAsync(Guid subOrderId)
-        {
-            var userId = _userManager.GetUserId(User);
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return Redirect("/Public/Auth/Login");
-            }
-
-            var ok = await _chatService.MarkSellerOrderDeliveredAsync(userId, subOrderId);
-            TempData[ok ? "SuccessMessage" : "ErrorMessage"] = ok
-                ? "Order marked as delivered."
-                : "Cannot mark this order as delivered. Valid state: Processing.";
-
-            return RedirectToPage(new
-            {
-                SearchTerm,
-                PageNumber,
-                Status,
-                SortBy,
-                SortDirection,
-                MinSubtotal,
-                MaxSubtotal,
-                DateRangeShortcut,
-                DateRange
-            });
+            return "?" + string.Join("&", parts);
         }
 
         private (DateTime? StartDate, DateTime? EndDate) ResolveDateRange()
@@ -253,40 +175,6 @@ namespace GearZone.Web.Pages.StoreOwner.Orders
             }
 
             return (null, null);
-        }
-
-        private async Task LoadStatsAsync(string ownerUserId)
-        {
-            var store = await _storeRepository.GetStoreByOwnerIdAsync(ownerUserId);
-            if (store == null)
-            {
-                Stats = new SellerOrderStatsViewModel();
-                return;
-            }
-
-            var orderQuery = _subOrderRepository.Query().Where(x => x.StoreId == store.Id);
-
-            Stats.TotalOrders = await orderQuery.CountAsync();
-            Stats.PaidOrders = await orderQuery.CountAsync(x =>
-                x.Status == OrderStatus.Paid ||
-                x.Status == OrderStatus.Processing ||
-                x.Status == OrderStatus.Delivered ||
-                x.Status == OrderStatus.Completed);
-            Stats.UnpaidOrders = await orderQuery.CountAsync(x =>
-                x.Status == OrderStatus.Pending ||
-                x.Status == OrderStatus.AwaitingPayment ||
-                x.Status == OrderStatus.Approved);
-            Stats.TotalRevenue = await orderQuery
-                .Where(x => !NonRevenueStatuses.Contains(x.Status))
-                .SumAsync(x => (decimal?)x.Subtotal) ?? 0m;
-        }
-
-        public class SellerOrderStatsViewModel
-        {
-            public int TotalOrders { get; set; }
-            public int PaidOrders { get; set; }
-            public int UnpaidOrders { get; set; }
-            public decimal TotalRevenue { get; set; }
         }
     }
 }

@@ -162,8 +162,14 @@ namespace GearZone.Infrastructure.Repositories
             if (!string.IsNullOrEmpty(filter.Search))
             {
                 var searchTerm = filter.Search.Trim().ToLower();
-                query = query.Where(p => p.Name.ToLower().Contains(searchTerm) || 
-                                       p.Brand.Name.ToLower().Contains(searchTerm));
+                query = query.Where(p =>
+                    p.Name.ToLower().Contains(searchTerm) ||
+                    p.Brand.Name.ToLower().Contains(searchTerm) ||
+                    p.Category.Name.ToLower().Contains(searchTerm) ||
+                    p.Category.Slug.ToLower().Contains(searchTerm) ||
+                    (p.Category.Parent != null &&
+                     (p.Category.Parent.Name.ToLower().Contains(searchTerm) ||
+                      p.Category.Parent.Slug.ToLower().Contains(searchTerm))));
             }
 
             if (filter.StoreId.HasValue && filter.StoreId.Value != Guid.Empty)
@@ -171,11 +177,28 @@ namespace GearZone.Infrastructure.Repositories
                 query = query.Where(p => p.StoreId == filter.StoreId.Value);
             }
 
-            if (!string.IsNullOrEmpty(filter.CategorySlug))
+            var categorySlugs = filter.CategorySlugs?
+                .Where(slug => !string.IsNullOrWhiteSpace(slug))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (categorySlugs is { Count: > 0 })
+            {
+                var categoryIds = await _context.Categories
+                    .Where(c =>
+                        categorySlugs.Contains(c.Slug) ||
+                        (c.Parent != null && categorySlugs.Contains(c.Parent.Slug)))
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                query = query.Where(p => categoryIds.Contains(p.CategoryId));
+            }
+            else if (!string.IsNullOrEmpty(filter.CategorySlug))
             {
                 // Collect IDs: the matched category itself + all its direct children
                 var categoryIds = await _context.Categories
-                    .Where(c => c.Slug == filter.CategorySlug || c.Parent.Slug == filter.CategorySlug)
+                    .Where(c =>
+                        c.Slug == filter.CategorySlug ||
+                        (c.Parent != null && c.Parent.Slug == filter.CategorySlug))
                     .Select(c => c.Id)
                     .ToListAsync();
 

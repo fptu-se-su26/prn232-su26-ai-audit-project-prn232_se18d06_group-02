@@ -1,0 +1,185 @@
+@page "/admin/audit-logs"
+@model GearZone.Web.Pages.Admin.AuditLogs.IndexModel
+@using GearZone.Domain.Enums
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Admin Audit Logs";
+    ViewData["PageHeader"] = "Admin Audit Logs";
+    ViewData["ActivePage"] = "AuditLogs";
+    ViewData["Breadcrumb"] = new[] { "Dashboard", "Audit Logs" };
+    Layout = "_AdminLayout";
+
+    string ActionName(string value) => System.Globalization.CultureInfo.InvariantCulture.TextInfo
+        .ToTitleCase(value.Replace('_', ' ').ToLowerInvariant());
+    string OutcomeClass(AdminAuditOutcome value) => value switch
+    {
+        AdminAuditOutcome.Succeeded => "bg-emerald-50 text-emerald-700 border-emerald-100",
+        AdminAuditOutcome.Failed => "bg-red-50 text-red-700 border-red-100",
+        _ => "bg-blue-50 text-blue-700 border-blue-100"
+    };
+    string RiskClass(AdminAuditRiskLevel value) => value switch
+    {
+        AdminAuditRiskLevel.Critical => "bg-red-100 text-red-800",
+        AdminAuditRiskLevel.High => "bg-orange-100 text-orange-800",
+        AdminAuditRiskLevel.Medium => "bg-amber-100 text-amber-800",
+        _ => "bg-slate-100 text-slate-600"
+    };
+    var vietnam = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
+    var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+}
+
+<div class="flex flex-col gap-6 pb-10">
+    @if (TempData["ErrorMessage"] is string exportError)
+    {
+        <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700">@exportError</div>
+    }
+    @if (Model.ErrorMessage is not null)
+    {
+        <div class="rounded-xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">@Model.ErrorMessage</div>
+    }
+
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <div class="flex items-center justify-between"><span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Events</span><span class="material-symbols-outlined text-blue-500">history</span></div>
+            <p class="mt-3 text-3xl font-bold text-slate-900">@Model.Summary.TotalEvents.ToString("N0")</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <div class="flex items-center justify-between"><span class="text-xs font-bold uppercase tracking-wider text-slate-400">Failed Actions</span><span class="material-symbols-outlined text-red-500">error</span></div>
+            <p class="mt-3 text-3xl font-bold text-red-600">@Model.Summary.FailedActions.ToString("N0")</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <div class="flex items-center justify-between"><span class="text-xs font-bold uppercase tracking-wider text-slate-400">High / Critical</span><span class="material-symbols-outlined text-orange-500">warning</span></div>
+            <p class="mt-3 text-3xl font-bold text-orange-600">@Model.Summary.HighRiskEvents.ToString("N0")</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <div class="flex items-center justify-between"><span class="text-xs font-bold uppercase tracking-wider text-slate-400">Active Admins</span><span class="material-symbols-outlined text-violet-500">admin_panel_settings</span></div>
+            <p class="mt-3 text-3xl font-bold text-slate-900">@Model.Summary.ActiveAdmins.ToString("N0")</p>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card xl:col-span-2">
+            <h2 class="text-sm font-bold text-slate-800">Audit activity</h2>
+            <div class="mt-4 h-56"><canvas id="audit-trend-chart"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <h2 class="text-sm font-bold text-slate-800">Events by module</h2>
+            <div class="mt-4 h-56"><canvas id="audit-module-chart"></canvas></div>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+            <h2 class="text-sm font-bold text-slate-800">Events by outcome</h2>
+            <div class="mt-4 h-56"><canvas id="audit-outcome-chart"></canvas></div>
+        </div>
+    </section>
+
+    <section class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+        <form method="get" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <input type="hidden" name="Query.PageNumber" value="1" />
+            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Period</label>
+                <select id="audit-range" name="Range" class="w-full rounded-lg border-slate-200 text-sm">
+                    <option value="today" selected="@(Model.Range == "today")">Today</option>
+                    <option value="7d" selected="@(Model.Range == "7d")">Last 7 days</option>
+                    <option value="30d" selected="@(Model.Range == "30d")">Last 30 days</option>
+                    <option value="custom" selected="@(Model.Range == "custom")">Custom</option>
+                </select>
+            </div>
+            <div class="audit-custom-date">
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">From</label>
+                <input type="date" name="Query.From" value="@Model.Query.From?.ToString("yyyy-MM-dd")" class="w-full rounded-lg border-slate-200 text-sm" />
+            </div>
+            <div class="audit-custom-date">
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">To</label>
+                <input type="date" name="Query.To" value="@Model.Query.To?.ToString("yyyy-MM-dd")" class="w-full rounded-lg border-slate-200 text-sm" />
+            </div>
+            <div class="xl:col-span-2">
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Search</label>
+                <input name="Query.Search" value="@Model.Query.Search" placeholder="Action, target, correlation ID..." class="w-full rounded-lg border-slate-200 text-sm" />
+            </div>
+            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Admin</label>
+                <select name="Query.ActorUserId" class="w-full rounded-lg border-slate-200 text-sm">
+                    <option value="">All admins</option>
+                    @foreach (var actor in Model.FilterOptions.Actors)
+                    {
+                        <option value="@actor.UserId" selected="@(Model.Query.ActorUserId == actor.UserId)">@actor.DisplayName</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Module</label>
+                <select name="Query.Module" class="w-full rounded-lg border-slate-200 text-sm"><option value="">All modules</option>@foreach (var item in Model.FilterOptions.Modules){<option value="@item" selected="@(Model.Query.Module == item)">@item</option>}</select>
+            </div>
+            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Action</label>
+                <select name="Query.Action" class="w-full rounded-lg border-slate-200 text-sm"><option value="">All actions</option>@foreach (var item in Model.FilterOptions.Actions){<option value="@item" selected="@(Model.Query.Action == item)">@ActionName(item)</option>}</select>
+            </div>
+            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Outcome</label>
+                <select name="Query.Outcome" class="w-full rounded-lg border-slate-200 text-sm"><option value="">All outcomes</option>@foreach (var item in Enum.GetValues<AdminAuditOutcome>()){<option value="@item" selected="@(Model.Query.Outcome == item)">@item</option>}</select>
+            </div>
+            <div>
+                <label class="mb-1 block text-[11px] font-bold uppercase text-slate-400">Risk</label>
+                <select name="Query.RiskLevel" class="w-full rounded-lg border-slate-200 text-sm"><option value="">All risk levels</option>@foreach (var item in Enum.GetValues<AdminAuditRiskLevel>()){<option value="@item" selected="@(Model.Query.RiskLevel == item)">@item</option>}</select>
+            </div>
+            <div class="flex items-end gap-2 xl:col-span-2">
+                <button class="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-dark">Apply filters</button>
+                <a href="/admin/audit-logs" class="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">Reset</a>
+                <a href="@Model.BuildExportUrl()" class="flex items-center gap-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-primary hover:text-primary"><span class="material-symbols-outlined text-[18px]">download</span>CSV</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card">
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1150px] text-left text-sm">
+                <thead class="border-b border-slate-100 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <tr><th class="px-5 py-3">Time</th><th class="px-5 py-3">Admin</th><th class="px-5 py-3">Action</th><th class="px-5 py-3">Module</th><th class="px-5 py-3">Target</th><th class="px-5 py-3">Outcome</th><th class="px-5 py-3">Risk</th><th class="px-5 py-3">IP / Correlation</th><th class="px-5 py-3"></th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                @if (Model.Logs.Items.Count == 0)
+                {
+                    <tr><td colspan="9" class="px-6 py-16 text-center text-slate-400"><span class="material-symbols-outlined mb-2 block text-4xl">history_toggle_off</span>No audit events match these filters.</td></tr>
+                }
+                @foreach (var item in Model.Logs.Items)
+                {
+                    var localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(item.OccurredAtUtc, DateTimeKind.Utc), vietnam);
+                    <tr class="hover:bg-slate-50/70">
+                        <td class="whitespace-nowrap px-5 py-4"><div class="font-semibold text-slate-700">@localTime.ToString("dd MMM yyyy")</div><div class="text-xs text-slate-400">@localTime.ToString("HH:mm:ss") ICT</div></td>
+                        <td class="px-5 py-4"><div class="font-semibold text-slate-800">@item.ActorDisplayName</div><div class="max-w-[180px] truncate text-xs text-slate-400">@item.ActorEmail</div></td>
+                        <td class="px-5 py-4"><div class="max-w-[220px] font-semibold text-slate-700">@ActionName(item.Action)</div></td>
+                        <td class="px-5 py-4"><span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">@item.Module</span></td>
+                        <td class="px-5 py-4"><div class="max-w-[190px] truncate font-semibold text-slate-700">@(item.EntityDisplayName ?? item.EntityType ?? "—")</div><div class="max-w-[190px] truncate font-mono text-[11px] text-slate-400">@item.EntityId</div></td>
+                        <td class="px-5 py-4"><span class="rounded-full border px-2.5 py-1 text-xs font-bold @OutcomeClass(item.Outcome)">@item.Outcome</span></td>
+                        <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-bold @RiskClass(item.RiskLevel)">@item.RiskLevel</span></td>
+                        <td class="px-5 py-4"><div class="text-xs font-semibold text-slate-600">@(item.IpAddress ?? "—")</div><div class="max-w-[150px] truncate font-mono text-[10px] text-slate-400" title="@item.CorrelationId">@item.CorrelationId</div></td>
+                        <td class="px-5 py-4"><a asp-page="/Admin/AuditLogs/Detail" asp-route-id="@item.Id" class="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-primary"><span class="material-symbols-outlined text-[20px]">visibility</span></a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Logs.TotalPages > 1)
+        {
+            <div class="flex items-center justify-between border-t border-slate-100 px-5 py-4 text-sm">
+                <span class="text-slate-500">Page @Model.Logs.PageNumber of @Model.Logs.TotalPages · @Model.Logs.TotalCount.ToString("N0") events</span>
+                <div class="flex gap-2"><a href="@Model.BuildPageUrl(Math.Max(1, Model.Logs.PageNumber - 1))" class="rounded-lg border px-3 py-2 font-semibold @(Model.Logs.PageNumber <= 1 ? "pointer-events-none opacity-40" : "hover:border-primary hover:text-primary")">Previous</a><a href="@Model.BuildPageUrl(Math.Min(Model.Logs.TotalPages, Model.Logs.PageNumber + 1))" class="rounded-lg border px-3 py-2 font-semibold @(Model.Logs.PageNumber >= Model.Logs.TotalPages ? "pointer-events-none opacity-40" : "hover:border-primary hover:text-primary")">Next</a></div>
+            </div>
+        }
+    </section>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        const trend = @Html.Raw(JsonSerializer.Serialize(Model.Summary.Trend, jsonOptions));
+        const modules = @Html.Raw(JsonSerializer.Serialize(Model.Summary.ModuleBreakdown, jsonOptions));
+        const outcomes = @Html.Raw(JsonSerializer.Serialize(Model.Summary.OutcomeBreakdown, jsonOptions));
+        new Chart(document.getElementById('audit-trend-chart'), { type: 'line', data: { labels: trend.map(x => x.date), datasets: [{ label: 'Events', data: trend.map(x => x.count), borderColor: '#1A56DB', backgroundColor: 'rgba(26,86,219,.1)', fill: true, tension: .35 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } } } });
+        new Chart(document.getElementById('audit-module-chart'), { type: 'doughnut', data: { labels: modules.map(x => x.label), datasets: [{ data: modules.map(x => x.count), backgroundColor: ['#1A56DB','#7C3AED','#F59E0B','#EF4444','#10B981','#0EA5E9','#64748B','#EC4899'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
+        new Chart(document.getElementById('audit-outcome-chart'), { type: 'doughnut', data: { labels: outcomes.map(x => x.label), datasets: [{ data: outcomes.map(x => x.count), backgroundColor: ['#10B981','#EF4444','#1A56DB'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
+        const range = document.getElementById('audit-range');
+        const updateDates = () => document.querySelectorAll('.audit-custom-date').forEach(x => x.classList.toggle('hidden', range.value !== 'custom'));
+        range.addEventListener('change', updateDates); updateDates();
+    </script>
+}

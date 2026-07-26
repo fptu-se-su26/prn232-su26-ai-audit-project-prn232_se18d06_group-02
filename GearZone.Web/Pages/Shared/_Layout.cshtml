@@ -11,6 +11,8 @@
     var currentSlug = ViewContext.RouteData.Values["CategorySlug"]?.ToString() ?? "";
     var currentPath = Context.Request.Path.Value ?? "";
     var currentTab = Context.Request.Query["tab"].ToString() ?? "";
+    var isHomePage = currentPath.Equals("/", StringComparison.OrdinalIgnoreCase)
+        || currentPath.Equals("/Index", StringComparison.OrdinalIgnoreCase);
     var navLabelOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["Console & Controllers"] = "Console",
@@ -19,10 +21,11 @@
     };
     string GetCategoryNavLabel(string name)
         => navLabelOverrides.TryGetValue(name, out var label) ? label : name;
-    var isBuyerMessagesProfile = currentPath.Equals("/Public/User/Profile", StringComparison.OrdinalIgnoreCase)
+    var isBuyerMessagesProfile = currentPath.Equals("/profile", StringComparison.OrdinalIgnoreCase)
         && currentTab.Equals("messages", StringComparison.OrdinalIgnoreCase);
     var showBuyerChatWidget = !currentPath.Equals("/messages", StringComparison.OrdinalIgnoreCase)
         && !isBuyerMessagesProfile;
+    var showAiChatWidget = User.Identity?.IsAuthenticated != true || User.IsInRole("Customer");
     
     int cartCount = 0;
     int buyerUnreadCount = 0;
@@ -42,6 +45,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - GearZone</title>
+    @if (ViewData["Description"] is string description && !string.IsNullOrWhiteSpace(description))
+    {
+        <meta name="description" content="@description" />
+    }
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -128,9 +135,19 @@
         <partial name="/Pages/Shared/_ChatInboxStyles.cshtml" />
         <partial name="/Pages/Shared/_BuyerChatWidgetStyles.cshtml" />
     }
+    @if (showAiChatWidget)
+    {
+        <partial name="/Pages/Shared/_AiChatWidgetStyles.cshtml" />
+    }
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="bg-slate-50 text-text-primary min-h-screen flex flex-col">
+<body class="bg-slate-50 text-text-primary min-h-screen flex flex-col @(ViewData["BodyClass"]?.ToString() ?? string.Empty)">
+    @if (isHomePage)
+    {
+        <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-slate-950 focus:shadow-xl">
+            Skip to content
+        </a>
+    }
     <!-- Sticky Header -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -170,15 +187,26 @@
                 </div>
                 <!-- Right Actions -->
                 <div class="flex items-center gap-4 flex-shrink-0">
+                    @if (isHomePage)
+                    {
+                        <button type="button"
+                                class="gz-mobile-nav-toggle"
+                                data-home-nav-toggle
+                                aria-controls="home-mobile-navigation"
+                                aria-expanded="false"
+                                aria-label="Open navigation">
+                            <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+                        </button>
+                    }
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <a href="/Public/User/Profile?tab=messages" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-chat-icon">
+                        <a href="/profile?tab=messages" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-chat-icon">
                             <span class="material-symbols-outlined">chat</span>
                             <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-orange-500 rounded-full @(buyerUnreadCount > 0 ? "" : "hidden")" data-header-chat-badge>@(buyerUnreadCount > 99 ? "99+" : buyerUnreadCount.ToString())</span>
                         </a>
                     }
 
-                    <a href="/Cart" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-cart-icon">
+                    <a href="/cart" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-cart-icon">
                         <span class="material-symbols-outlined">shopping_cart</span>
                         <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full @(cartCount > 0 ? "" : "hidden")" id="header-cart-count">@cartCount</span>
                     </a>
@@ -205,15 +233,15 @@
                                 </div>
                                 
                                 <div class="py-1">
-                                    <a href="/Public/User/Profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                    <a href="/profile" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                         <span class="material-symbols-outlined text-[20px]">account_circle</span>
                                         My Profile
                                     </a>
-                                    <a href="/Public/User/Profile?tab=orders" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                    <a href="/profile?tab=orders" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                         <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
                                         My Orders
                                     </a>
-                                    <a href="/Public/User/Profile?tab=messages" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
+                                    <a href="/profile?tab=messages" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">
                                         <span class="material-symbols-outlined text-[20px]">chat</span>
                                         Messages
                                     </a>
@@ -234,7 +262,7 @@
                                 </div>
 
                                 <div class="pt-1 mt-1 border-t border-gray-50">
-                                    <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
+                                    <a href="/Auth/Logout" class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">
                                         <span class="material-symbols-outlined text-[20px]">logout</span>
                                         Sign Out
                                     </a>
@@ -252,6 +280,42 @@
             </div>
         </div>
     </header>
+
+    @if (isHomePage)
+    {
+        <aside id="home-mobile-navigation"
+               class="gz-mobile-nav"
+               data-home-mobile-nav
+               data-open="false"
+               aria-hidden="true"
+               aria-label="Mobile navigation">
+            <div class="gz-mobile-nav__panel">
+                <form action="/products" method="get" class="gz-mobile-nav__search">
+                    <input name="search" type="search" aria-label="Search products" placeholder="Search products and brands" />
+                    <button type="submit" aria-label="Submit search">
+                        <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                    </button>
+                </form>
+                <nav class="gz-mobile-nav__links" aria-label="Product categories">
+                    <a href="/products">
+                        All categories
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                    </a>
+                    @foreach (var category in layoutCategories)
+                    {
+                        <a asp-page="/Public/Catalog/Browse" asp-route-slug="@category.Slug">
+                            @GetCategoryNavLabel(category.Name)
+                            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                        </a>
+                    }
+                    <a href="/#home-flash-zone">
+                        Fresh arrivals
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+    }
 
     <!-- Secondary Nav -->
     <nav class="bg-white border-b border-gray-200 hidden md:block relative z-40">
@@ -319,11 +383,55 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow overflow-x-clip">
+    <main class="flex-grow overflow-x-clip" id="main-content">
         @RenderBody()
     </main>
 
     <!-- Footer -->
+    @if (isHomePage)
+    {
+        <footer class="gz-home-footer">
+            <div class="gz-shell">
+                <div class="gz-home-footer__top">
+                    <div class="gz-home-footer__intro">
+                        <a class="gz-home-footer__brand" asp-page="/Index">
+                            <span class="material-symbols-outlined" aria-hidden="true">memory</span>
+                            <span>GearZone</span>
+                        </a>
+                        <p class="gz-home-footer__statement">Gaming hardware from verified stores.</p>
+                    </div>
+                    <div>
+                        <h2 class="gz-home-footer__title">Explore</h2>
+                        <div class="gz-home-footer__links">
+                            <a href="/products">All products</a>
+                            @foreach (var category in layoutCategories.Take(3))
+                            {
+                                <a asp-page="/Public/Catalog/Browse" asp-route-slug="@category.Slug">@GetCategoryNavLabel(category.Name)</a>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="gz-home-footer__title">Account</h2>
+                        <div class="gz-home-footer__links">
+                            <a href="/profile">Profile</a>
+                            <a href="/cart">Cart</a>
+                            <a href="/profile?tab=orders">Orders</a>
+                            <a href="/profile?tab=messages">Messages</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="gz-home-footer__bottom">
+                    <p>&copy; @DateTime.UtcNow.Year GearZone. All rights reserved.</p>
+                    <div class="gz-home-footer__legal">
+                        <a asp-page="/Privacy">Privacy</a>
+                        <a href="/products">Sitemap</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    }
+    else
+    {
     <footer class="bg-[#1E2937] text-gray-300 py-12 border-t border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
@@ -368,7 +476,7 @@
                         <li><span class="text-gray-400">Warranty Policy</span></li>
                         <li><span class="text-gray-400">Return & Refund</span></li>
                         <li><span class="text-gray-400">Shipping Info</span></li>
-                        <li><a class="hover:text-primary transition-colors" href="/Public/User/Profile?tab=orders">Track Order</a></li>
+                        <li><a class="hover:text-primary transition-colors" href="/profile?tab=orders">Track Order</a></li>
                     </ul>
                 </div>
                 <!-- Column 4 -->
@@ -400,6 +508,7 @@
             </div>
         </div>
     </footer>
+    }
 
     @if (showBuyerChatWidget)
     {
@@ -409,8 +518,12 @@
                      IsAuthenticated = User.Identity?.IsAuthenticated == true,
                      TotalUnreadCount = buyerUnreadCount,
                      BootstrapUrl = "/messages?handler=WidgetBootstrap",
-                     MessagesUrl = "/Public/User/Profile?tab=messages"
+                     MessagesUrl = "/profile?tab=messages"
                  }' />
+    }
+    @if (showAiChatWidget)
+    {
+        <partial name="/Pages/Shared/_AiChatWidget.cshtml" />
     }
 
     <!-- Login Redirect Modal -->
@@ -465,6 +578,10 @@
     @if (showBuyerChatWidget)
     {
         <partial name="/Pages/Shared/_BuyerChatWidgetScripts.cshtml" />
+    }
+    @if (showAiChatWidget)
+    {
+        <partial name="/Pages/Shared/_AiChatWidgetScripts.cshtml" />
     }
     <script>
         document.addEventListener('DOMContentLoaded', function() {

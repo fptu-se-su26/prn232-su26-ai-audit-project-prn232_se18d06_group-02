@@ -1,5 +1,43 @@
 # CHANGELOG.md
 
+## [2026-06-07]
+Author: DE180417
+
+### Added
+- Built the new React Admin Category Management page in `GearZone-FE/src/pages/AdminCategoriesPage.tsx`
+- Added category hierarchy listing with root/sub-category rows, expand and collapse behavior, status filtering, search, soft-delete confirmation, and summary counts
+- Added category create and edit workflows with parent category selection, active/inactive visibility control, automatic slug generation, and category path/meta preview
+- Added category attribute management with attribute rows, filterable toggles, input type selection, option chips, and drag-to-reorder behavior for attributes and options
+- Built the new React Admin Brand Management page in `GearZone-FE/src/pages/AdminBrandsPage.tsx`
+- Added brand statistics, search, approval status filtering, paginated brand table, brand logo display, create/edit modal workflows, approve action, and delete confirmation
+- Added brand logo support for both uploaded image files and external image URLs
+- Built the new React Admin Voucher Management page in `GearZone-FE/src/pages/AdminVouchersPage.tsx`
+- Added voucher KPI widgets, status tabs, search, scope/type/sort filters, advanced filters, ticket-style voucher rows, pagination, duplicate support, and status toggle confirmation
+- Added voucher create and edit workflows with code generation, voucher type selection, category restriction, discount logic, usage lifecycle controls, date validation, visibility toggle, and real-time voucher preview
+- Registered protected React routes for `/admin/categories`, `/admin/categories/create`, `/admin/categories/:id/edit`, `/admin/brands`, `/admin/vouchers`, `/admin/vouchers/create`, and `/admin/vouchers/edit/:id`
+- Added typed Category, Brand, and Voucher API support in `GearZone-FE/src/api/admin.ts`
+
+### Changed
+- Expanded the shared admin API client so catalog and marketing modules use typed request and response contracts
+- Updated `GearZone.Web/Controllers/Api/Admin/CategoriesController.cs` with category query support, create response data, and category attribute persistence support
+- Updated `GearZone.Web/Controllers/Api/Admin/BrandsController.cs` so brand create and update actions accept multipart form data for logo uploads
+- Updated `GearZone.Web/Controllers/Api/Admin/VouchersController.cs` so voucher list responses include summary KPI data for the React voucher dashboard
+- Kept Category, Brand, and Voucher pages inside the existing admin shell and route protection model
+
+### Fixed
+- Fixed frontend TypeScript issues found while building the new catalog and marketing admin modules
+- Avoided backend build output locking during verification by compiling the web project to a temporary output folder
+- Added frontend validation for voucher discount rules and voucher date ranges before save requests
+
+### Verification
+- Ran `npm run build` in `GearZone-FE`
+- Ran `dotnet build GearZone.Web\GearZone.Web.csproj -o %TEMP%\gearzone-web-build-check /p:UseAppHost=false`
+- Confirmed the frontend development server was available at `http://localhost:5173`
+
+### AI-assisted
+- Used Codex to help design, implement, review, and verify the new React admin modules for category management, brand management, and voucher management
+- Final route behavior, API contracts, form validation, mutation actions, and build verification were reviewed manually by the author
+
 ## [2026-06-06]
 Author: DE180417
 
@@ -94,3 +132,28 @@ Author: DE180417
 ### AI-assisted
 - Used Codex to help plan, implement, review, and verify the new React admin dashboard and store-application management features
 - Final feature scope, affected files, route behavior, and verification commands were reviewed manually by the author
+
+## [2026-07-18]
+Author: Đàm Nguyên Khang (DE180417)
+
+### Added
+- Added the Super Admin `/admin/reports` page with Overview, Orders, and Sellers tabs.
+- Added normalized Vietnam-time report periods, previous-period comparisons, automatic granularity, and zero-filled trend buckets.
+- Added report APIs for JSON data, CSV/XLSX/PDF export, and cached/manual AI insights.
+- Added OpenAI Responses API and Gemini structured-output providers with aggregate-only snapshots and metric evidence validation.
+- Added five-minute report caching, 30-minute insight caching, and a five-per-15-minute AI generation limit.
+- Added `GearZone.Tests` with xUnit and SQLite in-memory coverage for report aggregation, period resolution, exports, AI caching, and API contracts.
+
+### Changed
+- Replaced the Admin Revenue placeholder with the `Reports & BI` sidebar link.
+- Extended `IApiClient` with metadata-aware raw file downloads while preserving `GetBytesAsync`.
+- Added ClosedXML and QuestPDF for deterministic server-side report files.
+
+### Security and privacy
+- Kept AI keys in environment/user secrets only and added a non-secret `.env.example`.
+- Prevented customer PII and raw orders from entering AI insight snapshots.
+- Restricted all report endpoints and the Razor page to the `Super Admin` role.
+
+### Verification
+- `dotnet test GearZone.Tests/GearZone.Tests.csproj`: 10 passed.
+- `dotnet build GearZone.Web/GearZone.Web.csproj --no-restore`: passed.

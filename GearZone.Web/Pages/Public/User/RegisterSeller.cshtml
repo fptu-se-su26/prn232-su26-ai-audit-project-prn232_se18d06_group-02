@@ -1,4 +1,4 @@
-@page "{step:int?}"
+@page "/register-seller/{step:int?}"
 @model GearZone.Web.Pages.Public.User.RegisterSellerModel
 @{
     ViewData["Title"] = "Seller Registration - GearZone";
@@ -45,7 +45,7 @@
                         <p class="text-xs text-orange-700/90">Reason: @Model.ExistingStoreRejectReason</p>
                     }
                 </div>
-                <a href="/Public/User/RegisterSeller?reapply=true"
+                <a href="/register-seller?reapply=true"
                    class="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-bold text-orange-700 hover:bg-orange-100 transition-colors">
                     <span class="material-symbols-outlined text-[18px]">refresh</span>
                     Resubmit Application

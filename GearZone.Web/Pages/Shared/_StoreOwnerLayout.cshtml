@@ -169,7 +169,12 @@
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "filled" : "")">dashboard</span>
                 <span class="font-medium text-sm sidebar-text">Overview</span>
             </a>
-            
+
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Reports" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-colors group" asp-page="/StoreOwner/Reports/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Reports" ? "filled" : "")">bar_chart</span>
+                <span class="font-medium text-sm sidebar-text">Reports</span>
+            </a>
+
             <div class="px-3 py-4 mt-2 sidebar-text">
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Management</span>
             </div>
@@ -239,12 +244,12 @@
                         <span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary">home</span>
                         Go to Home
                     </a>
-                    <a href="/Public/User/Profile" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors group">
+                    <a href="/profile" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors group">
                         <span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-primary">person</span>
                         Account Settings
                     </a>
                     <div class="border-t border-border-light my-1"></div>
-                    <a href="/Public/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
+                    <a href="/Auth/Logout" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors group">
                         <span class="material-symbols-outlined text-[20px] group-hover:text-red-700">logout</span>
                         Log Out
                     </a>

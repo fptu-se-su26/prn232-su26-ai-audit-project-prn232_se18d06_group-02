@@ -15,10 +15,16 @@
             <h1 class="text-2xl font-bold text-slate-900">Products</h1>
             <p class="text-sm text-slate-500 font-medium">Manage your store's product catalog and inventory.</p>
         </div>
-        <a asp-page="/StoreOwner/Products/Create" class="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm shadow-blue-500/25 transition-all">
-            <span class="material-symbols-outlined text-[20px]">add_circle</span>
-            <span>Add New Product</span>
-        </a>
+        <div class="flex items-center gap-3">
+            <a asp-page="/StoreOwner/Products/Import" class="inline-flex items-center justify-center gap-2 border border-slate-200 bg-white hover:border-primary hover:text-primary text-slate-600 px-5 py-2.5 rounded-xl font-semibold transition-all">
+                <span class="material-symbols-outlined text-[20px]">upload_file</span>
+                <span>Import Excel</span>
+            </a>
+            <a asp-page="/StoreOwner/Products/Create" class="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm shadow-blue-500/25 transition-all">
+                <span class="material-symbols-outlined text-[20px]">add_circle</span>
+                <span>Add New Product</span>
+            </a>
+        </div>
     </div>
 
     <!-- Stats Overview (Widgets) -->

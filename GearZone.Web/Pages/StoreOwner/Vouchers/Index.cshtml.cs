@@ -1,25 +1,25 @@
-using GearZone.Application.Abstractions.Services;
+using System.Globalization;
+using System.Security.Claims;
 using GearZone.Application.Common.Models;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Security.Claims;
 
 namespace GearZone.Web.Pages.StoreOwner.Vouchers
 {
     [Authorize(Roles = "Store Owner")]
     public class IndexModel : PageModel
     {
-        private readonly ISellerVoucherService _sellerVoucherService;
-        private readonly IAdminCategoryService _categoryService;
+        // Consumes GearZone.Api over HTTP instead of calling the voucher service in-process.
+        private readonly IApiClient _api;
 
-        public IndexModel(ISellerVoucherService sellerVoucherService, IAdminCategoryService categoryService)
+        public IndexModel(IApiClient api)
         {
-            _sellerVoucherService = sellerVoucherService;
-            _categoryService = categoryService;
+            _api = api;
         }
 
         public PagedResult<SellerVoucherDto> PagedVouchers { get; set; } = new();
@@ -41,7 +41,7 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
         [BindProperty(SupportsGet = true)]
         public string? DateRange { get; set; }
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(CancellationToken ct)
         {
             var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(ownerUserId))
@@ -82,14 +82,18 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
                 }
             }
 
-            PagedVouchers = await _sellerVoucherService.GetPaginatedVouchersAsync(ownerUserId, Query);
-            Summary = await _sellerVoucherService.GetVoucherSummaryAsync(ownerUserId);
-            Categories = await _categoryService.GetAllCategoriesListAsync();
+            var data = await _api.GetAsync<SellerVoucherListDto>($"/api/seller/vouchers{BuildQueryString()}", ct);
+            if (data is not null)
+            {
+                PagedVouchers = data.Vouchers;
+                Summary = data.Summary;
+                Categories = data.Categories;
+            }
 
             return Page();
         }
 
-        public async Task<IActionResult> OnPostToggleStatusAsync(Guid id)
+        public async Task<IActionResult> OnPostToggleStatusAsync(Guid id, CancellationToken ct)
         {
             var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(ownerUserId))
@@ -97,17 +101,41 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
                 return RedirectToPage("/Public/Auth/Login");
             }
 
-            var (success, error) = await _sellerVoucherService.ToggleVoucherStatusAsync(ownerUserId, id);
-            if (success)
+            var result = await _api.PatchAsync($"/api/seller/vouchers/{id}/toggle-status", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Voucher status updated successfully.";
             }
             else
             {
-                TempData["ErrorMessage"] = string.IsNullOrWhiteSpace(error) ? "Failed to update voucher status." : error;
+                TempData["ErrorMessage"] = string.IsNullOrWhiteSpace(result.FirstError)
+                    ? "Failed to update voucher status."
+                    : result.FirstError;
             }
 
             return RedirectToPage();
+        }
+
+        private string BuildQueryString()
+        {
+            var parts = new List<string>
+            {
+                $"pageNumber={Query.PageNumber}",
+                $"pageSize={Query.PageSize}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(Query.SortBy)) parts.Add($"sortBy={Uri.EscapeDataString(Query.SortBy)}");
+            if (!string.IsNullOrWhiteSpace(Query.SortDirection)) parts.Add($"sortDirection={Uri.EscapeDataString(Query.SortDirection)}");
+            if (!string.IsNullOrWhiteSpace(Query.Search)) parts.Add($"search={Uri.EscapeDataString(Query.Search)}");
+            if (Query.Status.HasValue) parts.Add($"status={Query.Status.Value}");
+            if (Query.Scope.HasValue) parts.Add($"scope={Query.Scope.Value}");
+            if (Query.VoucherType.HasValue) parts.Add($"voucherType={Query.VoucherType.Value}");
+            if (Query.DiscountType.HasValue) parts.Add($"discountType={Query.DiscountType.Value}");
+            if (Query.CategoryId.HasValue) parts.Add($"categoryId={Query.CategoryId.Value}");
+            if (Query.StartDate.HasValue) parts.Add($"startDate={Query.StartDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}");
+            if (Query.EndDate.HasValue) parts.Add($"endDate={Query.EndDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}");
+
+            return "?" + string.Join("&", parts);
         }
 
         public static string GetStatusClass(VoucherStatus status)

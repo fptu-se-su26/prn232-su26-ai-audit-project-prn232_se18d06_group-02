@@ -292,6 +292,49 @@ export interface AdminCategoryDto {
   children: AdminCategoryDto[]
 }
 
+export interface AdminCategoryQueryParams {
+  searchTerm?: string
+  isActive?: boolean | ''
+  parentId?: number
+}
+
+export interface AdminCategoryAttributeOptionDto {
+  id: number
+  value: string
+  displayOrder: number
+}
+
+export interface AdminCategoryAttributeDto {
+  id: number
+  categoryId: number
+  name: string
+  filterType: string
+  displayOrder: number
+  isFilterable: boolean
+  options: AdminCategoryAttributeOptionDto[]
+}
+
+export interface CreateAdminCategoryRequest {
+  name: string
+  slug: string
+  parentId?: number | null
+  isActive: boolean
+  isDeleted?: boolean
+}
+
+export interface EditAdminCategoryRequest {
+  id: number
+  name: string
+  slug: string
+  parentId?: number | null
+  isActive: boolean
+}
+
+export interface SaveCategoryAttributesRequest {
+  categoryId: number
+  attributes: AdminCategoryAttributeDto[]
+}
+
 export interface AdminBrandDto {
   id: number
   name: string
@@ -299,6 +342,132 @@ export interface AdminBrandDto {
   logoUrl?: string | null
   isApproved: boolean
   productCount: number
+}
+
+export interface AdminBrandQueryParams {
+  searchTerm?: string
+  isApproved?: boolean | ''
+  pageNumber?: number
+  pageSize?: number
+}
+
+export interface AdminBrandStatsDto {
+  totalBrands: number
+  approvedBrands: number
+  pendingBrands: number
+}
+
+export interface AdminBrandsListDto {
+  brands: PagedResult<AdminBrandDto>
+  stats: AdminBrandStatsDto
+}
+
+export interface AdminBrandFormRequest {
+  id?: number
+  name: string
+  slug: string
+  logoUrl?: string
+  logoFile?: File | null
+  isApproved: boolean
+}
+
+export const voucherStatus = {
+  upcoming: 0,
+  active: 1,
+  expired: 2,
+  disabled: 3,
+  finished: 4,
+} as const
+
+export type VoucherStatus = (typeof voucherStatus)[keyof typeof voucherStatus]
+
+export const voucherType = {
+  orderDiscount: 0,
+  shippingDiscount: 1,
+} as const
+
+export type VoucherType = (typeof voucherType)[keyof typeof voucherType]
+
+export const voucherScope = {
+  platform: 0,
+  seller: 1,
+} as const
+
+export type VoucherScope = (typeof voucherScope)[keyof typeof voucherScope]
+
+export const discountType = {
+  percent: 0,
+  fixedAmount: 1,
+} as const
+
+export type DiscountType = (typeof discountType)[keyof typeof discountType]
+
+export interface AdminVoucherQueryParams {
+  search?: string
+  status?: VoucherStatus | ''
+  scope?: VoucherScope | ''
+  voucherType?: VoucherType | ''
+  discountType?: DiscountType | ''
+  categoryId?: number | ''
+  startDate?: string
+  endDate?: string
+  sortBy?: string
+  sortDirection?: string
+  pageNumber?: number
+  pageSize?: number
+}
+
+export interface AdminVoucherDto {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  type: VoucherType
+  discountType: DiscountType
+  discountValue: number
+  maxDiscount?: number | null
+  minOrderAmount?: number | null
+  usageLimit: number
+  usedCount: number
+  maxUsagePerUser: number
+  startAt: string
+  endAt: string
+  status: VoucherStatus
+  categoryName?: string | null
+  categoryIcon?: string | null
+  categoryId?: number | null
+  isActive: boolean
+  createdAt: string
+}
+
+export interface AdminVoucherSummaryDto {
+  totalVouchers: number
+  activeToday: number
+  redemptionRate: number
+  totalSavedAmount: number
+}
+
+export interface AdminVouchersListDto {
+  vouchers: PagedResult<AdminVoucherDto>
+  summary: AdminVoucherSummaryDto
+  categories: AdminCategoryDto[]
+}
+
+export interface AdminVoucherRequest {
+  name: string
+  code: string
+  description?: string | null
+  type: 'Order' | 'Shipping'
+  discountType: 'Percent' | 'Fixed'
+  discountValue: number
+  maxDiscount?: number | null
+  minOrderAmount: number
+  usageLimit: number
+  maxUsagePerUser: number
+  startAt: string
+  endAt: string
+  categoryId?: number | null
+  isVisible: boolean
 }
 
 export interface AdminProductMetadataDto {
@@ -448,6 +617,83 @@ export interface ChangeStoreStatusRequest {
   status: StoreStatus
 }
 
+export const walletTransactionType = {
+  topup: 0,
+  payout: 1,
+  refund: 2,
+  adjustment: 3,
+} as const
+
+export type WalletTransactionType = (typeof walletTransactionType)[keyof typeof walletTransactionType]
+
+export const walletTransactionStatus = {
+  pending: 0,
+  completed: 1,
+  failed: 2,
+  reversed: 3,
+} as const
+
+export type WalletTransactionStatus = (typeof walletTransactionStatus)[keyof typeof walletTransactionStatus]
+
+export type WalletStatusLevel = 0 | 1 | 2 | 'Healthy' | 'Warning' | 'Low'
+
+export type TransactionDirection = 0 | 1 | 'IN' | 'OUT'
+
+export interface WalletSummaryDto {
+  availableBalance?: string | null
+  availableBalanceRaw?: number | null
+  pendingPayoutAmount: number
+  nextBatchRequiredAmount: number
+  statusLevel: WalletStatusLevel
+  isBalanceLive: boolean
+}
+
+export interface WalletTransactionDto {
+  id: string
+  transactionCode: string
+  createdAt: string
+  type: WalletTransactionType | keyof typeof walletTransactionType | string
+  direction: TransactionDirection
+  referenceCode?: string | null
+  note?: string | null
+  amount: number
+  balanceBefore: number
+  balanceAfter: number
+  currency: string
+  status: WalletTransactionStatus | keyof typeof walletTransactionStatus | string
+  provider?: string | null
+  providerTransactionId?: string | null
+  createdByAdminId?: string | null
+  payoutBatchCode?: string | null
+}
+
+export interface AdminWalletQueryParams {
+  search?: string
+  type?: WalletTransactionType | ''
+  status?: WalletTransactionStatus | ''
+  pageNumber?: number
+  pageSize?: number
+}
+
+export interface AdminWalletDto {
+  summary: WalletSummaryDto
+  transactions: PagedResult<WalletTransactionDto>
+  cashFlow: WalletTransactionDto[]
+}
+
+export interface TopupWalletRequest {
+  amount: number
+  providerTransactionId: string
+  note?: string | null
+}
+
+export type AdminSettingsMap = Record<string, string>
+
+export interface AdminSettingsResponse {
+  settings: AdminSettingsMap
+  lastSynced: string
+}
+
 function toDashboardParams(params?: DashboardQueryParams) {
   return {
     Period: params?.period,
@@ -507,6 +753,61 @@ function toProductParams(params?: AdminProductQueryParams) {
     OutOfStock: params?.outOfStock,
     SortBy: params?.sortBy,
     SortDirection: params?.sortDirection,
+    PageNumber: params?.pageNumber,
+    PageSize: params?.pageSize,
+  }
+}
+
+function toCategoryParams(params?: AdminCategoryQueryParams) {
+  return {
+    SearchTerm: params?.searchTerm,
+    IsActive: params?.isActive === '' ? undefined : params?.isActive,
+    ParentId: params?.parentId,
+  }
+}
+
+function toBrandParams(params?: AdminBrandQueryParams) {
+  return {
+    SearchTerm: params?.searchTerm,
+    IsApproved: params?.isApproved === '' ? undefined : params?.isApproved,
+    PageNumber: params?.pageNumber,
+    PageSize: params?.pageSize,
+  }
+}
+
+function toBrandFormData(request: AdminBrandFormRequest) {
+  const formData = new FormData()
+  if (request.id !== undefined) formData.append('Id', String(request.id))
+  formData.append('Name', request.name)
+  formData.append('Slug', request.slug)
+  formData.append('LogoUrl', request.logoUrl ?? '')
+  formData.append('IsApproved', String(request.isApproved))
+  if (request.logoFile) formData.append('LogoFile', request.logoFile)
+  return formData
+}
+
+function toVoucherParams(params?: AdminVoucherQueryParams) {
+  return {
+    Search: params?.search,
+    Status: params?.status === '' ? undefined : params?.status,
+    Scope: params?.scope === '' ? undefined : params?.scope,
+    VoucherType: params?.voucherType === '' ? undefined : params?.voucherType,
+    DiscountType: params?.discountType === '' ? undefined : params?.discountType,
+    CategoryId: params?.categoryId === '' ? undefined : params?.categoryId,
+    StartDate: params?.startDate,
+    EndDate: params?.endDate,
+    SortBy: params?.sortBy,
+    SortDirection: params?.sortDirection,
+    PageNumber: params?.pageNumber,
+    PageSize: params?.pageSize,
+  }
+}
+
+function toWalletParams(params?: AdminWalletQueryParams) {
+  return {
+    Search: params?.search,
+    Type: params?.type === '' ? undefined : params?.type,
+    Status: params?.status === '' ? undefined : params?.status,
     PageNumber: params?.pageNumber,
     PageSize: params?.pageSize,
   }
@@ -592,5 +893,78 @@ export const adminApi = {
 
     bulkUpdateStatus: (request: BulkProductStatusRequest) =>
       apiClient.post('/admin/products/bulk-update-status', request).then((response) => unwrap<string>(response)),
+  },
+
+  categories: {
+    list: (params?: AdminCategoryQueryParams) =>
+      apiClient.get('/admin/categories', { params: toCategoryParams(params) }).then((response) => unwrap<AdminCategoryDto[]>(response)),
+
+    get: (id: number) => apiClient.get(`/admin/categories/${id}`).then((response) => unwrap<AdminCategoryDto>(response)),
+
+    attributes: (id: number) =>
+      apiClient.get(`/admin/categories/${id}/attributes`).then((response) => unwrap<AdminCategoryAttributeDto[]>(response)),
+
+    create: (request: CreateAdminCategoryRequest) =>
+      apiClient.post('/admin/categories', request).then((response) => unwrap<AdminCategoryDto>(response)),
+
+    update: (request: EditAdminCategoryRequest) =>
+      apiClient.put(`/admin/categories/${request.id}`, request).then((response) => unwrap<string>(response)),
+
+    saveAttributes: (id: number, request: SaveCategoryAttributesRequest) =>
+      apiClient.put(`/admin/categories/${id}/attributes`, request).then((response) => unwrap<string>(response)),
+
+    delete: (id: number) => apiClient.delete(`/admin/categories/${id}`).then((response) => unwrap<string>(response)),
+  },
+
+  brands: {
+    list: (params?: AdminBrandQueryParams) =>
+      apiClient.get('/admin/brands', { params: toBrandParams(params) }).then((response) => unwrap<AdminBrandsListDto>(response)),
+
+    all: () => apiClient.get('/admin/brands/all').then((response) => unwrap<AdminBrandDto[]>(response)),
+
+    get: (id: number) => apiClient.get(`/admin/brands/${id}`).then((response) => unwrap<AdminBrandDto>(response)),
+
+    create: (request: AdminBrandFormRequest) =>
+      apiClient
+        .post('/admin/brands', toBrandFormData(request), { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then((response) => unwrap<string>(response)),
+
+    update: (request: AdminBrandFormRequest & { id: number }) =>
+      apiClient
+        .put('/admin/brands', toBrandFormData(request), { headers: { 'Content-Type': 'multipart/form-data' } })
+        .then((response) => unwrap<string>(response)),
+
+    approve: (id: number) => apiClient.post(`/admin/brands/${id}/approve`).then((response) => unwrap<string>(response)),
+
+    reject: (id: number) => apiClient.post(`/admin/brands/${id}/reject`).then((response) => unwrap<string>(response)),
+
+    delete: (id: number) => apiClient.delete(`/admin/brands/${id}`).then((response) => unwrap<string>(response)),
+  },
+
+  vouchers: {
+    list: (params?: AdminVoucherQueryParams) =>
+      apiClient.get('/admin/vouchers', { params: toVoucherParams(params) }).then((response) => unwrap<AdminVouchersListDto>(response)),
+
+    get: (id: string) => apiClient.get(`/admin/vouchers/${id}`).then((response) => unwrap<AdminVoucherDto>(response)),
+
+    create: (request: AdminVoucherRequest) => apiClient.post('/admin/vouchers', request).then((response) => unwrap<string>(response)),
+
+    update: (id: string, request: AdminVoucherRequest) =>
+      apiClient.put(`/admin/vouchers/${id}`, request).then((response) => unwrap<string>(response)),
+
+    toggleStatus: (id: string) => apiClient.patch(`/admin/vouchers/${id}/toggle-status`).then((response) => unwrap<string>(response)),
+  },
+
+  wallet: {
+    get: (params?: AdminWalletQueryParams) =>
+      apiClient.get('/admin/wallet', { params: toWalletParams(params) }).then((response) => unwrap<AdminWalletDto>(response)),
+
+    topUp: (request: TopupWalletRequest) => apiClient.post('/admin/wallet/top-up', request).then((response) => unwrap<string>(response)),
+  },
+
+  settings: {
+    get: () => apiClient.get('/admin/settings').then((response) => unwrap<AdminSettingsResponse>(response)),
+
+    update: (settings: AdminSettingsMap) => apiClient.put('/admin/settings', settings).then((response) => unwrap<string>(response)),
   },
 }

@@ -1,11 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using AutoMapper;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Common.Models;
-using GearZone.Domain.Entities;
 using GearZone.Application.Features.Admin.Dtos;
-using GearZone.Web.Pages.Admin.Users.Models;
-using Microsoft.AspNetCore.Identity;
+using GearZone.Application.Features.Admin.ViewModels;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -14,15 +11,11 @@ namespace GearZone.Web.Pages.Admin.Users
     [Authorize(Roles = "Super Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAdminUserService _adminUserService;
-        private readonly IMapper _mapper;
+        private readonly IApiClient _api;
 
-        public IndexModel(
-            IAdminUserService adminUserService,
-            IMapper mapper)
+        public IndexModel(IApiClient api)
         {
-            _adminUserService = adminUserService;
-            _mapper = mapper;
+            _api = api;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -38,12 +31,12 @@ namespace GearZone.Web.Pages.Admin.Users
         public List<string> Roles { get; set; } = new();
         public UserStatsDto UserStats { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(CancellationToken ct)
         {
-            await LoadDataAsync();
+            await LoadDataAsync(ct);
         }
 
-        public async Task<IActionResult> OnPostCreateAsync()
+        public async Task<IActionResult> OnPostCreateAsync(CancellationToken ct)
         {
             var otherKeys = ModelState.Keys
                 .Where(k => !k.StartsWith(nameof(CreateUserRequest) + ".") && k != nameof(CreateUserRequest))
@@ -55,14 +48,13 @@ namespace GearZone.Web.Pages.Admin.Users
 
             if (!ModelState.IsValid)
             {
-                await LoadDataAsync();
+                await LoadDataAsync(ct);
                 return Page();
             }
 
-            var dto = _mapper.Map<CreateUserDto>(CreateUserRequest);
-            var result = await _adminUserService.CreateUserAsync(dto);
+            var result = await _api.PostAsync("/api/admin/users", CreateUserRequest, ct);
 
-            if (result.Succeeded)
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "User created successfully.";
                 return RedirectToPage();
@@ -70,15 +62,15 @@ namespace GearZone.Web.Pages.Admin.Users
 
             foreach (var error in result.Errors)
             {
-                ModelState.AddModelError(string.Empty, error.Description);
+                ModelState.AddModelError(string.Empty, error);
             }
             TempData["ErrorMessage"] = "Failed to create user. Please check the errors.";
 
-            await LoadDataAsync();
+            await LoadDataAsync(ct);
             return Page();
         }
 
-        public async Task<IActionResult> OnPostEditAsync()
+        public async Task<IActionResult> OnPostEditAsync(CancellationToken ct)
         {
             var otherKeys = ModelState.Keys
                 .Where(k => !k.StartsWith(nameof(EditUserRequest) + ".") && k != nameof(EditUserRequest))
@@ -92,35 +84,34 @@ namespace GearZone.Web.Pages.Admin.Users
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
                 TempData["ErrorMessage"] = "Validation failed: " + string.Join(" ", errors);
-                await LoadDataAsync();
+                await LoadDataAsync(ct);
                 return Page();
             }
 
-            var dto = _mapper.Map<EditUserDto>(EditUserRequest);
-            var result = await _adminUserService.UpdateUserAsync(dto);
+            var result = await _api.PutAsync("/api/admin/users", EditUserRequest, ct);
 
-            if (result.Succeeded)
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "User updated successfully.";
                 return RedirectToPage();
             }
 
-            var identityErrors = string.Join(" ", result.Errors.Select(e => e.Description));
+            var identityErrors = string.Join(" ", result.Errors);
             TempData["ErrorMessage"] = "Failed to update user: " + identityErrors;
 
             foreach (var error in result.Errors)
             {
-                ModelState.AddModelError(string.Empty, error.Description);
+                ModelState.AddModelError(string.Empty, error);
             }
 
-            await LoadDataAsync();
+            await LoadDataAsync(ct);
             return Page();
         }
 
-        public async Task<IActionResult> OnPostDeleteAsync(string id)
+        public async Task<IActionResult> OnPostDeleteAsync(string id, CancellationToken ct)
         {
-            var result = await _adminUserService.SoftDeleteUserAsync(id, User.Identity!.Name ?? "System");
-            if (result.Succeeded)
+            var result = await _api.DeleteAsync($"/api/admin/users/{Uri.EscapeDataString(id)}", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "User deleted successfully.";
             }
@@ -131,10 +122,10 @@ namespace GearZone.Web.Pages.Admin.Users
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostRestoreAsync(string id)
+        public async Task<IActionResult> OnPostRestoreAsync(string id, CancellationToken ct)
         {
-            var result = await _adminUserService.RestoreUserAsync(id);
-            if (result.Succeeded)
+            var result = await _api.PostAsync($"/api/admin/users/{Uri.EscapeDataString(id)}/restore", ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "User restored successfully.";
             }
@@ -145,33 +136,28 @@ namespace GearZone.Web.Pages.Admin.Users
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnGetUserDetailsAsync(string userId)
+        public async Task<IActionResult> OnGetUserDetailsAsync(string userId, CancellationToken ct)
         {
-            var user = await _adminUserService.GetUserByIdAsync(userId);
+            var user = await _api.GetAsync<UserViewModel>(
+                $"/api/admin/users/{Uri.EscapeDataString(userId)}", ct);
             if (user == null) return NotFound();
 
-            var viewModel = _mapper.Map<UserViewModel>(user);
-            return new JsonResult(viewModel);
+            return new JsonResult(user);
         }
 
-        private async Task LoadDataAsync()
+        private async Task LoadDataAsync(CancellationToken ct)
         {
             if (Query.PageNumber < 1) Query.PageNumber = 1;
             if (Query.PageSize < 1) Query.PageSize = 10;
 
-            var domainPagedResult = await _adminUserService.GetPaginatedUsersAsync(Query);
-
-            var viewModels = _mapper.Map<List<UserViewModel>>(domainPagedResult.Items);
-
-            Users = new PagedResult<UserViewModel>(
-                viewModels,
-                domainPagedResult.TotalCount,
-                domainPagedResult.PageNumber,
-                domainPagedResult.PageSize
-            );
-
-            Roles = await _adminUserService.GetAllRolesAsync();
-            UserStats = await _adminUserService.GetUserStatsAsync();
+            var data = await _api.GetAsync<AdminUserListResponseDto>(
+                $"/api/admin/users{ApiQueryStringBuilder.Build(Query)}", ct);
+            if (data is not null)
+            {
+                Users = data.Users;
+                Roles = data.Roles;
+                UserStats = data.Stats;
+            }
         }
     }
 }

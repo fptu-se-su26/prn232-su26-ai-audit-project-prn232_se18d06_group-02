@@ -2,6 +2,7 @@ using GearZone.Application.Abstractions.External;
 using GearZone.Application.Abstractions.Persistence;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Infrastructure.External;
+using GearZone.Infrastructure.Auditing;
 using GearZone.Infrastructure.Jobs;
 using GearZone.Infrastructure.Repositories;
 using GearZone.Infrastructure.Settings;
@@ -14,7 +15,7 @@ namespace GearZone.Infrastructure
 {
     public static class DependencyInjection
     {
-        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, bool enableHangfireServer = true)
         {
             static string ReadFirstNonEmpty(IConfiguration config, params string[] keys)
             {
@@ -76,11 +77,80 @@ namespace GearZone.Infrastructure
                 options.ChecksumKey = payOutChecksumKey;
             });
 
+            services.Configure<AiInsightSettings>(options =>
+            {
+                options.Enabled = bool.TryParse(ReadFirstNonEmpty(configuration, "AI_INSIGHTS_ENABLED", "AI:Enabled"), out var enabled) && enabled;
+                options.Provider = ReadFirstNonEmpty(configuration, "AI_PROVIDER", "AI:Provider") is { Length: > 0 } provider ? provider : "OpenAI";
+                options.TimeoutSeconds = int.TryParse(ReadFirstNonEmpty(configuration, "AI_TIMEOUT_SECONDS", "AI:TimeoutSeconds"), out var timeout)
+                    ? Math.Clamp(timeout, 5, 120)
+                    : 30;
+                options.OpenAiApiKey = ReadFirstNonEmpty(configuration, "OPENAI_API_KEY");
+                options.OpenAiModel = ReadFirstNonEmpty(configuration, "OPENAI_MODEL", "AI:OpenAI:Model") is { Length: > 0 } openAiModel
+                    ? openAiModel
+                    : "gpt-5.6-luna";
+                options.GeminiApiKey = ReadFirstNonEmpty(configuration, "GEMINI_API_KEY");
+                options.GeminiModel = ReadFirstNonEmpty(configuration, "GEMINI_MODEL", "AI:Gemini:Model") is { Length: > 0 } geminiModel
+                    ? geminiModel
+                    : "gemini-3.5-flash";
+            });
+            services.Configure<AiChatSettings>(options =>
+            {
+                options.Enabled = bool.TryParse(
+                    ReadFirstNonEmpty(configuration, "AI_CHAT_ENABLED", "AI_INSIGHTS_ENABLED", "AI:Enabled"),
+                    out var enabled) && enabled;
+                options.TimeoutSeconds = int.TryParse(
+                    ReadFirstNonEmpty(configuration, "AI_CHAT_TIMEOUT_SECONDS", "AI_TIMEOUT_SECONDS", "AI:TimeoutSeconds"),
+                    out var timeout)
+                    ? Math.Clamp(timeout, 5, 120)
+                    : 30;
+                options.MaxOutputTokens = int.TryParse(
+                    ReadFirstNonEmpty(configuration, "AI_CHAT_MAX_OUTPUT_TOKENS"),
+                    out var maxTokens)
+                    ? Math.Clamp(maxTokens, 200, 2048)
+                    : 700;
+                options.GeminiApiKey = ReadFirstNonEmpty(configuration, "GEMINI_API_KEY");
+                options.GeminiModel = ReadFirstNonEmpty(configuration, "GEMINI_MODEL", "AI:Gemini:Model")
+                    is { Length: > 0 } model
+                    ? model
+                    : "gemini-3.1-flash-lite";
+            });
+
             services.AddMemoryCache();
+            services.AddScoped<AdminAuditContext>();
+            services.AddScoped<AuditSaveChangesInterceptor>();
+            services.AddSingleton<AdminAuditSanitizer>();
+            services.AddSingleton<IAdminAuditRecorder, AdminAuditRecorder>();
+            services.AddScoped<IAdminAuditService, AdminAuditService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFileStorageService, CloudinaryStorageService>();
             services.AddScoped<IEmailService, SmtpEmailService>();
             services.AddHttpClient<IGoongService, GoongService>();
+            services.AddHttpClient<OpenAiInsightProvider>((sp, client) =>
+            {
+                var settings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiInsightSettings>>().Value;
+                client.BaseAddress = new Uri("https://api.openai.com/v1/");
+                client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+            });
+            services.AddHttpClient<GeminiInsightProvider>((sp, client) =>
+            {
+                var settings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiInsightSettings>>().Value;
+                client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+                client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+            });
+            services.AddHttpClient<GeminiAiChatProvider>((sp, client) =>
+            {
+                var settings = sp.GetRequiredService<
+                    Microsoft.Extensions.Options.IOptions<AiChatSettings>>().Value;
+                client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+                client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+            });
+            services.AddScoped<IAiChatProvider>(sp =>
+                sp.GetRequiredService<GeminiAiChatProvider>());
+            services.AddTransient<IAiInsightProvider>(sp => sp.GetRequiredService<OpenAiInsightProvider>());
+            services.AddTransient<IAiInsightProvider>(sp => sp.GetRequiredService<GeminiInsightProvider>());
+            services.AddScoped<IAiInsightProviderResolver, AiInsightProviderResolver>();
+            services.AddScoped<IAdminReportExportService, AdminReportExportService>();
+            services.AddScoped<IProductImportService, ProductImportService>();
             services.AddScoped<IBrandRepository, BrandRepository>();
             services.AddScoped<ICategoryAttributeRepository, CategoryAttributeRepository>();
             services.AddScoped<ICartRepository, CartRepository>();
@@ -112,11 +182,15 @@ namespace GearZone.Infrastructure
             services.AddScoped<IVoucherRepository, VoucherRepository>();
             services.AddScoped<IVoucherUsageRepository, VoucherUsageRepository>();
             services.AddScoped<IUserAddressRepository, UserAddressRepository>();
+            services.AddScoped<IAiConversationRepository, AiConversationRepository>();
+            services.AddScoped<IAiMessageRepository, AiMessageRepository>();
+            services.AddScoped<IAiKnowledgeRepository, AiKnowledgeRepository>();
 
             // Jobs
             services.AddScoped<PayoutBatchJob>();
             services.AddScoped<OrderAutoCompleteJob>();
             services.AddScoped<PaymentTimeoutJob>();
+            services.AddScoped<AiChatCleanupJob>();
             services.AddScoped<IBackgroundJobService, BackgroundJobService>();
 
             // Payment strategies
@@ -142,15 +216,22 @@ namespace GearZone.Infrastructure
                 services.AddScoped<IPayoutClient, DisabledPayoutClient>();
             }
 
-            services.AddHangfireServer(opt => opt.WorkerCount = 2);
+            // The Hangfire *server* (job processor + recurring schedules) should run in
+            // exactly one host. The Razor Web host keeps it; the separate API host opts out.
+            if (enableHangfireServer)
+            {
+                services.AddHangfireServer(opt => opt.WorkerCount = 2);
+            }
 
             return services;
         }
 
         public static IServiceCollection AddDatabase(this IServiceCollection services, string connectionString)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(connectionString));
+            services.AddDbContext<ApplicationDbContext>((provider, options) =>
+                options
+                    .UseSqlServer(connectionString)
+                    .AddInterceptors(provider.GetRequiredService<AuditSaveChangesInterceptor>()));
 
             services.AddHangfire(cfg => cfg
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

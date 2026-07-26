@@ -4,32 +4,32 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 
 namespace GearZone.Web.Pages.Admin.Products
 {
     [Authorize(Roles = "Super Admin")]
     public class DetailModel : PageModel
     {
-        private readonly IAdminProductService _productService;
+        private readonly IApiClient _api;
 
-        public DetailModel(IAdminProductService productService)
+        public DetailModel(IApiClient api)
         {
-            _productService = productService;
+            _api = api;
         }
 
         public AdminProductDetailDto Product { get; set; } = new AdminProductDetailDto();
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
             if (id == Guid.Empty)
             {
                 return RedirectToPage("./Index");
             }
 
-            var product = await _productService.GetProductDetailAsync(id);
+            var product = await _api.GetAsync<AdminProductDetailDto>($"/api/admin/products/{id}", ct);
             if (product == null)
             {
                 return NotFound();
@@ -39,10 +39,10 @@ namespace GearZone.Web.Pages.Admin.Products
             return Page();
         }
 
-        public async Task<IActionResult> OnPostApproveAsync(Guid id)
+        public async Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct)
         {
-            var success = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Active);
-            if (success)
+            var result = await _api.PostAsync($"/api/admin/products/{id}/approve", ct);
+            if (result.Success)
                 TempData["SuccessMessage"] = "Product approved successfully.";
             else
                 TempData["ErrorMessage"] = "Failed to approve product.";
@@ -50,10 +50,10 @@ namespace GearZone.Web.Pages.Admin.Products
             return RedirectToPage(new { id });
         }
 
-        public async Task<IActionResult> OnPostRejectAsync(Guid id, string? reason = null)
+        public async Task<IActionResult> OnPostRejectAsync(Guid id, string? reason = null, CancellationToken ct = default)
         {
-            var success = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Rejected, reason);
-            if (success)
+            var result = await _api.PostAsync($"/api/admin/products/{id}/reject", new { reason }, ct);
+            if (result.Success)
                 TempData["SuccessMessage"] = "Product rejected.";
             else
                 TempData["ErrorMessage"] = "Failed to reject product.";
@@ -61,10 +61,10 @@ namespace GearZone.Web.Pages.Admin.Products
             return RedirectToPage(new { id });
         }
 
-        public async Task<IActionResult> OnPostSuspendAsync(Guid id, string? reason = null)
+        public async Task<IActionResult> OnPostSuspendAsync(Guid id, string? reason = null, CancellationToken ct = default)
         {
-            var success = await _productService.BulkUpdateStatusAsync(new List<Guid> { id }, ProductStatus.Inactive, reason);
-            if (success)
+            var result = await _api.PostAsync($"/api/admin/products/{id}/suspend", new { reason }, ct);
+            if (result.Success)
                 TempData["SuccessMessage"] = "Product suspended.";
             else
                 TempData["ErrorMessage"] = "Failed to suspend product.";
@@ -72,10 +72,10 @@ namespace GearZone.Web.Pages.Admin.Products
             return RedirectToPage(new { id });
         }
 
-        public async Task<IActionResult> OnPostDeleteAsync(Guid id, string reason)
+        public async Task<IActionResult> OnPostDeleteAsync(Guid id, string reason, CancellationToken ct)
         {
-            var success = await _productService.DeleteProductAsync(id, reason);
-            if (success)
+            var result = await _api.DeleteAsync($"/api/admin/products/{id}", new { reason }, ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Product deleted.";
                 return RedirectToPage("Index");

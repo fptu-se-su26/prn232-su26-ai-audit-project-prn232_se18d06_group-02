@@ -1,20 +1,23 @@
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading.Tasks;
+using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Catalog.DTOs;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using GearZone.Application.Abstractions.Services;
 
 namespace GearZone.Web.Pages.Public.Catalog
 {
     public class BrowseModel : PageModel
     {
-        private readonly ICatalogService _catalogService;
+        // Consumes GearZone.Api over HTTP instead of the catalog service in-process.
+        private readonly IApiClient _api;
 
-        public BrowseModel(ICatalogService catalogService)
+        public BrowseModel(IApiClient api)
         {
-            _catalogService = catalogService;
+            _api = api;
         }
 
         [BindProperty(Name = "brand", SupportsGet = true)]
@@ -40,21 +43,24 @@ namespace GearZone.Web.Pages.Public.Catalog
 
         public string? CategorySlug { get; set; }
         public int CategoryId { get; set; }
-        
+
         public ProductFilterDto Filter { get; set; } = new ProductFilterDto();
 
         public CatalogFilterSidebarDto Sidebar { get; set; } = new CatalogFilterSidebarDto();
 
         public Application.Common.Models.PagedResult<CatalogProductDto> Products { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync(string? slug)
+        public async Task<IActionResult> OnGetAsync(string? slug, CancellationToken ct)
         {
             CategorySlug = slug;
             BuildFilterFromQuery();
 
-            Sidebar = await _catalogService.GetFiltersForCategoryAsync(Filter.CategorySlug);
-            Products = await _catalogService.GetProductsAsync(Filter);
-            
+            Sidebar = await _api.GetAsync<CatalogFilterSidebarDto>(
+                $"/api/catalog/filters?slug={Uri.EscapeDataString(Filter.CategorySlug ?? string.Empty)}", ct)
+                ?? new CatalogFilterSidebarDto();
+
+            Products = await LoadProductsAsync(ct);
+
             if (Products.Items.Any())
             {
                 CategoryId = Products.Items.First().CategoryId;
@@ -63,12 +69,12 @@ namespace GearZone.Web.Pages.Public.Catalog
             return Page();
         }
 
-        public async Task<IActionResult> OnGetLoadMoreAsync(string? slug)
+        public async Task<IActionResult> OnGetLoadMoreAsync(string? slug, CancellationToken ct)
         {
             CategorySlug = slug;
             BuildFilterFromQuery();
-            
-            Products = await _catalogService.GetProductsAsync(Filter);
+
+            Products = await LoadProductsAsync(ct);
             return new PartialViewResult
             {
                 ViewName = "_ProductGridPartial",
@@ -76,10 +82,55 @@ namespace GearZone.Web.Pages.Public.Catalog
             };
         }
 
-        public async Task<IActionResult> OnGetSuggestionsAsync(string query)
+        public async Task<IActionResult> OnGetSuggestionsAsync(string query, CancellationToken ct)
         {
-            var suggestions = await _catalogService.GetProductSuggestionsAsync(query);
-            return new JsonResult(suggestions);
+            var suggestions = await _api.GetAsync<List<ProductSuggestionDto>>(
+                $"/api/products/suggestions?query={Uri.EscapeDataString(query ?? string.Empty)}", ct);
+            return new JsonResult(suggestions ?? new List<ProductSuggestionDto>());
+        }
+
+        private async Task<Application.Common.Models.PagedResult<CatalogProductDto>> LoadProductsAsync(CancellationToken ct) =>
+            await _api.GetAsync<Application.Common.Models.PagedResult<CatalogProductDto>>($"/api/products{BuildApiQueryString()}", ct)
+            ?? new Application.Common.Models.PagedResult<CatalogProductDto>();
+
+        // Maps the page's query names onto ProductFilterDto's, and re-emits the dynamic
+        // attribute filters so the API can rebuild Filter.Attributes the same way.
+        private string BuildApiQueryString()
+        {
+            var parts = new List<string>
+            {
+                $"pageNumber={Filter.PageNumber}",
+                $"pageSize={Filter.PageSize}",
+                $"viewMode={Uri.EscapeDataString(Filter.ViewMode)}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(Filter.Search)) parts.Add($"search={Uri.EscapeDataString(Filter.Search)}");
+            if (!string.IsNullOrWhiteSpace(Filter.CategorySlug)) parts.Add($"categorySlug={Uri.EscapeDataString(Filter.CategorySlug)}");
+            if (Filter.MinPrice.HasValue) parts.Add($"minPrice={Filter.MinPrice.Value.ToString(CultureInfo.InvariantCulture)}");
+            if (Filter.MaxPrice.HasValue) parts.Add($"maxPrice={Filter.MaxPrice.Value.ToString(CultureInfo.InvariantCulture)}");
+            if (Filter.InStockOnly == true) parts.Add("inStockOnly=true");
+            if (!string.IsNullOrWhiteSpace(Filter.SortBy)) parts.Add($"sortBy={Uri.EscapeDataString(Filter.SortBy)}");
+
+            if (Filter.BrandSlugs != null)
+            {
+                foreach (var brand in Filter.BrandSlugs.Where(b => !string.IsNullOrWhiteSpace(b)))
+                {
+                    parts.Add($"brand={Uri.EscapeDataString(brand)}");
+                }
+            }
+
+            if (Filter.Attributes != null)
+            {
+                foreach (var (key, values) in Filter.Attributes)
+                {
+                    foreach (var value in values.Where(v => !string.IsNullOrWhiteSpace(v)))
+                    {
+                        parts.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+                    }
+                }
+            }
+
+            return "?" + string.Join("&", parts);
         }
 
         private void BuildFilterFromQuery()
@@ -109,9 +160,9 @@ namespace GearZone.Web.Pages.Public.Catalog
             };
 
             // Parse dynamic attributes from query string (excluding known parameters)
-            var knownParams = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase) 
-            { 
-                "brand", "minPrice", "maxPrice", "sort", "page", "inStock", "handler", "viewMode", "search" 
+            var knownParams = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                "brand", "minPrice", "maxPrice", "sort", "page", "inStock", "handler", "viewMode", "search"
             };
 
             foreach (var key in Request.Query.Keys)

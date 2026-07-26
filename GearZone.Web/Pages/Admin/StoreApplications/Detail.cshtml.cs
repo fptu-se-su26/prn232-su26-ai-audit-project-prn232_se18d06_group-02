@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
@@ -14,18 +14,18 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
     {
         private const int MaxReasonLength = 500;
 
-        private readonly IAdminStoreService _adminStoreService;
+        private readonly IApiClient _api;
 
-        public DetailModel(IAdminStoreService adminStoreService)
+        public DetailModel(IApiClient api)
         {
-            _adminStoreService = adminStoreService;
+            _api = api;
         }
 
         public StoreApplicationDto? StoreApplication { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
-            StoreApplication = await _adminStoreService.GetStoreApplicationByIdAsync(id);
+            StoreApplication = await _api.GetAsync<StoreApplicationDto>($"/api/admin/store-applications/{id}", ct);
 
             if (StoreApplication == null)
             {
@@ -35,10 +35,10 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
             return Page();
         }
 
-        public async Task<IActionResult> OnPostApproveAsync(Guid id)
+        public async Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct)
         {
-            var success = await _adminStoreService.UpdateStoreStatusAsync(id, StoreStatus.Approved);
-            if (!success)
+            var result = await _api.PostAsync($"/api/admin/store-applications/{id}/approve", ct);
+            if (!result.Success)
             {
                 TempData["ErrorMessage"] = "Failed to approve store application.";
                 return RedirectToPage(new { id });
@@ -47,7 +47,7 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
             return RedirectToPage(new { id });
         }
 
-        public async Task<IActionResult> OnPostRejectAsync(Guid id, string rejectReason)
+        public async Task<IActionResult> OnPostRejectAsync(Guid id, string rejectReason, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(rejectReason))
             {
@@ -62,8 +62,9 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
                 return RedirectToPage(new { id });
             }
 
-            var success = await _adminStoreService.UpdateStoreStatusAsync(id, StoreStatus.Rejected, normalizedReason);
-            if (!success)
+            var result = await _api.PostAsync(
+                $"/api/admin/store-applications/{id}/reject", new { reason = normalizedReason }, ct);
+            if (!result.Success)
             {
                 TempData["ErrorMessage"] = "Failed to reject store application.";
                 return RedirectToPage(new { id });
@@ -72,10 +73,11 @@ namespace GearZone.Web.Pages.Admin.StoreApplications
             return RedirectToPage(new { id });
         }
 
-        public async Task<IActionResult> OnPostRequestInfoAsync(Guid id, string informNote)
+        public async Task<IActionResult> OnPostRequestInfoAsync(Guid id, string informNote, CancellationToken ct)
         {
-            var success = await _adminStoreService.RequestInfoAsync(id, informNote);
-            if (!success)
+            var result = await _api.PostAsync(
+                $"/api/admin/store-applications/{id}/request-info", new { note = informNote }, ct);
+            if (!result.Success)
             {
                 TempData["ErrorMessage"] = "Failed to send request info.";
                 return RedirectToPage(new { id });

@@ -1,23 +1,22 @@
-using GearZone.Application.Abstractions.Services;
+using System.Security.Claims;
 using GearZone.Application.Features.Admin.Dtos;
 using GearZone.Application.Features.Seller.Dtos;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Security.Claims;
 
 namespace GearZone.Web.Pages.StoreOwner.Vouchers
 {
     [Authorize(Roles = "Store Owner")]
     public class CreateModel : PageModel
     {
-        private readonly ISellerVoucherService _sellerVoucherService;
-        private readonly IAdminCategoryService _categoryService;
+        // Consumes GearZone.Api over HTTP instead of calling the voucher service in-process.
+        private readonly IApiClient _api;
 
-        public CreateModel(ISellerVoucherService sellerVoucherService, IAdminCategoryService categoryService)
+        public CreateModel(IApiClient api)
         {
-            _sellerVoucherService = sellerVoucherService;
-            _categoryService = categoryService;
+            _api = api;
         }
 
         [BindProperty]
@@ -25,9 +24,9 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
 
         public List<CategoryDto> Categories { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync(Guid? copyFromId = null)
+        public async Task<IActionResult> OnGetAsync(Guid? copyFromId, CancellationToken ct)
         {
-            Categories = await _categoryService.GetAllCategoriesListAsync();
+            Categories = await LoadCategoriesAsync(ct);
 
             if (copyFromId.HasValue)
             {
@@ -37,7 +36,7 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
                     return RedirectToPage("/Public/Auth/Login");
                 }
 
-                var sourceVoucher = await _sellerVoucherService.GetVoucherByIdAsync(ownerUserId, copyFromId.Value);
+                var sourceVoucher = await _api.GetAsync<SellerVoucherDto>($"/api/seller/vouchers/{copyFromId.Value}", ct);
                 if (sourceVoucher != null)
                 {
                     Input = new SellerCreateVoucherDto
@@ -73,9 +72,9 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(CancellationToken ct)
         {
-            Categories = await _categoryService.GetAllCategoriesListAsync();
+            Categories = await LoadCategoriesAsync(ct);
 
             if (Input.DiscountType == "Fixed")
             {
@@ -93,13 +92,14 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
                 return RedirectToPage("/Public/Auth/Login");
             }
 
-            var (success, error) = await _sellerVoucherService.CreateVoucherAsync(ownerUserId, Input);
-            if (success)
+            var result = await _api.PostAsync("/api/seller/vouchers", Input, ct);
+            if (result.Success)
             {
                 TempData["SuccessMessage"] = "Voucher created successfully.";
                 return RedirectToPage("./Index");
             }
 
+            var error = result.FirstError;
             if (!string.IsNullOrWhiteSpace(error))
             {
                 ModelState.AddModelError(string.Empty, error);
@@ -108,5 +108,8 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
 
             return Page();
         }
+
+        private async Task<List<CategoryDto>> LoadCategoriesAsync(CancellationToken ct) =>
+            await _api.GetAsync<List<CategoryDto>>("/api/seller/vouchers/categories", ct) ?? new List<CategoryDto>();
     }
 }

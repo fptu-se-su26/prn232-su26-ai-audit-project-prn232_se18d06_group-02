@@ -1,0 +1,518 @@
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const root = document.querySelector('[data-ai-chat-widget]');
+        if (!root) return;
+
+        const panel = root.querySelector('[data-ai-panel]');
+        const overlay = root.querySelector('[data-ai-overlay]');
+        const launcher = root.querySelector('[data-ai-launcher]');
+        const messages = root.querySelector('[data-ai-messages]');
+        const welcome = root.querySelector('[data-ai-welcome]');
+        const input = root.querySelector('[data-ai-input]');
+        const sendButton = root.querySelector('[data-ai-send]');
+        const thinking = root.querySelector('[data-ai-thinking]');
+        const thinkingLabel = root.querySelector('[data-ai-thinking-label]');
+        const errorBox = root.querySelector('[data-ai-error]');
+        const historyPanel = root.querySelector('[data-ai-history]');
+        const historyList = root.querySelector('[data-ai-history-list]');
+        const authenticated = root.dataset.authenticated === 'true';
+        const storageKey = authenticated
+            ? 'gearzone_ai_chat_customer_conversation'
+            : 'gearzone_ai_chat_guest_conversation';
+
+        let conversationId = window.sessionStorage.getItem(storageKey) || '';
+        let isBusy = false;
+        let isAvailable = true;
+
+        function setOpen(open) {
+            if (open) {
+                panel.hidden = false;
+                overlay.hidden = false;
+                panel.setAttribute('aria-hidden', 'false');
+                launcher.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(() => root.classList.add('is-open'));
+                window.dispatchEvent(new CustomEvent('gearzone:ai-chat-opened'));
+                void initializeConversation();
+                window.setTimeout(() => input.focus(), 210);
+                return;
+            }
+
+            root.classList.remove('is-open');
+            panel.setAttribute('aria-hidden', 'true');
+            launcher.setAttribute('aria-expanded', 'false');
+            historyPanel.hidden = true;
+            window.setTimeout(() => {
+                if (!root.classList.contains('is-open')) {
+                    panel.hidden = true;
+                    overlay.hidden = true;
+                }
+            }, 190);
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.hidden = !message;
+        }
+
+        function setBusy(value, label) {
+            isBusy = value;
+            thinking.hidden = !value;
+            thinkingLabel.textContent = label || 'Finding relevant information';
+            input.disabled = value || !isAvailable;
+            updateSendButton();
+        }
+
+        function updateSendButton() {
+            sendButton.disabled = isBusy || !isAvailable || !input.value.trim();
+        }
+
+        function scrollToLatest() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function getPageContext() {
+            const segments = window.location.pathname.split('/').filter(Boolean);
+            if (segments[0]?.toLowerCase() === 'product' && segments[1] && segments[1] !== 'preview') {
+                return { productSlug: decodeURIComponent(segments[1]) };
+            }
+            if (segments[0]?.toLowerCase() === 'store' && segments[1]) {
+                return { storeSlug: decodeURIComponent(segments[1]) };
+            }
+            return null;
+        }
+
+        async function api(path, options) {
+            const response = await fetch(path, {
+                credentials: 'same-origin',
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-GearZone-AI': '1',
+                    ...(options?.headers || {})
+                }
+            });
+            if (response.status === 429) {
+                throw new Error('You are sending messages too quickly. Please try again in a minute.');
+            }
+            if (!response.ok) {
+                let message = 'Unable to connect to GearZone AI.';
+                try {
+                    const body = await response.json();
+                    message = body.message || message;
+                } catch {
+                    // Keep the safe fallback.
+                }
+                throw new Error(message);
+            }
+            return response.json();
+        }
+
+        async function checkAvailability() {
+            try {
+                const result = await api('/api/ai-chat/status', { method: 'GET' });
+                isAvailable = result?.data?.enabled === true;
+                if (!isAvailable) {
+                    showError('GearZone AI is temporarily unavailable. Please try again later.');
+                }
+            } catch {
+                isAvailable = false;
+                showError('Unable to connect to GearZone AI.');
+            }
+            updateSendButton();
+        }
+
+        async function createConversation() {
+            const result = await api('/api/ai-chat/conversations', {
+                method: 'POST',
+                body: JSON.stringify(getPageContext() || {})
+            });
+            conversationId = result.data.id;
+            window.sessionStorage.setItem(storageKey, conversationId);
+            return conversationId;
+        }
+
+        async function findMostRecentConversation() {
+            if (!authenticated) return '';
+            const result = await api('/api/ai-chat/conversations?pageNumber=1&pageSize=1', {
+                method: 'GET'
+            });
+            return result?.data?.items?.[0]?.id || '';
+        }
+
+        async function initializeConversation() {
+            if (isBusy) return;
+            await checkAvailability();
+            if (!isAvailable) return;
+
+            try {
+                if (!conversationId) {
+                    conversationId = await findMostRecentConversation();
+                    if (conversationId) window.sessionStorage.setItem(storageKey, conversationId);
+                }
+                if (conversationId) {
+                    const loaded = await loadMessages();
+                    if (!loaded) {
+                        conversationId = '';
+                        window.sessionStorage.removeItem(storageKey);
+                    }
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const result = await api(
+                    `/api/ai-chat/conversations/${encodeURIComponent(conversationId)}/messages?pageSize=40`,
+                    { method: 'GET' });
+                renderMessages(result.data.messages || []);
+                return true;
+            } catch (error) {
+                if (error.message.toLowerCase().includes('not found')) return false;
+                throw error;
+            }
+        }
+
+        function renderMessages(items) {
+            messages.replaceChildren();
+            if (!items.length) {
+                messages.append(welcome);
+                welcome.hidden = false;
+                return;
+            }
+            welcome.hidden = true;
+            items.forEach(item => messages.append(createMessage(item)));
+            scrollToLatest();
+        }
+
+        function createMessage(item, streaming) {
+            const article = document.createElement('article');
+            article.className = `ai-chat-message ai-chat-message--${item.role || 'assistant'}`;
+            if (streaming) article.dataset.aiStreaming = 'true';
+
+            const body = document.createElement('div');
+            body.className = 'ai-chat-message__body';
+            const text = document.createElement('p');
+            text.className = 'ai-chat-message__text';
+            text.textContent = item.content || '';
+            body.append(text);
+
+            if (item.metadata) appendMetadata(body, item.metadata);
+            article.append(body);
+            return article;
+        }
+
+        function appendMetadata(container, metadata) {
+            const products = Array.isArray(metadata.products) ? metadata.products : [];
+            const orders = Array.isArray(metadata.orders) ? metadata.orders : [];
+            if (products.length || orders.length) {
+                const cards = document.createElement('div');
+                cards.className = 'ai-chat-cards';
+                products.slice(0, 5).forEach(product => cards.append(createProductCard(product)));
+                orders.slice(0, 5).forEach(order => cards.append(createOrderCard(order)));
+                container.append(cards);
+            }
+
+            const actions = Array.isArray(metadata.actions) ? metadata.actions : [];
+            if (actions.length) {
+                const actionsNode = document.createElement('div');
+                actionsNode.className = 'ai-chat-actions';
+                actions.forEach(action => actionsNode.append(createAction(action)));
+                container.append(actionsNode);
+            }
+        }
+
+        function createProductCard(product) {
+            const link = document.createElement('a');
+            link.className = 'ai-chat-card';
+            link.href = product.url || `/product/${encodeURIComponent(product.slug || '')}`;
+
+            const image = document.createElement('img');
+            image.src = product.imageUrl || '/images/product-placeholder.png';
+            image.alt = '';
+            image.loading = 'lazy';
+            image.addEventListener('error', () => { image.style.visibility = 'hidden'; }, { once: true });
+
+            const copy = document.createElement('span');
+            const name = document.createElement('strong');
+            name.textContent = product.name || 'GearZone product';
+            const detail = document.createElement('small');
+            detail.textContent = `${formatMoney(product.price)} · ${product.isInStock ? 'In stock' : 'Out of stock'}`;
+            copy.append(name, detail);
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = 'chevron_right';
+            link.append(image, copy, icon);
+            return link;
+        }
+
+        function createOrderCard(order) {
+            const link = document.createElement('a');
+            link.className = 'ai-chat-card';
+            link.href = order.url || `/orders/track/${encodeURIComponent(order.subOrderId || '')}`;
+
+            const orderIcon = document.createElement('span');
+            orderIcon.className = 'ai-chat-card__icon';
+            const glyph = document.createElement('span');
+            glyph.className = 'material-symbols-outlined';
+            glyph.textContent = 'package_2';
+            orderIcon.append(glyph);
+
+            const copy = document.createElement('span');
+            const name = document.createElement('strong');
+            name.textContent = `Order #${order.orderCode || ''}`;
+            const detail = document.createElement('small');
+            detail.textContent = `${order.status || 'Processing'} · ${order.storeName || 'GearZone'}`;
+            copy.append(name, detail);
+
+            const icon = document.createElement('span');
+            icon.className = 'material-symbols-outlined';
+            icon.textContent = 'chevron_right';
+            link.append(orderIcon, copy, icon);
+            return link;
+        }
+
+        function createAction(action) {
+            if (action.type === 'login') {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = action.label || 'Sign in';
+                button.addEventListener('click', () => window.showLoginModal?.());
+                return button;
+            }
+
+            if (action.type === 'seller_chat') {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = action.label || 'Chat with store';
+                button.addEventListener('click', () => {
+                    setOpen(false);
+                    window.GearZoneBuyerChatWidget?.open({
+                        storeSlug: action.storeSlug || '',
+                        productSlug: action.productSlug || ''
+                    });
+                });
+                return button;
+            }
+
+            const link = document.createElement('a');
+            link.href = action.url || '#';
+            link.textContent = action.label || 'View details';
+            return link;
+        }
+
+        function formatMoney(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'VND',
+                maximumFractionDigits: 0
+            }).format(Number(value || 0));
+        }
+
+        async function sendMessage() {
+            const content = input.value.trim();
+            if (!content || isBusy || !isAvailable) return;
+
+            showError('');
+            setBusy(true, 'Analyzing your question');
+            input.value = '';
+            resizeInput();
+            welcome.hidden = true;
+            if (welcome.parentNode === messages) welcome.remove();
+
+            const userMessage = createMessage({ role: 'user', content });
+            const assistantMessage = createMessage({ role: 'assistant', content: '' }, true);
+            messages.append(userMessage, assistantMessage);
+            const assistantBody = assistantMessage.querySelector('.ai-chat-message__body');
+            const assistantText = assistantMessage.querySelector('.ai-chat-message__text');
+            scrollToLatest();
+
+            try {
+                if (!conversationId) await createConversation();
+                const response = await fetch(
+                    `/api/ai-chat/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-GearZone-AI': '1'
+                        },
+                        body: JSON.stringify({
+                            clientMessageId: crypto.randomUUID(),
+                            message: content,
+                            pageContext: getPageContext()
+                        })
+                    });
+
+                if (response.status === 429) {
+                    throw new Error('You are sending messages too quickly. Please try again in a minute.');
+                }
+                if (!response.ok || !response.body) {
+                    throw new Error('Unable to receive a response from GearZone AI.');
+                }
+
+                await consumeEventStream(response.body, (eventName, data) => {
+                    if (eventName === 'tool.status') {
+                        thinkingLabel.textContent = toolStatusLabel(data.tool);
+                    } else if (eventName === 'response.delta') {
+                        assistantText.textContent += data.delta || '';
+                        scrollToLatest();
+                    } else if (eventName === 'response.completed') {
+                        const finalMessage = data.assistantMessage;
+                        assistantText.textContent = finalMessage?.content || assistantText.textContent;
+                        assistantBody.querySelectorAll('.ai-chat-cards, .ai-chat-actions').forEach(node => node.remove());
+                        appendMetadata(assistantBody, finalMessage?.metadata || {});
+                        scrollToLatest();
+                    } else if (eventName === 'response.error') {
+                        throw new Error(data.message || 'GearZone AI could not answer this question.');
+                    }
+                });
+            } catch (error) {
+                assistantMessage.remove();
+                showError(error.message);
+            } finally {
+                setBusy(false);
+                input.focus();
+            }
+        }
+
+        async function consumeEventStream(stream, onEvent) {
+            const reader = stream.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+                buffer = buffer.replace(/\r\n/g, '\n');
+                let boundary;
+                while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+                    const block = buffer.slice(0, boundary);
+                    buffer = buffer.slice(boundary + 2);
+                    let eventName = 'message';
+                    const dataLines = [];
+                    block.split('\n').forEach(line => {
+                        if (line.startsWith('event:')) eventName = line.slice(6).trim();
+                        if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+                    });
+                    if (!dataLines.length) continue;
+                    const data = JSON.parse(dataLines.join('\n'));
+                    onEvent(eventName, data);
+                }
+                if (done) break;
+            }
+        }
+
+        function toolStatusLabel(tool) {
+            const labels = {
+                search_products: 'Finding matching products',
+                get_product_details: 'Verifying product information',
+                search_knowledge: 'Looking up GearZone policies',
+                search_my_orders: 'Checking your orders',
+                get_my_order_tracking: 'Retrieving delivery status'
+            };
+            return labels[tool] || 'Preparing your answer';
+        }
+
+        async function startNewConversation() {
+            if (isBusy) return;
+            conversationId = '';
+            window.sessionStorage.removeItem(storageKey);
+            historyPanel.hidden = true;
+            messages.replaceChildren(welcome);
+            welcome.hidden = false;
+            showError('');
+            input.focus();
+        }
+
+        async function loadHistory() {
+            historyPanel.hidden = false;
+            historyList.replaceChildren();
+            const loading = document.createElement('p');
+            loading.className = 'ai-chat-history-empty';
+            loading.textContent = 'Loading history...';
+            historyList.append(loading);
+
+            try {
+                const result = await api('/api/ai-chat/conversations?pageNumber=1&pageSize=30', {
+                    method: 'GET'
+                });
+                const items = result?.data?.items || [];
+                historyList.replaceChildren();
+                if (!items.length) {
+                    loading.textContent = 'No conversations yet.';
+                    historyList.append(loading);
+                    return;
+                }
+                items.forEach(item => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = `ai-chat-history-item${item.id === conversationId ? ' is-active' : ''}`;
+                    const title = document.createElement('strong');
+                    title.textContent = item.title || 'New conversation';
+                    const date = document.createElement('small');
+                    date.textContent = new Intl.DateTimeFormat('en-US', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short'
+                    }).format(new Date(item.lastActivityAtUtc));
+                    button.append(title, date);
+                    button.addEventListener('click', async () => {
+                        conversationId = item.id;
+                        window.sessionStorage.setItem(storageKey, conversationId);
+                        historyPanel.hidden = true;
+                        await loadMessages();
+                    });
+                    historyList.append(button);
+                });
+            } catch (error) {
+                historyList.replaceChildren();
+                loading.textContent = error.message;
+                historyList.append(loading);
+            }
+        }
+
+        function resizeInput() {
+            input.style.height = 'auto';
+            input.style.height = `${Math.min(input.scrollHeight, 104)}px`;
+            updateSendButton();
+        }
+
+        launcher.addEventListener('click', () => setOpen(!root.classList.contains('is-open')));
+        overlay.addEventListener('click', () => setOpen(false));
+        root.querySelector('[data-ai-close]').addEventListener('click', () => setOpen(false));
+        root.querySelector('[data-ai-new]').addEventListener('click', startNewConversation);
+        root.querySelector('[data-ai-history-toggle]')?.addEventListener('click', loadHistory);
+        root.querySelector('[data-ai-history-close]')?.addEventListener('click', () => {
+            historyPanel.hidden = true;
+        });
+        root.querySelectorAll('[data-ai-prompt]').forEach(button => {
+            button.addEventListener('click', () => {
+                input.value = button.dataset.aiPrompt || '';
+                resizeInput();
+                input.focus();
+            });
+        });
+        input.addEventListener('input', resizeInput);
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                void sendMessage();
+            }
+        });
+        sendButton.addEventListener('click', sendMessage);
+        window.addEventListener('gearzone:buyer-chat-opened', () => setOpen(false));
+
+        window.GearZoneAiChatWidget = {
+            open: () => setOpen(true),
+            close: () => setOpen(false),
+            ask: text => {
+                setOpen(true);
+                input.value = String(text || '').slice(0, 2000);
+                resizeInput();
+            }
+        };
+    });
+</script>
