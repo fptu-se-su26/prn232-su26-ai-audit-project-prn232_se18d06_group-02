@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
+using Microsoft.AspNetCore.Http;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Api.Controllers;
@@ -15,11 +17,16 @@ public class ProductsController : BaseApiController
 {
     private readonly ISellerProductService _productService;
     private readonly ISellerStoreService _storeService;
+    private readonly IProductImportService _importService;
 
-    public ProductsController(ISellerProductService productService, ISellerStoreService storeService)
+    public ProductsController(
+        ISellerProductService productService,
+        ISellerStoreService storeService,
+        IProductImportService importService)
     {
         _productService = productService;
         _storeService = storeService;
+        _importService = importService;
     }
 
     // GET /api/seller/products?search=&status=&categoryId=&brandId=&sort=&dir=&page=
@@ -223,6 +230,65 @@ public class ProductsController : BaseApiController
         if (string.IsNullOrWhiteSpace(request.Name)) return FailResponse("Name is required.");
         var id = await _productService.CreateCategoryByNameAsync(request.Name);
         return CreatedResponse(new { id, name = request.Name }, $"/api/seller/products/categories");
+    }
+
+    // ---------------------------------------------------------- Bulk import (Excel)
+
+    // GET /api/seller/products/import/template  -> .xlsx template
+    [HttpGet("import/template")]
+    public async Task<IActionResult> ImportTemplate(CancellationToken ct)
+    {
+        var bytes = await _importService.GenerateTemplateAsync(ct);
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "product-import-template.xlsx");
+    }
+
+    // POST /api/seller/products/import/preview  (multipart/form-data: file) -> validated preview
+    [HttpPost("import/preview")]
+    public async Task<IActionResult> ImportPreview(IFormFile file, CancellationToken ct)
+    {
+        var store = await _storeService.GetStoreByOwnerIdAsync(CurrentUserId!);
+        if (store == null) return FailResponse("Store not found.", 404);
+        if (file == null || file.Length == 0) return FailResponse("Please choose a file to import.");
+
+        try
+        {
+            var bytes = await ReadAllBytesAsync(file, ct);
+            var preview = await _importService.PreviewAsync(bytes, store.Id, ct);
+            return OkResponse(preview);
+        }
+        catch (Exception ex)
+        {
+            return FailResponse("Could not read the file — make sure it is a valid .xlsx. " + ex.Message);
+        }
+    }
+
+    // POST /api/seller/products/import  (multipart/form-data: file) -> creates the valid products
+    [HttpPost("import")]
+    public async Task<IActionResult> Import(IFormFile file, CancellationToken ct)
+    {
+        var store = await _storeService.GetStoreByOwnerIdAsync(CurrentUserId!);
+        if (store == null) return FailResponse("Store not found.", 404);
+        if (file == null || file.Length == 0) return FailResponse("Please choose a file to import.");
+
+        try
+        {
+            var bytes = await ReadAllBytesAsync(file, ct);
+            var result = await _importService.ImportAsync(bytes, store.Id, CurrentUserId!, ct);
+            return OkResponse(result);
+        }
+        catch (Exception ex)
+        {
+            return FailResponse("Import failed: " + ex.Message);
+        }
+    }
+
+    private static async Task<byte[]> ReadAllBytesAsync(IFormFile file, CancellationToken ct)
+    {
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        return ms.ToArray();
     }
 }
 

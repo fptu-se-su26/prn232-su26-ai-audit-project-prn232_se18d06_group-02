@@ -379,6 +379,12 @@ namespace GearZone.Application.Features.Seller
                 var idx = BucketIndex(d, p.Start, p.Granularity, buckets.Count);
                 if (idx >= 0) followerSeries[idx].NewFollowers += 1;
             }
+            // Previous period overlaid on the same axis (index-aligned).
+            foreach (var d in followRows.Where(d => d < p.Start))
+            {
+                var idx = BucketIndex(d, p.PrevStart, p.Granularity, buckets.Count);
+                if (idx >= 0) followerSeries[idx].PreviousNewFollowers += 1;
+            }
 
             return new CustomerReportDto
             {
@@ -498,10 +504,18 @@ namespace GearZone.Application.Features.Seller
                 var idx = BucketIndex(r.CreatedAt, p.Start, p.Granularity, buckets.Count);
                 if (idx >= 0) grouped[idx].Add(r.Rating);
             }
+            // Previous-period review counts bucketed against the same axis.
+            var prevGrouped = new int[buckets.Count];
+            foreach (var r in prev)
+            {
+                var idx = BucketIndex(r.CreatedAt, p.PrevStart, p.Granularity, buckets.Count);
+                if (idx >= 0) prevGrouped[idx]++;
+            }
             for (int i = 0; i < trend.Count; i++)
             {
                 trend[i].Count = grouped[i].Count;
                 trend[i].AvgRating = grouped[i].Count == 0 ? 0 : Math.Round(grouped[i].Average(), 2);
+                trend[i].PreviousCount = prevGrouped[i];
             }
 
             return new ReviewsReportDto

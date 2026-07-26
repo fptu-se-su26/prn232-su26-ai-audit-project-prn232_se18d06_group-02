@@ -10,6 +10,26 @@
     string Money(decimal v) => v.ToString("N0") + " ₫";
     string Num(decimal v) => v.ToString("N0");
 
+    // Compact money for tight spaces / large values, e.g. 1.2M ₫.
+    string MoneyShort(decimal v)
+    {
+        var a = Math.Abs(v);
+        if (a >= 1_000_000_000) return (v / 1_000_000_000m).ToString("0.#") + "B ₫";
+        if (a >= 1_000_000) return (v / 1_000_000m).ToString("0.#") + "M ₫";
+        if (a >= 1_000) return (v / 1_000m).ToString("0.#") + "K ₫";
+        return v.ToString("N0") + " ₫";
+    }
+
+    // Builds a report URL preserving the custom date range while changing range/granularity/tab.
+    string FilterQuery(string range, string? granularity, string? tab = null)
+    {
+        var parts = new List<string> { $"Tab={tab ?? Model.Tab}", $"Range={range}" };
+        if (Model.From.HasValue) parts.Add($"From={Model.From:yyyy-MM-dd}");
+        if (Model.To.HasValue) parts.Add($"To={Model.To:yyyy-MM-dd}");
+        if (!string.IsNullOrEmpty(granularity)) parts.Add($"Granularity={granularity}");
+        return "?" + string.Join("&", parts);
+    }
+
     string SlowLabel(string c) => c switch { "Dead" => "Dead stock", "Slow" => "Slow-moving", "NeverSold" => "Never sold", _ => c };
     string SlowBadge(string c) => c switch { "Dead" => "bg-red-50 text-red-700", "Slow" => "bg-amber-50 text-amber-700", _ => "bg-slate-100 text-slate-600" };
     string SlowAction(string c) => c switch { "Dead" => "Discount or run a clearance voucher", "Slow" => "Bundle or promote it", "NeverSold" => "Review price, photos & description", _ => "" };
@@ -124,6 +144,48 @@
 
         return new Microsoft.AspNetCore.Html.HtmlString(sb.ToString());
     }
+
+    // Renders a donut chart + legend (inline SVG) from (label, count) slices.
+    Microsoft.AspNetCore.Html.IHtmlContent DonutChart(IReadOnlyList<(string Label, int Count)> data)
+    {
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        var total = data.Sum(d => d.Count);
+        if (total == 0)
+            return new Microsoft.AspNetCore.Html.HtmlString("<p class=\"py-10 text-center text-sm text-slate-400\">No orders in this period.</p>");
+
+        var palette = new[] { "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b" };
+        string F(double v) => v.ToString("0.##", ci);
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<div class=\"flex flex-wrap items-center gap-8 p-5\">");
+        sb.Append("<svg viewBox=\"0 0 42 42\" class=\"h-44 w-44 shrink-0\">");
+        sb.Append("<circle cx=\"21\" cy=\"21\" r=\"15.9155\" fill=\"transparent\" stroke=\"#f1f5f9\" stroke-width=\"5\" />");
+        var offset = 25.0; // start the first slice at 12 o'clock
+        for (var i = 0; i < data.Count; i++)
+        {
+            if (data[i].Count == 0) continue;
+            var pct = (double)data[i].Count / total * 100.0;
+            sb.Append($"<circle cx=\"21\" cy=\"21\" r=\"15.9155\" fill=\"transparent\" stroke=\"{palette[i % palette.Length]}\" stroke-width=\"5\" stroke-dasharray=\"{F(pct)} {F(100 - pct)}\" stroke-dashoffset=\"{F(offset)}\"><title>{System.Net.WebUtility.HtmlEncode(data[i].Label)}: {data[i].Count}</title></circle>");
+            offset -= pct;
+        }
+        sb.Append($"<text x=\"21\" y=\"20.5\" text-anchor=\"middle\" font-size=\"6\" font-weight=\"700\" fill=\"#0f172a\">{total}</text>");
+        sb.Append("<text x=\"21\" y=\"25\" text-anchor=\"middle\" font-size=\"2.6\" fill=\"#94a3b8\">orders</text>");
+        sb.Append("</svg>");
+
+        sb.Append("<div class=\"min-w-[220px] flex-1 space-y-2\">");
+        for (var i = 0; i < data.Count; i++)
+        {
+            var pct = Math.Round((double)data[i].Count / total * 100.0, 1);
+            sb.Append("<div class=\"flex items-center gap-3 text-sm\">");
+            sb.Append($"<span class=\"inline-block h-3 w-3 rounded-sm\" style=\"background:{palette[i % palette.Length]}\"></span>");
+            sb.Append($"<span class=\"flex-1 text-slate-700\">{System.Net.WebUtility.HtmlEncode(data[i].Label)}</span>");
+            sb.Append($"<span class=\"font-semibold text-slate-900\">{data[i].Count}</span>");
+            sb.Append($"<span class=\"w-12 text-right text-xs text-slate-400\">{F(pct)}%</span>");
+            sb.Append("</div>");
+        }
+        sb.Append("</div></div>");
+        return new Microsoft.AspNetCore.Html.HtmlString(sb.ToString());
+    }
 }
 
 <div class="flex flex-col gap-6">
@@ -135,15 +197,20 @@
                 @foreach (var r in GearZone.Web.Pages.StoreOwner.Reports.IndexModel.Ranges)
                 {
                     var active = string.Equals(Model.Range, r.Key, StringComparison.OrdinalIgnoreCase);
-                    <a href="?Tab=@Model.Tab&Range=@r.Key"
+                    <a href="@FilterQuery(r.Key, Model.Granularity)"
                        class="rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors @(active ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary")">
                         @r.Label
                     </a>
                 }
+                @{ var customActive = string.Equals(Model.Range, "custom", StringComparison.OrdinalIgnoreCase); }
+                <a href="@FilterQuery("custom", Model.Granularity)"
+                   class="inline-flex items-center gap-1 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors @(customActive ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary")">
+                    <span class="material-symbols-outlined text-[16px]">date_range</span> Custom
+                </a>
             </div>
             @if (Model.Tab == "sales" && Model.HasStore)
             {
-                <a href="?handler=Export&Range=@Model.Range&Granularity=@Model.Granularity"
+                <a href="?handler=Export&Range=@Model.Range&Granularity=@Model.Granularity@(Model.From.HasValue ? $"&From={Model.From:yyyy-MM-dd}" : "")@(Model.To.HasValue ? $"&To={Model.To:yyyy-MM-dd}" : "")"
                    class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-900">
                     <span class="material-symbols-outlined text-[18px]">download</span>
                     Export CSV
@@ -151,11 +218,40 @@
             }
         </div>
 
+        <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Group by</span>
+                <div class="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+                    @{ var grans = new[] { ("", "Auto"), ("day", "Day"), ("week", "Week"), ("month", "Month") }; }
+                    @foreach (var g in grans)
+                    {
+                        var gon = string.Equals(Model.Granularity ?? "", g.Item1, StringComparison.OrdinalIgnoreCase);
+                        <a href="@FilterQuery(Model.Range, string.IsNullOrEmpty(g.Item1) ? null : g.Item1)"
+                           class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors @(gon ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700")">@g.Item2</a>
+                    }
+                </div>
+            </div>
+
+            @if (customActive)
+            {
+                <form method="get" class="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="Tab" value="@Model.Tab" />
+                    <input type="hidden" name="Range" value="custom" />
+                    @if (!string.IsNullOrEmpty(Model.Granularity)) { <input type="hidden" name="Granularity" value="@Model.Granularity" /> }
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">From</label>
+                    <input type="date" name="From" value="@(Model.From?.ToString("yyyy-MM-dd"))" class="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700" />
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">To</label>
+                    <input type="date" name="To" value="@(Model.To?.ToString("yyyy-MM-dd"))" class="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700" />
+                    <button type="submit" class="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-dark">Apply</button>
+                </form>
+            }
+        </div>
+
         <div class="mt-4 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
             @foreach (var t in GearZone.Web.Pages.StoreOwner.Reports.IndexModel.Tabs)
             {
                 var active = Model.Tab == t.Key;
-                <a href="?Tab=@t.Key&Range=@Model.Range"
+                <a href="@FilterQuery(Model.Range, Model.Granularity, t.Key)"
                    class="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors @(active ? "bg-primary-light text-primary" : "text-slate-500 hover:bg-slate-50 hover:text-primary")">
                     <span class="material-symbols-outlined text-[18px] @(active ? "filled" : "")">@t.Icon</span>
                     @t.Label
@@ -195,7 +291,7 @@
                     var revPoints = s.Series.Select(x => (x.Label, (decimal)x.Revenue)).ToList();
                     var revPrev = s.Series.Select(x => x.PreviousRevenue).ToList();
                 }
-                @TrendChart(revPoints, "#10b981", "salesRevenueFill", Money, revPrev)
+                @TrendChart(revPoints, "#10b981", "salesRevenueFill", MoneyShort, revPrev)
             </div>
         }
 
@@ -320,7 +416,7 @@
                     </div>
                     <div class="rounded-lg bg-red-50 px-4 py-3">
                         <p class="text-xs font-semibold uppercase tracking-wider text-red-500">Capital tied up</p>
-                        <p class="mt-1 text-2xl font-bold text-red-700">@Money(pr.SlowMovingCapital)</p>
+                        <p class="mt-1 text-2xl font-bold text-red-700">@MoneyShort(pr.SlowMovingCapital)</p>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-4 py-3">
                         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">No sale within</p>
@@ -369,7 +465,7 @@
                                         <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold @SlowBadge(it.Category)">@SlowLabel(it.Category)</span>
                                     </td>
                                     <td class="px-3 py-3 text-right font-semibold text-slate-700">@it.StockQuantity</td>
-                                    <td class="px-3 py-3 text-right font-semibold text-slate-900">@Money(it.StockValue)</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-900">@MoneyShort(it.StockValue)</td>
                                     <td class="px-3 py-3 text-right text-slate-600">@(it.DaysSinceLastSale == null ? "Never" : $"{it.DaysSinceLastSale}d ago")</td>
                                     <td class="px-3 py-3 text-right text-slate-600">@(it.DaysToSellOut == null ? "—" : $"~{it.DaysToSellOut:0}d")</td>
                                     <td class="px-3 py-3 text-right text-slate-600">@it.AgeDays d</td>
@@ -450,29 +546,8 @@
 
             <div class="rounded-xl border border-slate-100 bg-white shadow-card">
                 <div class="border-b border-slate-100 p-5"><h3 class="text-base font-bold text-slate-900">Order status breakdown</h3></div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-left text-sm">
-                        <thead>
-                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                <th class="px-6 py-3">Status</th>
-                                <th class="px-6 py-3 text-right">Count</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @foreach (var st in o.StatusBreakdown)
-                            {
-                                <tr class="hover:bg-slate-50">
-                                    <td class="px-6 py-3 font-medium text-slate-800">@st.Status</td>
-                                    <td class="px-6 py-3 text-right text-slate-600">@Num(st.Count)</td>
-                                </tr>
-                            }
-                            @if (o.StatusBreakdown.Count == 0)
-                            {
-                                <tr><td colspan="2" class="py-12 text-center text-slate-400">No orders in this period.</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                @{ var statusData = o.StatusBreakdown.Select(s => (s.Status, s.Count)).ToList(); }
+                @DonutChart(statusData)
             </div>
         }
 
@@ -491,8 +566,11 @@
 
             <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
                 <h3 class="mb-4 text-base font-bold text-slate-900">New followers trend</h3>
-                @{ var followerPoints = c.FollowerSeries.Select(x => (x.Label, (decimal)x.NewFollowers)).ToList(); }
-                @TrendChart(followerPoints, "#ec4899", "followersFill", Num)
+                @{
+                    var followerPoints = c.FollowerSeries.Select(x => (x.Label, (decimal)x.NewFollowers)).ToList();
+                    var followerPrev = c.FollowerSeries.Select(x => (decimal)x.PreviousNewFollowers).ToList();
+                }
+                @TrendChart(followerPoints, "#ec4899", "followersFill", Num, followerPrev)
             </div>
         }
 
@@ -579,8 +657,11 @@
 
             <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
                 <h3 class="mb-4 text-base font-bold text-slate-900">Reviews trend</h3>
-                @{ var reviewPoints = rv.Trend.Select(x => (x.Label, (decimal)x.Count)).ToList(); }
-                @TrendChart(reviewPoints, "#3b82f6", "reviewsFill", Num)
+                @{
+                    var reviewPoints = rv.Trend.Select(x => (x.Label, (decimal)x.Count)).ToList();
+                    var reviewPrev = rv.Trend.Select(x => (decimal)x.PreviousCount).ToList();
+                }
+                @TrendChart(reviewPoints, "#3b82f6", "reviewsFill", Num, reviewPrev)
             </div>
         }
     }

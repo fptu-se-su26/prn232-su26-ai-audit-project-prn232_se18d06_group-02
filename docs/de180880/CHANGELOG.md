@@ -87,3 +87,37 @@ Author: Dang Cong Quoc Khanh (DE180880)
 - Used Codex to help implement the new React cart page, smoother quantity-change behavior, custom cart removal dialog, and price-slider interaction fixes.
 - Reviewed the generated output manually and kept the documentation framed as new frontend feature work in the current application.
 - Confirmed frontend changes with `npm run build` and browser-based interaction testing.
+
+## [2026-07-19]
+Author: Dang Cong Quoc Khanh (DE180880)
+
+### Added
+- Added a professional area/line revenue trend chart (inline SVG, no JS library) to the Store Owner Reports page, replacing the previous plain bar chart and matching the existing dashboard chart style. Applied the same chart style to the Followers and Reviews trends.
+- Added a dashed "previous period" comparison line (with a legend) on the revenue trend chart.
+- Added CSV export for the Products report tables (Top products, Low stock) and the Marketing report table (Voucher performance).
+- Added a new "Slow-moving & dead stock" section on the Products report tab: classifies in-stock variants as Dead stock / Slow-moving / Never sold, and shows capital tied up, days since last sale, estimated days to sell out, a 30/60/90-day window selector, and suggested actions.
+- Added client-side pagination and a no-page-reload (AJAX) interaction to the Slow-moving table so switching the window or page no longer reloads the whole page or jumps to the top.
+
+### Changed
+- The Marketing "Voucher performance" table now lists vouchers whose validity window overlaps the selected period even when they have zero redemptions, instead of only vouchers that were actually used.
+
+### Fixed
+- Fixed a timezone bug in the seller marketing report: vouchers store their validity and usage timestamps in server-local time while the report period was computed in UTC, so vouchers starting "today" and usages near day boundaries were miscounted or dropped. The marketing report now compares against a local-time window.
+
+### AI-assisted
+- Used Claude Code to help implement the report chart, table CSV exports, dead-stock analytics, pagination/AJAX behavior, and the timezone fix on the .NET / Razor side (GearZone.Web, GearZone.Api, GearZone.Application).
+- Reviewed the generated changes, ran `dotnet build` across the affected projects, and validated the reports visually in the browser.
+
+## [2026-07-20]
+Author: Dang Cong Quoc Khanh (DE180880)
+
+### Added
+- Added a bulk product import feature for sellers: upload an `.xlsx` file to create multiple products and their variants at once (Products → Import Excel).
+- Added a downloadable `.xlsx` template with an instructions sheet, reference sheets listing valid categories/brands, and in-cell dropdowns on the Category and Brand columns so those fields are chosen from a list instead of typed.
+- Added a preview-and-validate step that checks every row before anything is written (required fields, category/brand existence, SKU uniqueness within the file and against the database, numeric price/stock) and shows a per-row Valid/Invalid status with reasons.
+- Added the import commit step that creates only the valid products — as Draft, without images — and reports how many products/variants were created and how many rows were skipped.
+- Added seller API endpoints for template download, preview, and import, and a Razor Import page reachable from the product list.
+
+### AI-assisted
+- Used Claude Code to design and implement the import feature across the Application, Infrastructure (ClosedXML), API, and Web layers, reusing the existing product-creation logic and validation rules.
+- Verified the end-to-end template → parse → validate → import round-trip with a temporary automated test, then removed it and confirmed builds across all projects.

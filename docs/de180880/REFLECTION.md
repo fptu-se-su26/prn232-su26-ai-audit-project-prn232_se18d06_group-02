@@ -50,3 +50,33 @@ Manual testing was still necessary after implementation. The build could confirm
 - Custom confirmation dialogs improve product consistency compared with browser-default popups when the app already has a defined visual style.
 - Slider controls need both visual alignment and correct pointer behavior; otherwise they can look complete but still feel broken.
 - AI is strong for rapid iteration on UI interaction logic, but final UX quality still requires manual testing and human judgment.
+
+## Reflection - Seller Report Analytics Enhancements
+
+For this stage, I moved from the React customer frontend to the server-rendered Store Owner area of the .NET application and improved the seller reports. The work started from a small request — the revenue chart looked too plain — but it grew into a rounded analytics improvement: an inline-SVG area/line trend chart matching the existing dashboard, a dashed previous-period comparison line, CSV export for the report tables, and a new "Slow-moving & dead stock" section that flags stagnant inventory so a seller can act on it.
+
+The most valuable lesson was that framing the task around real seller needs, instead of a single visual tweak, exposed a genuine correctness bug. While extending the marketing report I found that vouchers store their validity and usage in server-local time, but the report period was computed in UTC, so a voucher starting "today" was silently dropped near the day boundary. That is the kind of defect that a screenshot review would not catch, and it reinforced that "the chart looks fine" is not the same as "the numbers are right".
+
+I also learned to keep changes scoped. The timezone fix was applied only to the voucher comparisons rather than rewriting the shared period logic, because the sales figures were already consistent (orders are stored in UTC too). Doing the smallest correct change kept the working parts stable. For the dead-stock section, I had to decide on business rules — what counts as "slow" versus "dead", and how to estimate days-to-sell-out — which was a design judgment the AI could implement but not decide for me.
+
+### What I learned
+- Reporting features must be verified for numeric correctness, not just visual appearance; boundary and timezone cases are easy to miss.
+- Mixed time bases (UTC vs local) in a codebase are a real source of bugs, and fixes should match how each piece of data was actually stored.
+- Analytics like slow-moving stock need explicit, defensible business thresholds; the definitions matter as much as the calculation.
+- Scoping a fix narrowly protects the parts that already work.
+- On a server-rendered page, progressive enhancement (links that still work, upgraded with a small script) can add no-reload interactions without a full SPA.
+
+## Reflection - Seller Product Excel Import
+
+For this stage, I built a bulk product import feature so sellers can upload an Excel file to create many products and variants at once. I deliberately asked for an idea and a plan before implementing, and that step turned out to be the most useful part: it forced the important decisions to the surface early — Excel versus CSV, one row per variant grouped by product name, whether to auto-create unknown categories/brands, and what status imported products should have — and it revealed that the ClosedXML library was already in the project, so I did not need a new dependency.
+
+The design lesson I take from this is the value of a preview-and-validate step before writing anything. Bulk operations are risky because a single bad file could create dozens of wrong products, so validating every row (required fields, category/brand existence, SKU uniqueness both within the file and against the database, numeric price/stock) and showing a per-row result lets the seller fix problems before committing. Reusing the existing product-creation method for the actual write also meant the import automatically inherited the normal rules, instead of duplicating them.
+
+Keeping the feature inside the clean-architecture boundaries mattered too: the spreadsheet parsing and template generation live in the Infrastructure layer where the Excel library belongs, while the Application layer only defines the contract. Finally, because spreadsheet parsing is behavior the compiler cannot check, I verified the full template → parse → validate → import round-trip (including invalid rows and the category/brand dropdowns) with a temporary automated test before trusting it.
+
+### What I learned
+- Planning before coding is especially valuable for a feature with several branching decisions; it prevents rework and surfaces reusable pieces already in the project.
+- Bulk-write features should always validate and preview before committing, and report exactly what was created and skipped.
+- Reusing existing creation logic keeps business rules consistent instead of re-implementing validation in a second place.
+- File parsing has runtime behavior the compiler cannot verify, so an end-to-end round-trip test is worth writing even if it is later removed.
+- Making required fields into dropdowns in the template improves data quality at the source and reduces avoidable validation errors.
