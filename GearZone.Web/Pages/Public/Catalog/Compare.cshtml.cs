@@ -1,25 +1,25 @@
-using GearZone.Application.Abstractions.Services;
-using GearZone.Application.Features.Catalog.DTOs;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using GearZone.Application.Features.Catalog.DTOs;
+using GearZone.Web.Services.Api;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace GearZone.Web.Pages.Public.Catalog
 {
     public class CompareModel : PageModel
     {
-        private readonly ICatalogService _catalogService;
+        // Consumes GearZone.Api over HTTP instead of the catalog service in-process.
+        private readonly IApiClient _api;
 
-        public CompareModel(ICatalogService catalogService)
+        public CompareModel(IApiClient api)
         {
-            _catalogService = catalogService;
+            _api = api;
         }
 
         public ProductComparisonDto? ComparisonData { get; private set; }
 
-        public async Task<IActionResult> OnGetAsync(int categoryId, string ids)
+        public async Task<IActionResult> OnGetAsync(int categoryId, string ids, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(ids))
             {
@@ -36,7 +36,8 @@ namespace GearZone.Web.Pages.Public.Catalog
                 return RedirectToPage("/Index");
             }
 
-            ComparisonData = await _catalogService.GetProductComparisonAsync(categoryId, productIds);
+            ComparisonData = await _api.GetAsync<ProductComparisonDto>(
+                $"/api/products/compare?categoryId={categoryId}&ids={Uri.EscapeDataString(string.Join(",", productIds))}", ct);
 
             if (ComparisonData == null)
             {

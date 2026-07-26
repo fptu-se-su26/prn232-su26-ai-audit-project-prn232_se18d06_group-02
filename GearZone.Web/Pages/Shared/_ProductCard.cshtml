@@ -31,8 +31,13 @@
     </div>
     
     <!-- Image Section -->
-    <a href="/product/@Model.Slug" class="@(isList ? "w-40 sm:w-56 flex-shrink-0" : "p-4 flex items-center justify-center h-48") bg-white relative block">
-        <img class="w-full h-full object-contain p-4 mix-blend-multiply dark:mix-blend-normal" alt="@Model.Name" src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/placeholder.png" : Model.ImageUrl)"/>
+    <a href="/product/@Model.Slug"
+       class="@(isList ? "w-40 sm:w-56 flex-shrink-0" : "h-52") bg-white relative block overflow-hidden">
+        <img class="w-full h-full @(isList ? "object-contain p-3" : "object-cover") transition-transform duration-500 ease-out group-hover:scale-[1.035]"
+             alt="@Model.Name"
+             loading="lazy"
+             decoding="async"
+             src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "/images/placeholder.png" : Model.ImageUrl)" />
     </a>
     
     <!-- Content Section -->

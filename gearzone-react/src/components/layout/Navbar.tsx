@@ -133,6 +133,12 @@ export default function Navbar() {
                             Seller Dashboard
                           </Link>
                         )}
+                        {user.role === 'Store Owner' && (
+                          <Link to="/seller/reports" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 font-bold transition-colors">
+                            <span className="material-symbols-outlined text-[20px]">bar_chart</span>
+                            Reports
+                          </Link>
+                        )}
                       </div>
                       <div className="pt-1 mt-1 border-t border-gray-50">
                         <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium w-full text-left transition-colors">

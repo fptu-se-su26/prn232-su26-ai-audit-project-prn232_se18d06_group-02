@@ -25,6 +25,7 @@ import SellerProductsPage from './pages/seller/ProductsPage';
 import SellerOrdersPage from './pages/seller/OrdersPage';
 import SellerVouchersPage from './pages/seller/VouchersPage';
 import SellerRevenuePage from './pages/seller/RevenuePage';
+import SellerReportsPage from './pages/seller/ReportsPage';
 import SellerSettingsPage from './pages/seller/SettingsPage';
 import SellerReviewsPage from './pages/seller/ReviewsPage';
 import SellerMessagesPage from './pages/seller/MessagesPage';
@@ -94,6 +95,7 @@ export default function App() {
         <Route path="/seller/orders" element={<RequireAuth roles={['Store Owner']}><SellerOrdersPage /></RequireAuth>} />
         <Route path="/seller/vouchers" element={<RequireAuth roles={['Store Owner']}><SellerVouchersPage /></RequireAuth>} />
         <Route path="/seller/revenue" element={<RequireAuth roles={['Store Owner']}><SellerRevenuePage /></RequireAuth>} />
+        <Route path="/seller/reports" element={<RequireAuth roles={['Store Owner']}><SellerReportsPage /></RequireAuth>} />
         <Route path="/seller/settings" element={<RequireAuth roles={['Store Owner']}><SellerSettingsPage /></RequireAuth>} />
         <Route path="/seller/reviews" element={<RequireAuth roles={['Store Owner']}><SellerReviewsPage /></RequireAuth>} />
         <Route path="/seller/messages" element={<RequireAuth roles={['Store Owner']}><SellerMessagesPage /></RequireAuth>} />

@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using GearZone.Application.Abstractions.Services;
-using GearZone.Application.Features.Catalog.DTOs;
 using GearZone.Application.Common.Models;
+using GearZone.Application.Features.Catalog.DTOs;
 using GearZone.Application.Features.Reviews.Dtos;
 using GearZone.Web.Pages.Public.Catalog.Models;
-using GearZone.Domain.Entities;
-using Microsoft.AspNetCore.Identity;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -16,18 +14,13 @@ namespace GearZone.Web.Pages.Public.Catalog
 {
     public class ProductDetailModel : PageModel
     {
-        private readonly ICatalogService _catalogService;
-        private readonly IProductReviewService _productReviewService;
-        private readonly UserManager<ApplicationUser> _userManager;
+        // Consumes GearZone.Api over HTTP instead of the catalog/review services in-process.
+        // The forwarded auth cookie lets the API resolve EligibleReview for the signed-in user.
+        private readonly IApiClient _api;
 
-        public ProductDetailModel(
-            ICatalogService catalogService,
-            IProductReviewService productReviewService,
-            UserManager<ApplicationUser> userManager)
+        public ProductDetailModel(IApiClient api)
         {
-            _catalogService = catalogService;
-            _productReviewService = productReviewService;
-            _userManager = userManager;
+            _api = api;
         }
 
         public ProductDetailDto Product { get; set; } = default!;
@@ -44,14 +37,14 @@ namespace GearZone.Web.Pages.Public.Catalog
         [BindProperty(SupportsGet = true)]
         public int ReviewPage { get; set; } = 1;
 
-        public async Task<IActionResult> OnGetAsync(string slug)
+        public async Task<IActionResult> OnGetAsync(string slug, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(slug))
             {
                 return RedirectToPage("/Index");
             }
 
-            var product = await LoadPageDataAsync(slug, includeRelatedProducts: true);
+            var product = await LoadPageDataAsync(slug, includeRelatedProducts: true, ct);
             if (product == null)
             {
                 return NotFound();
@@ -60,14 +53,14 @@ namespace GearZone.Web.Pages.Public.Catalog
             return Page();
         }
 
-        public async Task<IActionResult> OnGetReviewPanelAsync(string slug)
+        public async Task<IActionResult> OnGetReviewPanelAsync(string slug, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(slug))
             {
                 return BadRequest();
             }
 
-            var product = await LoadPageDataAsync(slug, includeRelatedProducts: false);
+            var product = await LoadPageDataAsync(slug, includeRelatedProducts: false, ct);
             if (product == null)
             {
                 return NotFound();
@@ -80,28 +73,22 @@ namespace GearZone.Web.Pages.Public.Catalog
             };
         }
 
-        private async Task<ProductDetailDto?> LoadPageDataAsync(string slug, bool includeRelatedProducts)
+        private async Task<ProductDetailDto?> LoadPageDataAsync(string slug, bool includeRelatedProducts, CancellationToken ct)
         {
-            var product = await _catalogService.GetProductDetailBySlugAsync(slug);
-            if (product == null)
+            var parts = new List<string> { $"reviewPage={(ReviewPage < 1 ? 1 : ReviewPage)}" };
+            if (ReviewRating.HasValue) parts.Add($"reviewRating={ReviewRating.Value}");
+            if (WithCommentOnly) parts.Add("withCommentOnly=true");
+
+            var data = await _api.GetAsync<ProductDetailPageDto>(
+                $"/api/products/{Uri.EscapeDataString(slug)}?{string.Join("&", parts)}", ct);
+
+            if (data?.Product == null)
             {
                 return null;
             }
 
-            Product = product;
-            var currentUserId = _userManager.GetUserId(User);
-            if (!string.IsNullOrWhiteSpace(currentUserId))
-            {
-                Product.EligibleReview = await _productReviewService.GetEligibleReviewForProductAsync(currentUserId, Product.Id);
-            }
-
-            ProductReviews = await _productReviewService.GetProductReviewsAsync(Product.Id, new ProductReviewQueryDto
-            {
-                Rating = ReviewRating,
-                WithCommentOnly = WithCommentOnly,
-                PageNumber = ReviewPage,
-                PageSize = 5
-            });
+            Product = data.Product;
+            ProductReviews = data.Reviews;
 
             ReviewPanel = new ProductReviewPanelViewModel
             {
@@ -119,7 +106,7 @@ namespace GearZone.Web.Pages.Public.Catalog
 
             if (includeRelatedProducts)
             {
-                RelatedProducts = await _catalogService.GetRelatedProductsAsync(Product.CategoryId, Product.Id, 4);
+                RelatedProducts = data.RelatedProducts;
             }
 
             return Product;

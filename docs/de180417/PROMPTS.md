@@ -203,3 +203,25 @@ Use the existing admin layout, route protection, and API response envelope. Add 
 
 ### Evaluation
 This prompt defines Category, Brand, and Voucher Management as new React admin modules with clear catalog and marketing responsibilities. It separates list workflows from create/edit workflows, names the required backend support, and keeps the expected UI behavior tied to admin operations rather than unrelated refactoring.
+
+## Prompt #10
+
+- Date: 2026-07-18
+- AI Tool: Codex
+- Author: Đàm Nguyên Khang (DE180417)
+- Purpose: Implement Admin Reports / Business Intelligence v1
+
+### Prompt
+Implement the approved Admin Reports / Business Intelligence plan with three Super Admin tabs (Overview, Orders, Sellers), shared Vietnam-time date filters, comparison metrics, zero-filled charts, seller filtering/sorting/paging, CSV/XLSX/PDF exports, and manually generated OpenAI or Gemini insights. Keep report output operational when AI is disabled, do not send PII to AI, cache deterministic reports and insights separately, and add xUnit tests using SQLite in-memory.
+
+### Expected Output
+- `/admin/reports` Razor UI and `Reports & BI` sidebar navigation
+- Protected report, export, and insight API endpoints
+- Paid GMV and operational metrics computed from existing entities
+- Structured OpenAI/Gemini provider integrations with evidence-key validation
+- Deterministic CSV/XLSX/PDF exports
+- Automated period, aggregation, AI cache, export, and API contract tests
+- Successful `dotnet test` and solution build
+
+### Evaluation
+The prompt was detailed enough to keep formulas, privacy constraints, API behavior, and UI expectations aligned. Manual review remains necessary for production database query plans, provider model availability, QuestPDF licensing before commercial use, and end-to-end browser testing with real authentication and report data.

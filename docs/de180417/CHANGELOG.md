@@ -132,3 +132,28 @@ Author: DE180417
 ### AI-assisted
 - Used Codex to help plan, implement, review, and verify the new React admin dashboard and store-application management features
 - Final feature scope, affected files, route behavior, and verification commands were reviewed manually by the author
+
+## [2026-07-18]
+Author: Đàm Nguyên Khang (DE180417)
+
+### Added
+- Added the Super Admin `/admin/reports` page with Overview, Orders, and Sellers tabs.
+- Added normalized Vietnam-time report periods, previous-period comparisons, automatic granularity, and zero-filled trend buckets.
+- Added report APIs for JSON data, CSV/XLSX/PDF export, and cached/manual AI insights.
+- Added OpenAI Responses API and Gemini structured-output providers with aggregate-only snapshots and metric evidence validation.
+- Added five-minute report caching, 30-minute insight caching, and a five-per-15-minute AI generation limit.
+- Added `GearZone.Tests` with xUnit and SQLite in-memory coverage for report aggregation, period resolution, exports, AI caching, and API contracts.
+
+### Changed
+- Replaced the Admin Revenue placeholder with the `Reports & BI` sidebar link.
+- Extended `IApiClient` with metadata-aware raw file downloads while preserving `GetBytesAsync`.
+- Added ClosedXML and QuestPDF for deterministic server-side report files.
+
+### Security and privacy
+- Kept AI keys in environment/user secrets only and added a non-secret `.env.example`.
+- Prevented customer PII and raw orders from entering AI insight snapshots.
+- Restricted all report endpoints and the Razor page to the `Super Admin` role.
+
+### Verification
+- `dotnet test GearZone.Tests/GearZone.Tests.csproj`: 10 passed.
+- `dotnet build GearZone.Web/GearZone.Web.csproj --no-restore`: passed.

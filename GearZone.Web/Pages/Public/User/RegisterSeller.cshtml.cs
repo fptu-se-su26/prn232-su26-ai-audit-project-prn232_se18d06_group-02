@@ -1,11 +1,16 @@
-using GearZone.Application.Abstractions.Services;
-using Microsoft.Extensions.Configuration;
 using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Domain.Enums;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Configuration;
 using System;
+using System.Globalization;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GearZone.Web.Pages.Public.User
@@ -13,14 +18,15 @@ namespace GearZone.Web.Pages.Public.User
     [Authorize]
     public class RegisterSellerModel : PageModel
     {
-        private readonly ISellerStoreService _sellerStoreService;
-        private readonly IAuthService _authService;
+        private const string ProgressPath = "/api/seller-registration/progress";
+
+        // Consumes GearZone.Api over HTTP instead of the seller store service in-process.
+        private readonly IApiClient _api;
         private readonly IConfiguration _configuration;
 
-        public RegisterSellerModel(ISellerStoreService sellerStoreService, IAuthService authService, IConfiguration configuration)
+        public RegisterSellerModel(IApiClient api, IConfiguration configuration)
         {
-            _sellerStoreService = sellerStoreService;
-            _authService = authService;
+            _api = api;
             _configuration = configuration;
         }
 
@@ -40,36 +46,31 @@ namespace GearZone.Web.Pages.Public.User
         public string? ExistingStoreRejectReason { get; set; }
         public string GoongMapKey => _configuration["GOONG_MAP_KEY"] ?? "";
 
-        public async Task<IActionResult> OnGetAsync(bool reapply = false)
+        public async Task<IActionResult> OnGetAsync(bool reapply = false, CancellationToken ct = default)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null) return RedirectToPage("/Public/Auth/Login");
+            var state = await _api.GetAsync<SellerRegistrationStateDto>(ProgressPath, ct);
 
-            // Check if user already has an approved/pending store
-            var existingStore = await _sellerStoreService.GetStoreByOwnerIdAsync(user.Id);
-            ExistingStoreStatus = existingStore?.Status;
-            ExistingStoreRejectReason = existingStore?.RejectReason;
+            ExistingStoreStatus = state?.ExistingStore?.Status;
+            ExistingStoreRejectReason = state?.ExistingStore?.RejectReason;
 
-            if (reapply && existingStore is { Status: StoreStatus.Pending or StoreStatus.Rejected })
+            if (reapply && state?.ExistingStore is { Status: StoreStatus.Pending or StoreStatus.Rejected })
             {
-                try
+                var reapplyResult = await _api.PostAsync("/api/seller-registration/reapply", ct);
+                if (!reapplyResult.Success)
                 {
-                    await _sellerStoreService.StartReapplicationAsync(user.Id);
-                    TempData["InfoMessage"] = "Your application has been reopened for editing.";
-                    return RedirectToPage(new { step = 1 });
-                }
-                catch (Exception ex)
-                {
-                    TempData["ErrorMessage"] = ex.Message;
+                    TempData["ErrorMessage"] = reapplyResult.FirstError;
                     return RedirectToPage("/Public/User/Profile");
                 }
+
+                TempData["InfoMessage"] = "Your application has been reopened for editing.";
+                return RedirectToPage(new { step = 1 });
             }
 
-            if (existingStore != null && existingStore.Status != StoreStatus.Draft)
+            if (state?.ExistingStore != null && state.ExistingStore.Status != StoreStatus.Draft)
             {
-                if (existingStore.Status == StoreStatus.Approved)
+                if (state.ExistingStore.Status == StoreStatus.Approved)
                     return RedirectToPage("/StoreOwner/Dashboard");
-                if (existingStore.Status == StoreStatus.Pending)
+                if (state.ExistingStore.Status == StoreStatus.Pending)
                 {
                     TempData["InfoMessage"] = "Your registration is pending approval.";
                     return RedirectToPage("/Public/User/Profile");
@@ -77,9 +78,9 @@ namespace GearZone.Web.Pages.Public.User
             }
 
             // Load draft progress
-            Progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
-            if (Progress != null)
+            if (state?.Progress != null)
             {
+                Progress = ToProgressDto(state.Progress);
                 CurrentStep = Progress.CurrentStep;
                 StoreId = Progress.StoreId;
                 Step1Input = Progress.Step1;
@@ -90,102 +91,126 @@ namespace GearZone.Web.Pages.Public.User
             return Page();
         }
 
-        public async Task<IActionResult> OnPostStep1Async()
+        public async Task<IActionResult> OnPostStep1Async(CancellationToken ct = default)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null) return RedirectToPage("/Public/Auth/Login");
-
-            try
+            var result = await _api.PostAsync("/api/seller-registration/step1", Step1Input, ct);
+            if (!result.Success)
             {
-                var storeId = await _sellerStoreService.SaveStep1Async(user.Id, Step1Input);
-                return RedirectToPage(new { step = 2 });
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", ex.Message);
+                ModelState.AddModelError("", result.FirstError ?? "Could not save step 1.");
                 CurrentStep = 1;
                 return Page();
             }
+
+            return RedirectToPage(new { step = 2 });
         }
 
-        public async Task<IActionResult> OnPostStep2Async()
+        public async Task<IActionResult> OnPostStep2Async(CancellationToken ct = default)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null) return RedirectToPage("/Public/Auth/Login");
+            if (!await LoadProgressAsync(ct)) return RedirectToPage();
 
-            Progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
-            if (Progress?.StoreId == null) return RedirectToPage();
+            // Step 2 carries the ID card uploads, so it goes over multipart/form-data.
+            using var form = new MultipartFormDataContent();
+            AddField(form, nameof(Step2Dto.FullName), Step2Input.FullName);
+            AddField(form, nameof(Step2Dto.IdentityNumber), Step2Input.IdentityNumber);
+            AddField(form, nameof(Step2Dto.IdentityIssuedDate), Step2Input.IdentityIssuedDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            AddField(form, nameof(Step2Dto.IdentityIssuedPlace), Step2Input.IdentityIssuedPlace);
+            AddField(form, nameof(Step2Dto.TaxCode), Step2Input.TaxCode);
+            AddField(form, nameof(Step2Dto.IdentityCardFrontImageUrl), Step2Input.IdentityCardFrontImageUrl);
+            AddField(form, nameof(Step2Dto.IdentityCardBackImageUrl), Step2Input.IdentityCardBackImageUrl);
+            AddFile(form, nameof(Step2Dto.IdentityCardFrontImage), Step2Input.IdentityCardFrontImage);
+            AddFile(form, nameof(Step2Dto.IdentityCardBackImage), Step2Input.IdentityCardBackImage);
 
-            try
+            var result = await _api.PostFormAsync("/api/seller-registration/step2", form, ct);
+            if (!result.Success)
             {
-                await _sellerStoreService.SaveStep2Async(Progress.StoreId.Value, user.Id, Step2Input);
-                return RedirectToPage(new { step = 3 });
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", ex.Message);
+                ModelState.AddModelError("", result.FirstError ?? "Could not save step 2.");
                 CurrentStep = 2;
                 return Page();
             }
+
+            return RedirectToPage(new { step = 3 });
         }
 
-        public async Task<IActionResult> OnPostStep3Async()
+        public async Task<IActionResult> OnPostStep3Async(CancellationToken ct = default)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null) return RedirectToPage("/Public/Auth/Login");
+            if (!await LoadProgressAsync(ct)) return RedirectToPage();
 
-            Progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
-            if (Progress?.StoreId == null) return RedirectToPage();
-
-            try
+            var result = await _api.PostAsync("/api/seller-registration/step3", Step3Input, ct);
+            if (!result.Success)
             {
-                await _sellerStoreService.SaveStep3Async(Progress.StoreId.Value, Step3Input);
-                return RedirectToPage(new { step = 4 });
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", ex.Message);
+                ModelState.AddModelError("", result.FirstError ?? "Could not save step 3.");
                 CurrentStep = 3;
                 return Page();
             }
+
+            return RedirectToPage(new { step = 4 });
         }
 
-        public async Task<IActionResult> OnPostSubmitAsync()
+        public async Task<IActionResult> OnPostSubmitAsync(CancellationToken ct = default)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null) return RedirectToPage("/Public/Auth/Login");
+            if (!await LoadProgressAsync(ct)) return RedirectToPage();
 
-            Progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
-            if (Progress?.StoreId == null) return RedirectToPage();
-
-            try
+            var result = await _api.PostAsync("/api/seller-registration/submit", ct);
+            if (!result.Success)
             {
-                await _sellerStoreService.SubmitRegistrationAsync(Progress.StoreId.Value, user.Id);
-                TempData["SuccessMessage"] = "Your registration has been submitted successfully! We will review and respond as soon as possible.";
-                return RedirectToPage("/Public/User/Profile");
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", ex.Message);
+                ModelState.AddModelError("", result.FirstError ?? "Could not submit the registration.");
                 CurrentStep = 4;
                 return Page();
             }
+
+            TempData["SuccessMessage"] = "Your registration has been submitted successfully! We will review and respond as soon as possible.";
+            return RedirectToPage("/Public/User/Profile");
         }
 
-        public async Task OnGetLoadStepAsync(int step)
+        public async Task OnGetLoadStepAsync(int step, CancellationToken ct = default)
         {
-            var user = await _authService.GetUserAsync(User);
-            if (user == null) return;
-
-            Progress = await _sellerStoreService.GetRegistrationProgressAsync(user.Id);
-            if (Progress != null)
+            var state = await _api.GetAsync<SellerRegistrationStateDto>(ProgressPath, ct);
+            if (state?.Progress != null)
             {
+                Progress = ToProgressDto(state.Progress);
                 StoreId = Progress.StoreId;
                 Step1Input = Progress.Step1;
                 Step2Input = Progress.Step2;
                 Step3Input = Progress.Step3;
             }
             CurrentStep = step;
+        }
+
+        /// <summary>
+        /// Populates <see cref="Progress"/> and reports whether a draft store exists to save into.
+        /// Leaves the bound inputs alone so a failed post redisplays what the user typed.
+        /// </summary>
+        private async Task<bool> LoadProgressAsync(CancellationToken ct)
+        {
+            var state = await _api.GetAsync<SellerRegistrationStateDto>(ProgressPath, ct);
+            Progress = state?.Progress == null ? null : ToProgressDto(state.Progress);
+            return Progress?.StoreId != null;
+        }
+
+        private static RegistrationProgressDto ToProgressDto(SellerRegistrationProgressStateDto state) => new()
+        {
+            StoreId = state.StoreId,
+            CurrentStep = state.CurrentStep,
+            Step1 = state.Step1,
+            Step2 = state.Step2.ToInput(),
+            Step3 = state.Step3
+        };
+
+        private static void AddField(MultipartFormDataContent form, string name, string? value)
+        {
+            if (!string.IsNullOrEmpty(value)) form.Add(new StringContent(value), name);
+        }
+
+        private static void AddFile(MultipartFormDataContent form, string name, IFormFile? file)
+        {
+            if (file == null || file.Length == 0) return;
+
+            var content = new StreamContent(file.OpenReadStream());
+            if (!string.IsNullOrEmpty(file.ContentType))
+            {
+                content.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            }
+            form.Add(content, name, file.FileName);
         }
     }
 }

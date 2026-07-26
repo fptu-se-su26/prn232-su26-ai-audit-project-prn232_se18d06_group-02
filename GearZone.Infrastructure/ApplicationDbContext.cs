@@ -7,6 +7,8 @@ namespace GearZone.Infrastructure
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
+        public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+
         public DbSet<Store> Stores { get; set; }
 
         public DbSet<Brand> Brands { get; set; }
@@ -38,6 +40,9 @@ namespace GearZone.Infrastructure
         public DbSet<StoreFollow> StoreFollows { get; set; }
         public DbSet<Conversation> Conversations { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<AiConversation> AiConversations { get; set; }
+        public DbSet<AiMessage> AiMessages { get; set; }
+        public DbSet<AiKnowledgeArticle> AiKnowledgeArticles { get; set; }
         
         public DbSet<PayoutBatch> PayoutBatches { get; set; }
         public DbSet<PayoutTransaction> PayoutTransactions { get; set; }

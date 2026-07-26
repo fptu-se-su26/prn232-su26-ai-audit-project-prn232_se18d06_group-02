@@ -301,7 +301,7 @@ namespace GearZone.Web.Pages.Public.User
 
         private string GetMessagesBasePath()
         {
-            return Url.Page("/Public/User/Profile", new { tab = "messages" }) ?? "/Public/User/Profile?tab=messages";
+            return Url.Page("/Public/User/Profile", new { tab = "messages" }) ?? "/profile?tab=messages";
         }
     }
 }

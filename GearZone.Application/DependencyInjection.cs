@@ -2,6 +2,7 @@ using GearZone.Application.Abstractions.External;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Admin;
 using GearZone.Application.Features.Auth;
+using GearZone.Application.Features.AiChat;
 using GearZone.Application.Features.Cart;
 using GearZone.Application.Features.Catalog;
 using GearZone.Application.Features.Chat;
@@ -24,6 +25,9 @@ namespace GearZone.Application
         {
             services.AddMemoryCache();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IAiChatService, AiChatService>();
+            services.AddScoped<IAiChatToolExecutor, AiChatToolExecutor>();
+            services.AddScoped<IAiKnowledgeService, AiKnowledgeService>();
             services.AddScoped<IOrderTrackingNotifier, NoOpOrderTrackingNotifier>();
             services.AddScoped<IAdminUserService, AdminUserService>();
             services.AddScoped<IAdminStoreService, AdminStoreService>();
@@ -48,12 +52,16 @@ namespace GearZone.Application
             services.AddScoped<IAdminWalletService, AdminWalletService>();
             services.AddScoped<IAdminPlatformService, AdminPlatformService>();
             services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+            services.AddScoped<IAdminReportService, AdminReportService>();
+            services.AddScoped<IAdminAiInsightService, AdminAiInsightService>();
             services.AddScoped<IAdminVoucherService, AdminVoucherService>();
             services.AddScoped<IVoucherService, VoucherService>();
             services.AddScoped<IShippingService, ShippingService>();
             services.AddScoped<IMapService, MapService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ISellerVoucherService, SellerVoucherService>();
+            services.AddScoped<ISellerReportService, SellerReportService>();
+            services.AddScoped<ISellerRevenueService, SellerRevenueService>();
             services.AddScoped<IPaymentService, PaymentService>();
 
             return services;

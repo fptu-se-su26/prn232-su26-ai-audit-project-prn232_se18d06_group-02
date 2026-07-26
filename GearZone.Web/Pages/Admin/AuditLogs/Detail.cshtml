@@ -1,0 +1,40 @@
+@page "/admin/audit-logs/{id:guid}"
+@model GearZone.Web.Pages.Admin.AuditLogs.DetailModel
+@using GearZone.Domain.Enums
+@{
+    ViewData["Title"] = "Audit Event Detail";
+    ViewData["PageHeader"] = "Audit Event Detail";
+    ViewData["ActivePage"] = "AuditLogs";
+    ViewData["Breadcrumb"] = new[] { "Dashboard", "Audit Logs", "Event Detail" };
+    Layout = "_AdminLayout";
+    var item = Model.Audit;
+    var vietnam = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "SE Asia Standard Time" : "Asia/Ho_Chi_Minh");
+    var localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(item.OccurredAtUtc, DateTimeKind.Utc), vietnam);
+    string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+}
+
+<div class="flex flex-col gap-6 pb-10">
+    <div class="flex items-center justify-between">
+        <a asp-page="/Admin/AuditLogs/Index" class="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-primary"><span class="material-symbols-outlined">arrow_back</span>Back to audit logs</a>
+        @if (!string.IsNullOrWhiteSpace(item.TargetUrl)) { <a href="@item.TargetUrl" class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-dark">Open target<span class="material-symbols-outlined text-[18px]">open_in_new</span></a> }
+    </div>
+
+    <section class="rounded-xl border border-slate-100 bg-white p-6 shadow-card">
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div><p class="text-xs font-bold uppercase tracking-wider text-slate-400">@item.Module · @item.RiskLevel risk</p><h2 class="mt-2 text-2xl font-bold text-slate-900">@item.Action.Replace('_', ' ')</h2><p class="mt-2 text-sm text-slate-500">@Display(item.Description)</p></div>
+            <div class="text-left md:text-right"><p class="font-semibold text-slate-800">@localTime.ToString("dd MMM yyyy HH:mm:ss") ICT</p><p class="mt-1 font-mono text-xs text-slate-400">@item.Id</p></div>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <div class="rounded-xl border border-slate-100 bg-white p-6 shadow-card"><h3 class="font-bold text-slate-900">Actor and target</h3><dl class="mt-5 grid grid-cols-[140px_1fr] gap-y-3 text-sm"><dt class="text-slate-400">Admin</dt><dd class="font-semibold text-slate-800">@item.ActorDisplayName</dd><dt class="text-slate-400">Email</dt><dd>@Display(item.ActorEmail)</dd><dt class="text-slate-400">User ID</dt><dd class="break-all font-mono text-xs">@Display(item.ActorUserId)</dd><dt class="text-slate-400">Target type</dt><dd>@Display(item.EntityType)</dd><dt class="text-slate-400">Target</dt><dd>@Display(item.EntityDisplayName)</dd><dt class="text-slate-400">Target ID</dt><dd class="break-all font-mono text-xs">@Display(item.EntityId)</dd><dt class="text-slate-400">Reason</dt><dd class="whitespace-pre-wrap">@Display(item.Reason)</dd></dl></div>
+        <div class="rounded-xl border border-slate-100 bg-white p-6 shadow-card"><h3 class="font-bold text-slate-900">Request context</h3><dl class="mt-5 grid grid-cols-[140px_1fr] gap-y-3 text-sm"><dt class="text-slate-400">Outcome</dt><dd class="font-bold">@item.Outcome</dd><dt class="text-slate-400">HTTP</dt><dd>@Display(item.HttpMethod) @item.StatusCode</dd><dt class="text-slate-400">Path</dt><dd class="break-all font-mono text-xs">@Display(item.RequestPath)</dd><dt class="text-slate-400">IP address</dt><dd>@Display(item.IpAddress)</dd><dt class="text-slate-400">Duration</dt><dd>@(item.DurationMs.HasValue ? $"{item.DurationMs:N0} ms" : "—")</dd><dt class="text-slate-400">Correlation ID</dt><dd class="break-all font-mono text-xs">@Display(item.CorrelationId)</dd><dt class="text-slate-400">User agent</dt><dd class="break-all text-xs">@Display(item.UserAgent)</dd></dl></div>
+    </section>
+
+    <section class="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-card"><div class="border-b border-slate-100 px-6 py-4"><h3 class="font-bold text-slate-900">Sanitized changes</h3><p class="mt-1 text-xs text-slate-400">Secrets and sensitive financial identifiers are never stored.</p></div><div class="overflow-x-auto"><table class="w-full min-w-[760px] text-left text-sm"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-6 py-3">Entity</th><th class="px-6 py-3">Field</th><th class="px-6 py-3">Before</th><th class="px-6 py-3">After</th></tr></thead><tbody class="divide-y divide-slate-100">@if (item.Changes.Count == 0){<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400">No persisted field changes for this event.</td></tr>}@foreach (var change in item.Changes){<tr><td class="px-6 py-4"><div class="font-semibold">@change.EntityType</div><div class="font-mono text-[11px] text-slate-400">@change.EntityId</div></td><td class="px-6 py-4 font-semibold">@change.Field</td><td class="max-w-xs break-words px-6 py-4 text-red-600">@Display(change.OldValue)</td><td class="max-w-xs break-words px-6 py-4 text-emerald-700">@Display(change.NewValue)</td></tr>}</tbody></table></div></section>
+
+    @if (item.Metadata.Count > 0)
+    {
+        <section class="rounded-xl border border-slate-100 bg-white p-6 shadow-card"><h3 class="font-bold text-slate-900">Metadata</h3><dl class="mt-4 grid grid-cols-[180px_1fr] gap-y-3 text-sm">@foreach (var pair in item.Metadata){<dt class="font-semibold text-slate-400">@pair.Key</dt><dd class="break-all">@Display(pair.Value)</dd>}</dl></section>
+    }
+</div>

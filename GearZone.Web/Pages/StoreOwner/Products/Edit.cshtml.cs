@@ -1,27 +1,22 @@
-﻿using GearZone.Application.Abstractions.Services;
+using System.Security.Claims;
 using GearZone.Application.Features.Seller.Dtos;
-using GearZone.Domain.Entities;
+using GearZone.Web.Services.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Security.Claims;
-using System.Linq;
-using System.Threading.Tasks;
-using System;
 
 namespace GearZone.Web.Pages.StoreOwner.Products
 {
     [Authorize(Roles = "Store Owner")]
     public class EditModel : PageModel
     {
-        private readonly ISellerProductService _productService;
-        private readonly ISellerStoreService _storeService;
+        // Consumes GearZone.Api over HTTP instead of the product service in-process.
+        private readonly IApiClient _api;
 
-        public EditModel(ISellerProductService productService, ISellerStoreService storeService)
+        public EditModel(IApiClient api)
         {
-            _productService = productService;
-            _storeService = storeService;
+            _api = api;
         }
 
         [BindProperty]
@@ -31,118 +26,102 @@ namespace GearZone.Web.Pages.StoreOwner.Products
         public List<SelectListItem> BrandOptions { get; set; } = new();
         public Guid ProductId { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var store = await _storeService.GetStoreByOwnerIdAsync(userId!);
+            if (string.IsNullOrEmpty(userId)) return RedirectToPage("/Public/Auth/Login");
 
-            if (store == null) return RedirectToPage("/StoreOwner/Dashboard");
-
-            var product = await _productService.GetProductForEditAsync(id, store.Id);
+            var product = await _api.GetAsync<UpdateProductDto>($"/api/seller/products/{id}", ct);
             if (product == null) return NotFound();
 
             Input = product;
             ProductId = id;
 
-            await LoadMetadataAsync();
+            await LoadMetadataAsync(ct);
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync(Guid id)
+        public async Task<IActionResult> OnPostAsync(Guid id, CancellationToken ct)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var store = await _storeService.GetStoreByOwnerIdAsync(userId!);
-            if (store == null) return RedirectToPage("/StoreOwner/Dashboard");
-
             if (!ModelState.IsValid)
             {
-                await LoadMetadataAsync();
+                await LoadMetadataAsync(ct);
                 return Page();
             }
 
-            try
+            var result = await _api.PutAsync($"/api/seller/products/{id}", Input, ct);
+            if (result.Success)
             {
-                await _productService.UpdateProductAsync(id, Input, store.Id, userId!);
                 TempData["SuccessMessage"] = "Product updated successfully!";
                 return RedirectToPage("./Details", new { id });
             }
-            catch (InvalidOperationException ex)
-            {
-                ModelState.AddModelError("", ex.Message);
-                await LoadMetadataAsync();
-                return Page();
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", $"An unexpected error occurred: {ex.Message}");
-                await LoadMetadataAsync();
-                return Page();
-            }
+
+            ModelState.AddModelError("", result.FirstError ?? "Failed to update product.");
+            await LoadMetadataAsync(ct);
+            return Page();
         }
 
-        public async Task<JsonResult> OnGetSpecificationsAsync(int categoryId)
+        public async Task<JsonResult> OnGetSpecificationsAsync(int categoryId, CancellationToken ct)
         {
-            var specs = await _productService.GetCategoryProductSpecsAsync(categoryId);
-            return new JsonResult(specs);
+            var specs = await _api.GetAsync<List<ProductSpecDto>>(
+                $"/api/seller/products/specifications?categoryId={categoryId}", ct);
+            return new JsonResult(specs ?? new List<ProductSpecDto>());
         }
 
-        public async Task<JsonResult> OnGetAttributesAsync(int categoryId)
+        public async Task<JsonResult> OnGetAttributesAsync(int categoryId, CancellationToken ct)
         {
-            var attributes = await _productService.GetCategoryAttributesAsync(categoryId);
-            return new JsonResult(attributes);
+            var attributes = await _api.GetAsync<List<CategoryAttributeDto>>(
+                $"/api/seller/products/attributes?categoryId={categoryId}", ct);
+            return new JsonResult(attributes ?? new List<CategoryAttributeDto>());
         }
-        public async Task<JsonResult> OnPostCreateSpecificationAttributeAsync(int categoryId, string name, string? unit, string? valueType)
+
+        public async Task<JsonResult> OnPostCreateSpecificationAttributeAsync(int categoryId, string name, string? unit, string? valueType, CancellationToken ct)
         {
             if (categoryId <= 0) return new JsonResult(new { success = false, message = "Category is required" });
             if (string.IsNullOrWhiteSpace(name)) return new JsonResult(new { success = false, message = "Specification name is required" });
 
-            try
-            {
-                var id = await _productService.CreateCategoryProductSpecificationAsync(categoryId, name, unit, valueType);
-                return new JsonResult(new { success = true, id = id, name = name.Trim() });
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(new { success = false, message = ex.Message });
-            }
+            var created = await _api.PostAsync<object>("/api/seller/products/specifications",
+                new { categoryId, name, unit, valueType }, ct);
+            if (!created.Success) return new JsonResult(new { success = false, message = created.FirstError ?? "Failed to create specification" });
+
+            var specs = await _api.GetAsync<List<ProductSpecDto>>($"/api/seller/products/specifications?categoryId={categoryId}", ct);
+            var match = specs?.FirstOrDefault(s => string.Equals(s.Key, name.Trim(), StringComparison.OrdinalIgnoreCase));
+            return new JsonResult(new { success = true, id = match?.AttributeId ?? 0, name = name.Trim() });
         }
 
-        public async Task<JsonResult> OnPostCreateBrandAsync(string name)
+        public Task<JsonResult> OnPostCreateBrandAsync(string name, CancellationToken ct) =>
+            CreateNamedAsync("/api/seller/products/brands", name, ct);
+
+        public Task<JsonResult> OnPostCreateCategoryAsync(string name, CancellationToken ct) =>
+            CreateNamedAsync("/api/seller/products/categories", name, ct);
+
+        private async Task<JsonResult> CreateNamedAsync(string path, string name, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(name)) return new JsonResult(new { success = false, message = "Name is required" });
 
-            try
-            {
-                var brandId = await _productService.CreateBrandByNameAsync(name);
-                return new JsonResult(new { success = true, id = brandId, name = name });
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(new { success = false, message = ex.Message });
-            }
+            var result = await _api.PostAsync(path, new { name }, ct);
+            if (!result.Success) return new JsonResult(new { success = false, message = result.FirstError ?? "Failed to create" });
+
+            var metadata = await _api.GetAsync<SellerProductMetadataDto>("/api/seller/products/metadata", ct);
+            var id = metadata == null
+                ? 0
+                : path.EndsWith("brands", StringComparison.OrdinalIgnoreCase)
+                    ? metadata.Brands.FirstOrDefault(b => string.Equals(b.Name, name.Trim(), StringComparison.OrdinalIgnoreCase))?.Id ?? 0
+                    : metadata.Categories.FirstOrDefault(c => string.Equals(c.Name, name.Trim(), StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
+
+            return new JsonResult(new { success = true, id, name });
         }
 
-        public async Task<JsonResult> OnPostCreateCategoryAsync(string name)
+        private async Task LoadMetadataAsync(CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(name)) return new JsonResult(new { success = false, message = "Name is required" });
+            var metadata = await _api.GetAsync<SellerProductMetadataDto>("/api/seller/products/metadata", ct)
+                ?? new SellerProductMetadataDto();
 
-            try
-            {
-                var id = await _productService.CreateCategoryByNameAsync(name);
-                return new JsonResult(new { success = true, id = id, name = name });
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(new { success = false, message = ex.Message });
-            }
-        }
-
-        private async Task LoadMetadataAsync()
-        {
-            var allCategories = await _productService.GetCategoriesAsync();
+            var allCategories = metadata.Categories;
             CategoryOptions = allCategories
                 .Where(c => c.ParentId != null || !allCategories.Any(child => child.ParentId == c.Id))
-                .Select(c => {
+                .Select(c =>
+                {
                     var parent = c.ParentId.HasValue ? allCategories.FirstOrDefault(pc => pc.Id == c.ParentId.Value) : null;
                     var text = parent != null ? $"{parent.Name} > {c.Name}" : c.Name;
                     return new SelectListItem { Value = c.Id.ToString(), Text = text };
@@ -150,14 +129,9 @@ namespace GearZone.Web.Pages.StoreOwner.Products
                 .OrderBy(s => s.Text)
                 .ToList();
 
-            var brands = await _productService.GetBrandsAsync();
-            BrandOptions = brands.Select(b => new SelectListItem 
-            { 
-                Value = b.Id.ToString(), 
-                Text = b.Name 
-            }).ToList();
+            BrandOptions = metadata.Brands
+                .Select(b => new SelectListItem { Value = b.Id.ToString(), Text = b.Name })
+                .ToList();
         }
     }
 }
-
-

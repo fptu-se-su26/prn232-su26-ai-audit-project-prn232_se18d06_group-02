@@ -7,7 +7,7 @@ export const sellerApi = {
   getStoreSettings: () => apiClient.get('/seller/store').then(res => unwrap(res)),
   updateStoreSettings: (data: unknown) => apiClient.put('/seller/store', data),
   storeReviews: (page = 1) =>
-    apiClient.get('/seller/store/reviews', { params: { page } }).then(res => unwrap(res)),
+    apiClient.get('/seller/store/reviews', { params: { pageNumber: page } }).then(res => unwrap(res)),
   replyToReview: (reviewId: string, replyContent: string) =>
     apiClient.post(`/seller/store/reviews/${reviewId}/reply`, { replyContent }),
 
@@ -54,6 +54,32 @@ export const sellerApi = {
     update: (id: string, data: unknown) => apiClient.put(`/seller/vouchers/${id}`, data),
     delete: (id: string) => apiClient.delete(`/seller/vouchers/${id}`),
     toggleStatus: (id: string) => apiClient.patch(`/seller/vouchers/${id}/toggle-status`),
+  },
+
+  reports: {
+    sales: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/sales', { params }).then(res => unwrap(res)),
+    products: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/products', { params }).then(res => unwrap(res)),
+    operations: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/operations', { params }).then(res => unwrap(res)),
+    customers: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/customers', { params }).then(res => unwrap(res)),
+    marketing: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/marketing', { params }).then(res => unwrap(res)),
+    reviews: (params?: Record<string, unknown>) =>
+      apiClient.get('/seller/reports/reviews', { params }).then(res => unwrap(res)),
+    exportSalesCsv: async (params?: Record<string, unknown>) => {
+      const res = await apiClient.get('/seller/reports/sales/export', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    },
   },
 
   registration: {

@@ -118,7 +118,11 @@
                         <span class="material-symbols-outlined text-[18px]">restart_alt</span>
                     </a>
 
-                    <button type="button"
+                    <button type="submit"
+                            name="handler"
+                            value="Export"
+                            formnovalidate
+                            title="Export filtered orders as CSV"
                             class="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm text-sm whitespace-nowrap">
                         <span class="material-symbols-outlined text-[18px]">file_download</span>
                         <span class="hidden sm:inline font-medium">Export</span>
@@ -222,7 +226,7 @@
                     {
                         foreach (var order in Model.Orders.Items)
                         {
-                            <tr class="hover:bg-slate-50 transition-all cursor-pointer group/row" onclick="window.location.href='/admin/orders/detail?id=@order.Id'">
+                            <tr class="hover:bg-slate-50 transition-all cursor-pointer group/row" onclick="window.location.href='/admin/orders/@order.Id'">
                                 <td class="py-4 px-6 align-middle font-mono text-sm font-semibold text-slate-900 group-hover/row:text-primary transition-colors">
                                     #@order.OrderCode
                                 </td>
@@ -255,7 +259,7 @@
                                     <p class="text-sm text-slate-500">@order.CreatedAt.ToString("MMM dd, yyyy")</p>
                                 </td>
                                 <td class="py-4 px-6 text-right align-middle whitespace-nowrap">
-                                    <a href="/admin/orders/detail?id=@order.Id" class="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all" title="View Details" onclick="event.stopPropagation();">
+                                    <a href="/admin/orders/@order.Id" class="inline-flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all" title="View Details" onclick="event.stopPropagation();">
                                         <span class="material-symbols-outlined text-[20px]">visibility</span>
                                     </a>
                                 </td>

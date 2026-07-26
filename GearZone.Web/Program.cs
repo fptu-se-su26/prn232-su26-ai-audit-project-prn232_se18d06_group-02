@@ -9,11 +9,13 @@ using GearZone.Web.Pages.Public.User.Messages;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Rewrite;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,17 +69,53 @@ builder.Configuration.AddEnvironmentVariables();
 
 var connectionString = builder.Configuration["DB_CONNECTION_STRING"] ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    // Verification emails sent before VerifyEmail moved to /Auth/VerifyEmail still carry the
+    // old link, and a recipient who clicks it can never confirm their account otherwise.
+    options.Conventions.AddPageRoute("/Public/Auth/VerifyEmail", "/Public/Auth/VerifyEmail");
+});
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+// Reverse-proxy /api/* to the separate GearZone.Api host. Keeping /api same-origin
+// means Razor pages (server render + client-side JS) are untouched by the split.
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+// Typed HTTP client Razor PageModels use to consume GearZone.Api server-side,
+// forwarding the caller's auth cookie so the API's [Authorize] validates it.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<GearZone.Web.Services.Api.CookieForwardingHandler>();
+builder.Services.AddHttpClient<GearZone.Web.Services.Api.IApiClient, GearZone.Web.Services.Api.ApiClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiClient:BaseUrl"] ?? "http://localhost:5200/");
+})
+.AddHttpMessageHandler<GearZone.Web.Services.Api.CookieForwardingHandler>();
 builder.Services.AddScoped<IOrderTrackingNotifier, SignalROrderTrackingNotifier>();
 builder.Services.AddScoped<BuyerInboxComposer>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
+    foreach (var value in (builder.Configuration["TRUSTED_PROXY_IPS"] ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (System.Net.IPAddress.TryParse(value, out var address))
+            options.KnownProxies.Add(address);
+    }
 });
+
+// Shared Data Protection key ring. Persisting the keys with a fixed application
+// name lets a future separate API host (GearZone.Api) decrypt & validate the same
+// Identity auth cookie issued here. Both apps MUST use the same path + name.
+// Note: changing the application name invalidates cookies issued before this change,
+// so existing sessions are logged out once (login flow itself is unchanged).
+var dataProtectionKeysPath = builder.Configuration["DATA_PROTECTION_KEYS_PATH"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "..", "shared-keys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("GearZone");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -168,6 +206,12 @@ using (var scope = app.Services.CreateScope())
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     var configuration = services.GetRequiredService<IConfiguration>();
 
+    // Apply any pending EF Core migrations on startup so `dotnet run` keeps the
+    // database schema up to date without a manual `dotnet ef database update`.
+    // Runs before the seeders so the tables they populate already exist.
+    await dbContext.Database.MigrateAsync();
+    Console.WriteLine("Migrations: applied.");
+
     try
     {
         await IdentitySeeder.SeedAsync(userManager, roleManager, configuration);
@@ -225,10 +269,17 @@ using (var scope = app.Services.CreateScope())
         job => job.AutoCompleteOrdersAsync(),
         Cron.Daily(),
         TimeZoneInfo.Utc);
+
+    RecurringJob.AddOrUpdate<AiChatCleanupJob>(
+        "ai-chat-retention-cleanup",
+        job => job.DeleteExpiredAsync(),
+        "17 2 * * *",
+        TimeZoneInfo.Utc);
 }
 
 app.UseStaticFiles();
 app.MapControllers();
+app.MapReverseProxy();
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<OrderTrackingHub>("/hubs/order-tracking");
 app.MapRazorPages();

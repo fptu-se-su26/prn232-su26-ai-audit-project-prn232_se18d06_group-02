@@ -77,3 +77,19 @@ Verification was also important. The frontend was checked with `npm.cmd run lint
 - Backend-compatible query names reduce the risk of filter and pagination mismatches
 - Build verification can require a temporary output folder when a running ASP.NET process locks normal build artifacts
 - AI is most useful when the prompt describes the intended new feature, route behavior, API contract, and verification steps clearly
+
+## Reflection - Admin Reports and Business Intelligence
+
+This feature connected business formulas, database aggregation, API design, file generation, AI privacy, and Razor UI into one administrative workflow. The most important design decision was separating deterministic reporting from optional AI analysis: report JSON and exports continue to work even if AI is disabled, misconfigured, rate-limited, or unavailable.
+
+The period resolver also showed why reporting dates cannot be handled as plain UTC calendar dates. Admins select dates in Vietnam time, while database queries need UTC half-open intervals. Centralizing that conversion, the previous period, granularity selection, and zero-filled buckets reduces inconsistent numbers between tabs and exports.
+
+AI required an additional trust boundary. Only aggregate metrics, trends, status breakdowns, and seller performance summaries are included. Provider output is structured, capped, and filtered so every retained item cites an allowed metric key. This does not eliminate the need for human review, but it prevents unsupported AI commentary from being displayed as evidence-based analysis.
+
+### What I learned
+- Revenue and operational rates require different status filters and denominators.
+- Parent orders must be counted distinctly when an order contains suborders from multiple stores.
+- Report exports should be deterministic and independent from AI cache state.
+- Provider keys and business payloads should never appear in logs or committed configuration.
+- SQLite integration tests are useful for catching provider-specific EF Core translation issues before deployment.
+- A production rollout should still inspect SQL query plans, validate the configured model names, and perform authenticated browser smoke tests with realistic data volumes.

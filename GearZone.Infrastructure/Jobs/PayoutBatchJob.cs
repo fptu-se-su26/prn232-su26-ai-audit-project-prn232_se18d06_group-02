@@ -1,5 +1,7 @@
 ﻿using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Payout;
+using GearZone.Application.Features.Admin;
+using GearZone.Domain.Enums;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
@@ -11,15 +13,18 @@ namespace GearZone.Infrastructure.Jobs
         private readonly IPayoutService _payoutService;
         private readonly IBackgroundJobClient _backgroundJobs;
         private readonly ILogger<PayoutBatchJob> _logger;
+        private readonly IAdminAuditRecorder _auditRecorder;
 
         public PayoutBatchJob(
             IPayoutService payoutService,
             IBackgroundJobClient backgroundJobs,
-            ILogger<PayoutBatchJob> logger)
+            ILogger<PayoutBatchJob> logger,
+            IAdminAuditRecorder auditRecorder)
         {
             _payoutService = payoutService;
             _backgroundJobs = backgroundJobs;
             _logger = logger;
+            _auditRecorder = auditRecorder;
         }
 
         [AutomaticRetry(Attempts = 0)] // Không retry — tránh tạo batch 2 lần
@@ -41,13 +46,63 @@ namespace GearZone.Infrastructure.Jobs
 
         [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 60, 300 })]
         [DisplayName("Process Approved Payout Batch {0}")]
-        public async Task ProcessApprovedBatchAsync(string batchCode)
+        public async Task ProcessApprovedBatchAsync(string batchCode, string? correlationId, string? triggeredByAdminId)
         {
             _logger.LogInformation(
                 "[Job] ProcessApprovedBatch {Code} started", batchCode);
 
-            await _payoutService.ProcessPayoutBatchAsync(batchCode);
+            try
+            {
+                await _payoutService.ProcessPayoutBatchAsync(batchCode);
+                await RecordOutcomeAsync(
+                    AdminAuditActions.PayoutProcessSucceeded,
+                    AdminAuditOutcome.Succeeded,
+                    batchCode,
+                    correlationId,
+                    triggeredByAdminId);
+            }
+            catch (Exception ex)
+            {
+                await RecordOutcomeAsync(
+                    AdminAuditActions.PayoutProcessFailed,
+                    AdminAuditOutcome.Failed,
+                    batchCode,
+                    correlationId,
+                    triggeredByAdminId,
+                    ex.GetType().Name);
+                throw;
+            }
         }
+
+        private Task RecordOutcomeAsync(
+            string action,
+            AdminAuditOutcome outcome,
+            string batchCode,
+            string? correlationId,
+            string? triggeredByAdminId,
+            string? failureType = null) =>
+            _auditRecorder.RecordAsync(new AdminAuditEvent
+            {
+                ActorUserId = triggeredByAdminId,
+                ActorDisplayName = "Background payout job",
+                Action = action,
+                Module = AdminAuditModules.Finance,
+                Outcome = outcome,
+                RiskLevel = AdminAuditRiskLevel.Critical,
+                EntityType = "PayoutBatch",
+                EntityId = batchCode,
+                EntityDisplayName = batchCode,
+                Description = outcome == AdminAuditOutcome.Succeeded
+                    ? "Background payout processing completed"
+                    : "Background payout processing failed",
+                CorrelationId = correlationId,
+                StatusCode = outcome == AdminAuditOutcome.Succeeded ? 200 : 500,
+                Metadata = new Dictionary<string, string?>
+                {
+                    ["batchCode"] = batchCode,
+                    ["failureType"] = failureType
+                }
+            });
 
         // Mỗi 6 tiếng — Cron: "0 */6 * * *"
         [AutomaticRetry(Attempts = 1)]

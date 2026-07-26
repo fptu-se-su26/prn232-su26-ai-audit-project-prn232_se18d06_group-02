@@ -1,0 +1,634 @@
+@page "/storeowner/reports"
+@model GearZone.Web.Pages.StoreOwner.Reports.IndexModel
+@{
+    ViewData["Title"] = "Reports";
+    ViewData["PageHeader"] = "Reports & Analytics";
+    ViewData["ActivePage"] = "Reports";
+    ViewData["Breadcrumb"] = new string[] { "Analytics", "Reports" };
+    Layout = "_StoreOwnerLayout";
+
+    string Money(decimal v) => v.ToString("N0") + " ₫";
+    string Num(decimal v) => v.ToString("N0");
+
+    string SlowLabel(string c) => c switch { "Dead" => "Dead stock", "Slow" => "Slow-moving", "NeverSold" => "Never sold", _ => c };
+    string SlowBadge(string c) => c switch { "Dead" => "bg-red-50 text-red-700", "Slow" => "bg-amber-50 text-amber-700", _ => "bg-slate-100 text-slate-600" };
+    string SlowAction(string c) => c switch { "Dead" => "Discount or run a clearance voucher", "Slow" => "Bundle or promote it", "NeverSold" => "Review price, photos & description", _ => "" };
+}
+
+@functions {
+    // Renders a small metric card. Colour is a Tailwind hue (emerald, blue, ...).
+    Microsoft.AspNetCore.Html.IHtmlContent StatCard(string label, string value, string colour,
+        GearZone.Application.Features.Seller.Dtos.MetricDto? metric = null)
+    {
+        var change = metric == null ? "" :
+            $"<span class=\"text-xs font-semibold {Model.ChangeClass(metric.ChangePct)}\">{Model.ChangeText(metric.ChangePct)}</span>" +
+            "<span class=\"ml-1 text-[11px] text-slate-400\">vs prev</span>";
+        var html =
+            $"<div class=\"rounded-xl border border-slate-100 bg-white p-4 shadow-card\">" +
+                $"<p class=\"text-xs font-semibold uppercase tracking-wider text-slate-500\">{label}</p>" +
+                $"<h3 class=\"mt-2 text-2xl font-bold text-{colour}-700\">{value}</h3>" +
+                $"<div class=\"mt-1\">{change}</div>" +
+            "</div>";
+        return new Microsoft.AspNetCore.Html.HtmlString(html);
+    }
+
+    // Renders a professional area + line trend chart as inline SVG (no JS dependency),
+    // matching the Store Owner dashboard chart style. `points` = ordered (label, value) pairs.
+    // When `previous` is supplied (index-aligned to `points`), a dashed comparison line for
+    // the previous period is overlaid and a legend is shown.
+    Microsoft.AspNetCore.Html.IHtmlContent TrendChart(
+        IReadOnlyList<(string Label, decimal Value)> points,
+        string hex, string gradientId, Func<decimal, string> format,
+        IReadOnlyList<decimal>? previous = null)
+    {
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        if (points.Count == 0)
+        {
+            return new Microsoft.AspNetCore.Html.HtmlString(
+                "<p class=\"py-10 text-center text-sm text-slate-400\">No data in this period.</p>");
+        }
+
+        var n = points.Count;
+        var hasPrev = previous != null && previous.Count == n && previous.Any(v => v > 0m);
+
+        var max = points.Max(p => p.Value);
+        if (hasPrev) max = Math.Max(max, previous!.Max());
+        if (max <= 0m) max = 1m;
+        var stepX = n > 1 ? 1000.0 / (n - 1) : 0.0;
+
+        string F(double v) => v.ToString("0.##", ci);
+        double Y(decimal v) => 210 - (double)(v / max * 180m);
+
+        var xs = new double[n];
+        var ys = new double[n];
+        for (var i = 0; i < n; i++)
+        {
+            xs[i] = n > 1 ? i * stepX : 500.0;
+            ys[i] = Y(points[i].Value);
+        }
+
+        var line = string.Join(" ", Enumerable.Range(0, n).Select(i => $"{F(xs[i])},{F(ys[i])}"));
+        var area = $"M{F(xs[0])},210 " +
+                   string.Join(" ", Enumerable.Range(0, n).Select(i => $"L{F(xs[i])},{F(ys[i])}")) +
+                   $" L{F(xs[n - 1])},210 Z";
+
+        var sb = new System.Text.StringBuilder();
+
+        if (hasPrev)
+        {
+            sb.Append("<div class=\"mb-2 flex items-center gap-4 text-[11px] text-slate-500\">");
+            sb.Append($"<span class=\"inline-flex items-center gap-1.5\"><span class=\"inline-block h-0.5 w-4 rounded\" style=\"background:{hex}\"></span>This period</span>");
+            sb.Append("<span class=\"inline-flex items-center gap-1.5\"><span class=\"inline-block h-0 w-4 border-t-2 border-dashed border-slate-400\"></span>Previous period</span>");
+            sb.Append("</div>");
+        }
+
+        sb.Append("<div class=\"h-56 overflow-hidden rounded-lg border border-slate-100 bg-slate-50/70 p-3\">");
+        sb.Append("<svg class=\"h-full w-full\" preserveAspectRatio=\"none\" viewBox=\"0 0 1000 230\">");
+        foreach (var gy in new[] { 30, 75, 120, 165, 210 })
+        {
+            sb.Append($"<line x1=\"0\" y1=\"{gy}\" x2=\"1000\" y2=\"{gy}\" stroke=\"{(gy == 210 ? "#e2e8f0" : "#f1f5f9")}\" stroke-width=\"1\" />");
+        }
+
+        // Previous-period line first so the current period sits on top.
+        if (hasPrev)
+        {
+            var prevLine = string.Join(" ", Enumerable.Range(0, n).Select(i => $"{F(xs[i])},{F(Y(previous![i]))}"));
+            sb.Append($"<polyline points=\"{prevLine}\" fill=\"none\" stroke=\"#94a3b8\" stroke-width=\"2\" stroke-dasharray=\"5 5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />");
+        }
+
+        sb.Append($"<path d=\"{area}\" fill=\"url(#{gradientId})\" />");
+        sb.Append($"<polyline points=\"{line}\" fill=\"none\" stroke=\"{hex}\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />");
+        for (var i = 0; i < n; i++)
+        {
+            var tip = System.Net.WebUtility.HtmlEncode(hasPrev
+                ? $"{points[i].Label}: {format(points[i].Value)} (prev {format(previous![i])})"
+                : $"{points[i].Label}: {format(points[i].Value)}");
+            sb.Append($"<circle cx=\"{F(xs[i])}\" cy=\"{F(ys[i])}\" r=\"3\" fill=\"{hex}\" stroke=\"#ffffff\" stroke-width=\"1.5\"><title>{tip}</title></circle>");
+        }
+        sb.Append($"<defs><linearGradient id=\"{gradientId}\" x1=\"0%\" y1=\"0%\" x2=\"0%\" y2=\"100%\">");
+        sb.Append($"<stop offset=\"0%\" stop-color=\"{hex}\" stop-opacity=\"0.22\" />");
+        sb.Append($"<stop offset=\"100%\" stop-color=\"{hex}\" stop-opacity=\"0.02\" /></linearGradient></defs>");
+        sb.Append("</svg></div>");
+
+        // Thinned x-axis labels — show at most ~10 so they don't collide on long ranges.
+        var everyNth = (int)Math.Ceiling(n / 10.0);
+        sb.Append("<div class=\"mt-2 flex justify-between px-1\">");
+        for (var i = 0; i < n; i++)
+        {
+            if (i % everyNth == 0 || i == n - 1)
+            {
+                sb.Append($"<span class=\"text-[10px] text-slate-400\">{System.Net.WebUtility.HtmlEncode(points[i].Label)}</span>");
+            }
+        }
+        sb.Append("</div>");
+
+        return new Microsoft.AspNetCore.Html.HtmlString(sb.ToString());
+    }
+}
+
+<div class="flex flex-col gap-6">
+
+    <!-- Toolbar: range selector + tabs -->
+    <div class="rounded-xl border border-slate-100 bg-white p-4 shadow-card">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2">
+                @foreach (var r in GearZone.Web.Pages.StoreOwner.Reports.IndexModel.Ranges)
+                {
+                    var active = string.Equals(Model.Range, r.Key, StringComparison.OrdinalIgnoreCase);
+                    <a href="?Tab=@Model.Tab&Range=@r.Key"
+                       class="rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors @(active ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary")">
+                        @r.Label
+                    </a>
+                }
+            </div>
+            @if (Model.Tab == "sales" && Model.HasStore)
+            {
+                <a href="?handler=Export&Range=@Model.Range&Granularity=@Model.Granularity"
+                   class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-900">
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                    Export CSV
+                </a>
+            }
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
+            @foreach (var t in GearZone.Web.Pages.StoreOwner.Reports.IndexModel.Tabs)
+            {
+                var active = Model.Tab == t.Key;
+                <a href="?Tab=@t.Key&Range=@Model.Range"
+                   class="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors @(active ? "bg-primary-light text-primary" : "text-slate-500 hover:bg-slate-50 hover:text-primary")">
+                    <span class="material-symbols-outlined text-[18px] @(active ? "filled" : "")">@t.Icon</span>
+                    @t.Label
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (!Model.HasStore)
+    {
+        <div class="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-card">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                <span class="material-symbols-outlined text-[28px]">bar_chart</span>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900">No store yet</h2>
+            <p class="mt-2 text-sm text-slate-500">Reports will appear once your store is active and has orders.</p>
+        </div>
+    }
+    else
+    {
+        <!-- ================= SALES ================= -->
+        @if (Model.Tab == "sales" && Model.Sales != null)
+        {
+            var s = Model.Sales;
+            <p class="-mt-2 text-sm text-slate-500">Period: <span class="font-semibold text-slate-700">@s.Period.Label</span> · grouped by @s.Period.Granularity</p>
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                @StatCard("Revenue", Money(s.Revenue.Current), "emerald", s.Revenue)
+                @StatCard("Net Revenue", Money(s.NetRevenue.Current), "teal", s.NetRevenue)
+                @StatCard("Orders", Num(s.Orders.Current), "blue", s.Orders)
+                @StatCard("Units Sold", Num(s.Units.Current), "violet", s.Units)
+                @StatCard("Avg Order Value", Money(s.AverageOrderValue.Current), "amber", s.AverageOrderValue)
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">Revenue trend</h3>
+                @{
+                    var revPoints = s.Series.Select(x => (x.Label, (decimal)x.Revenue)).ToList();
+                    var revPrev = s.Series.Select(x => x.PreviousRevenue).ToList();
+                }
+                @TrendChart(revPoints, "#10b981", "salesRevenueFill", Money, revPrev)
+            </div>
+        }
+
+        <!-- ================= PRODUCTS ================= -->
+        @if (Model.Tab == "products" && Model.Products != null)
+        {
+            var pr = Model.Products;
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="flex items-center justify-between border-b border-slate-100 p-5">
+                    <h3 class="text-base font-bold text-slate-900">Top products by revenue</h3>
+                    @if (pr.TopProducts.Count > 0)
+                    {
+                        <a href="?handler=ExportTopProducts&Range=@Model.Range&Granularity=@Model.Granularity"
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-primary hover:text-primary">
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            Export CSV
+                        </a>
+                    }
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Product</th>
+                                <th class="px-3 py-3 text-right">Units</th>
+                                <th class="px-3 py-3 text-right">Orders</th>
+                                <th class="px-6 py-3 text-right">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var p in pr.TopProducts)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-800">@p.ProductName</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@Num(p.UnitsSold)</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@Num(p.OrderCount)</td>
+                                    <td class="px-6 py-3 text-right font-semibold text-slate-900">@Money(p.Revenue)</td>
+                                </tr>
+                            }
+                            @if (pr.TopProducts.Count == 0)
+                            {
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">No sales in this period.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="flex items-center justify-between border-b border-slate-100 p-5">
+                    <h3 class="text-base font-bold text-slate-900">Low stock (&le; @pr.LowStockThreshold)</h3>
+                    @if (pr.LowStock.Count > 0)
+                    {
+                        <a href="?handler=ExportLowStock&Range=@Model.Range&Granularity=@Model.Granularity"
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-primary hover:text-primary">
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            Export CSV
+                        </a>
+                    }
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Product</th>
+                                <th class="px-3 py-3">Variant</th>
+                                <th class="px-3 py-3">SKU</th>
+                                <th class="px-6 py-3 text-right">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var v in pr.LowStock)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-800">@v.ProductName</td>
+                                    <td class="px-3 py-3 text-slate-600">@v.VariantName</td>
+                                    <td class="px-3 py-3 font-mono text-xs text-slate-500">@v.Sku</td>
+                                    <td class="px-6 py-3 text-right font-bold @(v.StockQuantity == 0 ? "text-red-600" : "text-amber-600")">@v.StockQuantity</td>
+                                </tr>
+                            }
+                            @if (pr.LowStock.Count == 0)
+                            {
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">All variants are well stocked. 🎉</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Slow-moving & dead stock -->
+            <div id="slowmoving" class="scroll-mt-24 rounded-xl border border-slate-100 bg-white shadow-card">
+                <div id="slowmoving-body">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Slow-moving &amp; dead stock</h3>
+                        <p class="mt-0.5 text-sm text-slate-500">In-stock items selling slowly or not at all — capital worth freeing up.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+                            @foreach (var d in new[] { 30, 60, 90 })
+                            {
+                                var on = pr.StaleDays == d;
+                                <a href="?Tab=products&Range=@Model.Range&StaleDays=@d#slowmoving"
+                                   class="js-sm-nav rounded-md px-2.5 py-1 text-xs font-semibold transition-colors @(on ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700")">@d d</a>
+                            }
+                        </div>
+                        @if (pr.SlowMovingItems.Count > 0)
+                        {
+                            <a href="?handler=ExportSlowMoving&Range=@Model.Range&StaleDays=@pr.StaleDays"
+                               class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-primary hover:text-primary">
+                                <span class="material-symbols-outlined text-[16px]">download</span>
+                                Export CSV
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-4 border-b border-slate-100 p-5">
+                    <div class="rounded-lg bg-slate-50 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Stagnant SKUs</p>
+                        <p class="mt-1 text-2xl font-bold text-slate-900">@pr.SlowMovingSkuCount</p>
+                    </div>
+                    <div class="rounded-lg bg-red-50 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-red-500">Capital tied up</p>
+                        <p class="mt-1 text-2xl font-bold text-red-700">@Money(pr.SlowMovingCapital)</p>
+                    </div>
+                    <div class="rounded-lg bg-slate-50 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">No sale within</p>
+                        <p class="mt-1 text-2xl font-bold text-slate-900">@pr.StaleDays days</p>
+                    </div>
+                </div>
+
+                @{
+                    const int smPageSize = 10;
+                    var smAll = pr.SlowMovingItems;
+                    var smTotal = smAll.Count;
+                    var smTotalPages = Math.Max(1, (int)Math.Ceiling(smTotal / (double)smPageSize));
+                    var smPage = Model.SmPage.GetValueOrDefault(1);
+                    if (smPage < 1) { smPage = 1; }
+                    if (smPage > smTotalPages) { smPage = smTotalPages; }
+                    var smFrom = smTotal == 0 ? 0 : (smPage - 1) * smPageSize + 1;
+                    var smTo = Math.Min(smPage * smPageSize, smTotal);
+                    var smPageItems = smAll.Skip((smPage - 1) * smPageSize).Take(smPageSize).ToList();
+                    var smWinStart = Math.Max(1, smPage - 2);
+                    var smWinEnd = Math.Min(smTotalPages, smPage + 2);
+                }
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Product</th>
+                                <th class="px-3 py-3">Status</th>
+                                <th class="px-3 py-3 text-right">Stock</th>
+                                <th class="px-3 py-3 text-right">Stock value</th>
+                                <th class="px-3 py-3 text-right">Last sold</th>
+                                <th class="px-3 py-3 text-right">Sell-out</th>
+                                <th class="px-3 py-3 text-right">Age</th>
+                                <th class="px-6 py-3">Suggested action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var it in smPageItems)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3">
+                                        <div class="font-medium text-slate-800">@it.ProductName</div>
+                                        <div class="text-xs text-slate-400">@it.VariantName · <span class="font-mono">@it.Sku</span></div>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold @SlowBadge(it.Category)">@SlowLabel(it.Category)</span>
+                                    </td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-700">@it.StockQuantity</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-slate-900">@Money(it.StockValue)</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@(it.DaysSinceLastSale == null ? "Never" : $"{it.DaysSinceLastSale}d ago")</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@(it.DaysToSellOut == null ? "—" : $"~{it.DaysToSellOut:0}d")</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@it.AgeDays d</td>
+                                    <td class="px-6 py-3 text-slate-500">@SlowAction(it.Category)</td>
+                                </tr>
+                            }
+                            @if (smTotal == 0)
+                            {
+                                <tr><td colspan="8" class="py-12 text-center text-slate-400">No stagnant stock — everything is moving. 🎉</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (smTotal > smPageSize)
+                {
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+                        <p class="text-sm text-slate-500">Showing <span class="font-semibold text-slate-700">@smFrom</span>–<span class="font-semibold text-slate-700">@smTo</span> of <span class="font-semibold text-slate-700">@smTotal</span></p>
+                        <div class="flex items-center gap-1">
+                            @if (smPage > 1)
+                            {
+                                <a href="?Tab=products&Range=@Model.Range&StaleDays=@pr.StaleDays&SmPage=@(smPage - 1)#slowmoving"
+                                   class="js-sm-nav inline-flex h-8 min-w-[2rem] items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-600 transition-colors hover:border-primary hover:text-primary">‹</a>
+                            }
+                            else
+                            {
+                                <span class="inline-flex h-8 min-w-[2rem] cursor-not-allowed items-center justify-center rounded-md border border-slate-100 bg-white px-2 text-sm font-semibold text-slate-300">‹</span>
+                            }
+
+                            @if (smWinStart > 1)
+                            {
+                                <a href="?Tab=products&Range=@Model.Range&StaleDays=@pr.StaleDays&SmPage=1#slowmoving"
+                                   class="js-sm-nav inline-flex h-8 min-w-[2rem] items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary">1</a>
+                                <span class="px-1 text-slate-400">…</span>
+                            }
+
+                            @for (var i = smWinStart; i <= smWinEnd; i++)
+                            {
+                                var pOn = i == smPage;
+                                <a href="?Tab=products&Range=@Model.Range&StaleDays=@pr.StaleDays&SmPage=@i#slowmoving"
+                                   class="js-sm-nav inline-flex h-8 min-w-[2rem] items-center justify-center rounded-md border px-2 text-sm font-semibold transition-colors @(pOn ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary")">@i</a>
+                            }
+
+                            @if (smWinEnd < smTotalPages)
+                            {
+                                <span class="px-1 text-slate-400">…</span>
+                                <a href="?Tab=products&Range=@Model.Range&StaleDays=@pr.StaleDays&SmPage=@smTotalPages#slowmoving"
+                                   class="js-sm-nav inline-flex h-8 min-w-[2rem] items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary">@smTotalPages</a>
+                            }
+
+                            @if (smPage < smTotalPages)
+                            {
+                                <a href="?Tab=products&Range=@Model.Range&StaleDays=@pr.StaleDays&SmPage=@(smPage + 1)#slowmoving"
+                                   class="js-sm-nav inline-flex h-8 min-w-[2rem] items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-600 transition-colors hover:border-primary hover:text-primary">›</a>
+                            }
+                            else
+                            {
+                                <span class="inline-flex h-8 min-w-[2rem] cursor-not-allowed items-center justify-center rounded-md border border-slate-100 bg-white px-2 text-sm font-semibold text-slate-300">›</span>
+                            }
+                        </div>
+                    </div>
+                }
+                </div>
+            </div>
+        }
+
+        <!-- ================= OPERATIONS ================= -->
+        @if (Model.Tab == "operations" && Model.Operations != null)
+        {
+            var o = Model.Operations;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                @StatCard("Total Orders", Num(o.TotalOrders.Current), "blue", o.TotalOrders)
+                @StatCard("Cancellation Rate", $"{o.CancellationRate}%", "red")
+                @StatCard("Refund Rate", $"{o.RefundRate}%", "amber")
+                @StatCard("Completion Rate", $"{o.CompletionRate}%", "emerald")
+                @StatCard("Avg Fulfillment", o.AvgFulfillmentHours == null ? "—" : $"{o.AvgFulfillmentHours:0.0}h", "violet")
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="border-b border-slate-100 p-5"><h3 class="text-base font-bold text-slate-900">Order status breakdown</h3></div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Status</th>
+                                <th class="px-6 py-3 text-right">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var st in o.StatusBreakdown)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-medium text-slate-800">@st.Status</td>
+                                    <td class="px-6 py-3 text-right text-slate-600">@Num(st.Count)</td>
+                                </tr>
+                            }
+                            @if (o.StatusBreakdown.Count == 0)
+                            {
+                                <tr><td colspan="2" class="py-12 text-center text-slate-400">No orders in this period.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- ================= CUSTOMERS ================= -->
+        @if (Model.Tab == "customers" && Model.Customers != null)
+        {
+            var c = Model.Customers;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-6">
+                @StatCard("Unique Buyers", Num(c.UniqueBuyers.Current), "blue", c.UniqueBuyers)
+                @StatCard("New Buyers", Num(c.NewBuyers), "emerald")
+                @StatCard("Returning", Num(c.ReturningBuyers), "violet")
+                @StatCard("Repeat Rate", $"{c.RepeatRate}%", "amber")
+                @StatCard("New Followers", Num(c.NewFollowers.Current), "pink", c.NewFollowers)
+                @StatCard("Total Followers", Num(c.TotalFollowers), "teal")
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">New followers trend</h3>
+                @{ var followerPoints = c.FollowerSeries.Select(x => (x.Label, (decimal)x.NewFollowers)).ToList(); }
+                @TrendChart(followerPoints, "#ec4899", "followersFill", Num)
+            </div>
+        }
+
+        <!-- ================= MARKETING ================= -->
+        @if (Model.Tab == "marketing" && Model.Marketing != null)
+        {
+            var m = Model.Marketing;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                @StatCard("Voucher Uses", Num(m.VoucherUsages.Current), "blue", m.VoucherUsages)
+                @StatCard("Total Discount Given", Money(m.TotalDiscount.Current), "amber", m.TotalDiscount)
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white shadow-card">
+                <div class="flex items-center justify-between border-b border-slate-100 p-5">
+                    <h3 class="text-base font-bold text-slate-900">Voucher performance</h3>
+                    @if (m.Vouchers.Count > 0)
+                    {
+                        <a href="?handler=ExportVouchers&Range=@Model.Range&Granularity=@Model.Granularity"
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-primary hover:text-primary">
+                            <span class="material-symbols-outlined text-[16px]">download</span>
+                            Export CSV
+                        </a>
+                    }
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-6 py-3">Code</th>
+                                <th class="px-3 py-3">Name</th>
+                                <th class="px-3 py-3 text-right">Uses</th>
+                                <th class="px-6 py-3 text-right">Discount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach (var v in m.Vouchers)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-3 font-mono text-xs font-semibold text-slate-800">@v.Code</td>
+                                    <td class="px-3 py-3 text-slate-600">@v.Name</td>
+                                    <td class="px-3 py-3 text-right text-slate-600">@Num(v.UsageCount)</td>
+                                    <td class="px-6 py-3 text-right font-semibold text-slate-900">@Money(v.TotalDiscount)</td>
+                                </tr>
+                            }
+                            @if (m.Vouchers.Count == 0)
+                            {
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">No vouchers active in this period.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- ================= REVIEWS ================= -->
+        @if (Model.Tab == "reviews" && Model.Reviews != null)
+        {
+            var rv = Model.Reviews;
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                @StatCard("Avg Rating", $"{rv.AvgRating:0.00} ★", "amber")
+                @StatCard("Total Reviews", Num(rv.TotalReviews), "blue", rv.NewReviews)
+                @StatCard("Replied", $"{rv.RepliedCount}/{rv.TotalReviews}", "emerald")
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">Rating distribution</h3>
+                @{
+                    var maxRc = rv.Distribution.Count == 0 ? 1 : Math.Max(1, rv.Distribution.Max(x => x.Count));
+                }
+                <div class="flex flex-col gap-2">
+                    @foreach (var b in rv.Distribution.OrderByDescending(x => x.Rating))
+                    {
+                        var w = (int)Math.Round((double)b.Count / maxRc * 100);
+                        <div class="flex items-center gap-3">
+                            <span class="w-10 text-sm text-slate-500">@b.Rating &#9733;</span>
+                            <div class="h-4 flex-1 rounded bg-slate-100">
+                                <div class="h-full rounded bg-amber-500" style="width:@(w)%"></div>
+                            </div>
+                            <span class="w-10 text-right text-sm text-slate-500">@b.Count</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-100 bg-white p-5 shadow-card">
+                <h3 class="mb-4 text-base font-bold text-slate-900">Reviews trend</h3>
+                @{ var reviewPoints = rv.Trend.Select(x => (x.Label, (decimal)x.Count)).ToList(); }
+                @TrendChart(reviewPoints, "#3b82f6", "reviewsFill", Num)
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Progressive enhancement for the Slow-moving & dead stock card: intercept the
+        // day (30/60/90) and pagination links, fetch the same page in the background and
+        // swap only #slowmoving-body — no full page reload, no scroll jump. Falls back to
+        // normal navigation if JS/fetch fails or the session expired.
+        (function () {
+            var root = document.getElementById('slowmoving');
+            if (!root) return;
+
+            function body() { return document.getElementById('slowmoving-body'); }
+
+            async function swap(url) {
+                var b = body();
+                if (b) b.style.opacity = '0.5';
+                try {
+                    var res = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
+                    if (!res.ok) throw new Error('status ' + res.status);
+                    var html = await res.text();
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var fresh = doc.getElementById('slowmoving-body');
+                    var cur = body();
+                    if (fresh && cur) {
+                        cur.innerHTML = fresh.innerHTML;
+                        history.replaceState(null, '', url);
+                    } else {
+                        window.location.href = url;
+                    }
+                } catch (e) {
+                    window.location.href = url;
+                } finally {
+                    var done = body();
+                    if (done) done.style.opacity = '';
+                }
+            }
+
+            // Delegated so it keeps working after the body is swapped.
+            root.addEventListener('click', function (e) {
+                var link = e.target.closest('.js-sm-nav');
+                if (!link || !root.contains(link)) return;
+                e.preventDefault();
+                swap(link.getAttribute('href'));
+            });
+        })();
+    </script>
+}

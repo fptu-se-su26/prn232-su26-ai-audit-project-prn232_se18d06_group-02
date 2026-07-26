@@ -1,0 +1,111 @@
+@{
+    var isAuthenticatedCustomer =
+        User.Identity?.IsAuthenticated == true &&
+        User.IsInRole("Customer");
+}
+
+<div class="ai-chat-widget"
+     data-ai-chat-widget
+     data-authenticated="@(isAuthenticatedCustomer ? "true" : "false")">
+    <div class="ai-chat-widget__overlay" data-ai-overlay hidden></div>
+
+    <section class="ai-chat-widget__panel"
+             data-ai-panel
+             aria-label="GearZone AI Assistant"
+             aria-hidden="true"
+             hidden>
+        <header class="ai-chat-widget__header">
+            <div class="ai-chat-widget__identity">
+                <span class="ai-chat-widget__mark" aria-hidden="true">
+                    <span class="material-symbols-outlined">memory</span>
+                </span>
+                <div>
+                    <div class="ai-chat-widget__title-row">
+                        <h2>GearZone AI</h2>
+                        <span class="ai-chat-widget__status-dot" title="Ready"></span>
+                    </div>
+                    <p>Product recommendations and order support</p>
+                </div>
+            </div>
+            <div class="ai-chat-widget__header-actions">
+                @if (isAuthenticatedCustomer)
+                {
+                    <button type="button" data-ai-history-toggle title="Chat history" aria-label="Chat history">
+                        <span class="material-symbols-outlined">history</span>
+                    </button>
+                }
+                <button type="button" data-ai-new title="New conversation" aria-label="New conversation">
+                    <span class="material-symbols-outlined">edit_square</span>
+                </button>
+                <button type="button" data-ai-close title="Minimize" aria-label="Minimize">
+                    <span class="material-symbols-outlined">remove</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="ai-chat-widget__error" data-ai-error role="alert" hidden></div>
+
+        <aside class="ai-chat-widget__history" data-ai-history hidden aria-label="Chat history">
+            <div class="ai-chat-widget__history-head">
+                <strong>Chat history</strong>
+                <button type="button" data-ai-history-close aria-label="Close history">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="ai-chat-widget__history-list" data-ai-history-list></div>
+        </aside>
+
+        <main class="ai-chat-widget__messages" data-ai-messages aria-live="polite">
+            <div class="ai-chat-widget__welcome" data-ai-welcome>
+                <span class="ai-chat-widget__welcome-mark" aria-hidden="true">
+                    <span class="material-symbols-outlined">smart_toy</span>
+                </span>
+                <h3>Hello, I'm GearZone AI</h3>
+                <p>I can find products, compare options, explain policies, and check your orders.</p>
+                <div class="ai-chat-widget__prompts">
+                    <button type="button" data-ai-prompt="Recommend headphones under VND 2 million">
+                        Headphones under VND 2M
+                    </button>
+                    <button type="button" data-ai-prompt="Compare in-stock mechanical keyboards">
+                        Compare mechanical keyboards
+                    </button>
+                    <button type="button" data-ai-prompt="What is GearZone's warranty policy?">
+                        Warranty policy
+                    </button>
+                    <button type="button" data-ai-prompt="Check my latest order">
+                        Check my latest order
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <div class="ai-chat-widget__thinking" data-ai-thinking hidden>
+            <span></span><span></span><span></span>
+            <em data-ai-thinking-label>Finding relevant information</em>
+        </div>
+
+        <footer class="ai-chat-widget__composer">
+            <div class="ai-chat-widget__input-wrap">
+                <textarea data-ai-input
+                          rows="1"
+                          maxlength="2000"
+                          aria-label="Ask GearZone AI a question"
+                          placeholder="Ask about products, policies, or orders..."></textarea>
+                <button type="button" data-ai-send aria-label="Send question" disabled>
+                    <span class="material-symbols-outlined">arrow_upward</span>
+                </button>
+            </div>
+            <p>AI can make mistakes. Prices and stock are verified by GearZone.</p>
+        </footer>
+    </section>
+
+    <button type="button"
+            class="ai-chat-widget__launcher"
+            data-ai-launcher
+            aria-label="Open GearZone AI Assistant"
+            aria-expanded="false">
+        <span class="material-symbols-outlined ai-chat-widget__launcher-open">smart_toy</span>
+        <span class="material-symbols-outlined ai-chat-widget__launcher-close">close</span>
+        <span>Ask AI</span>
+    </button>
+</div>

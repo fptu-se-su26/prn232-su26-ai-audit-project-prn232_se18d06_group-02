@@ -2,31 +2,36 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using GearZone.Application.Features.Admin.Dtos;
+using GearZone.Application.Features.Catalog.DTOs;
+using GearZone.Application.Features.Reviews.Dtos;
+using GearZone.Web.Services.Api;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using GearZone.Application.Abstractions.Services;
-using GearZone.Application.Features.Catalog.DTOs;
-using GearZone.Application.Features.Admin.Dtos;
-using GearZone.Application.Features.Reviews.Dtos;
 
 namespace GearZone.Web.Pages.Public.Catalog
 {
+    // Previews a not-yet-public product, so it must not be open to anonymous visitors.
+    // The API scopes it further: a Store Owner only sees their own store's products.
+    [Authorize(Roles = "Super Admin,Store Owner")]
     public class PreviewModel : PageModel
     {
-        private readonly IAdminProductService _adminProductService;
+        // Consumes GearZone.Api over HTTP instead of the admin product service in-process.
+        private readonly IApiClient _api;
 
-        public PreviewModel(IAdminProductService adminProductService)
+        public PreviewModel(IApiClient api)
         {
-            _adminProductService = adminProductService;
+            _api = api;
         }
 
         public ProductDetailDto ProductData { get; set; } = default!;
 
-        public async Task<IActionResult> OnGetAsync(Guid id)
+        public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
         {
             if (id == Guid.Empty) return NotFound();
 
-            var adminProduct = await _adminProductService.GetProductDetailAsync(id);
+            var adminProduct = await _api.GetAsync<AdminProductDetailDto>($"/api/products/{id}/preview", ct);
             if (adminProduct == null) return NotFound();
 
             if (adminProduct.Status == "Active" && !string.IsNullOrEmpty(adminProduct.Slug))

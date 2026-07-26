@@ -47,6 +47,7 @@ export default function SellerDashboardPage() {
         <Link to="/seller/products" style={{ padding: '0.75rem 1.5rem', background: '#3182ce', color: '#fff', borderRadius: 6, textDecoration: 'none', fontWeight: 600 }}>Manage Products</Link>
         <Link to="/seller/orders" style={{ padding: '0.75rem 1.5rem', background: '#38a169', color: '#fff', borderRadius: 6, textDecoration: 'none', fontWeight: 600 }}>Manage Orders</Link>
         <Link to="/seller/revenue" style={{ padding: '0.75rem 1.5rem', background: '#805ad5', color: '#fff', borderRadius: 6, textDecoration: 'none', fontWeight: 600 }}>View Revenue</Link>
+        <Link to="/seller/reports" style={{ padding: '0.75rem 1.5rem', background: '#dd6b20', color: '#fff', borderRadius: 6, textDecoration: 'none', fontWeight: 600 }}>View Reports</Link>
       </div>
 
       {data.recentOrders && data.recentOrders.length > 0 && (
