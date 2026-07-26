@@ -17,5 +17,7 @@ namespace GearZone.Application.Abstractions.Persistence
         Task<SellerVoucherSummaryDto> GetSellerVoucherSummaryAsync(Guid storeId);
         Task<Voucher?> GetByCodeAsync(string code);
         Task<List<Voucher>> GetAvailableVouchersAsync(VoucherType type);
+        Task<bool> TryReserveUsageAsync(Guid voucherId, DateTime utcNow, CancellationToken ct = default);
+        Task ReleaseUsageCapacityAsync(Guid voucherId, CancellationToken ct = default);
     }
 }

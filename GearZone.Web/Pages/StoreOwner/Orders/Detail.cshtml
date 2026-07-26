@@ -158,10 +158,20 @@
                                             <div>
                                                 <p class="mb-1 leading-tight text-sm font-bold text-slate-900">@item.ProductName</p>
                                                 <div class="inline-flex rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">@item.VariantName</div>
+                                                @if (!string.IsNullOrWhiteSpace(item.PromotionName))
+                                                {
+                                                    <div class="mt-1 text-[10px] font-bold text-rose-600">@item.PromotionName</div>
+                                                }
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-5 text-right text-sm font-medium text-slate-600">@item.UnitPrice.ToString("N0") d</td>
+                                    <td class="px-6 py-5 text-right text-sm font-medium text-slate-600">
+                                        @if (item.OriginalUnitPrice > item.UnitPrice)
+                                        {
+                                            <div class="text-xs text-slate-400 line-through">@item.OriginalUnitPrice.ToString("N0") d</div>
+                                        }
+                                        <div>@item.UnitPrice.ToString("N0") d</div>
+                                    </td>
                                     <td class="bg-slate-50/30 px-6 py-5 text-center text-sm font-black text-slate-900">@item.Quantity</td>
                                     <td class="px-6 py-5 text-right text-sm font-black text-slate-900">@item.LineTotal.ToString("N0") d</td>
                                 </tr>
@@ -173,7 +183,7 @@
                 <div class="border-t border-slate-50 bg-slate-50/20 px-6 py-8">
                     <div class="mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-xs text-slate-400">payments</span><span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Internal Transaction Analytics</span></div>
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-                        <div class="flex flex-col gap-1 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subtotal (Gross)</p><p class="text-xl font-black text-slate-900">@subOrder.Subtotal.ToString("N0") <span class="text-xs font-medium italic">d</span></p></div>
+                        <div class="flex flex-col gap-1 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">After Campaign</p><p class="text-xl font-black text-slate-900">@subOrder.Subtotal.ToString("N0") <span class="text-xs font-medium italic">d</span></p></div>
                         <div class="flex flex-col gap-1 rounded-2xl border border-amber-100/50 bg-amber-50/30 p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-wider text-amber-600">Platform Fee (@subOrder.CommissionRateSnapshot.ToString("N0")%)</p><p class="text-xl font-black text-amber-700">- @subOrder.CommissionAmount.ToString("N0") <span class="text-xs font-medium italic">d</span></p></div>
                         <div class="flex flex-col gap-1 rounded-2xl border border-emerald-100/50 bg-emerald-50/30 p-5 shadow-sm"><p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Store Net Payout</p><p class="text-xl font-black text-emerald-700">@subOrder.NetAmount.ToString("N0") <span class="text-xs font-medium italic">d</span></p></div>
                     </div>
@@ -188,9 +198,17 @@
                         <div><p class="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Total Payable Amount</p><h3 class="text-lg font-black tracking-tight text-white">Consolidated Order Invoice</h3></div>
                     </div>
                     <div class="flex min-w-[240px] flex-col items-end gap-3">
-                        <div class="flex w-full items-center justify-between border-b border-white/5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400"><span>Sum of Items</span><span class="text-slate-300">@subOrder.Subtotal.ToString("N0") d</span></div>
+                        <div class="flex w-full items-center justify-between border-b border-white/5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400"><span>After Campaign</span><span class="text-slate-300">@subOrder.Subtotal.ToString("N0") d</span></div>
+                        @if (subOrder.SellerVoucherDiscountAmount > 0)
+                        {
+                            <div class="flex w-full items-center justify-between border-b border-white/5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400"><span>Seller Voucher</span><span class="text-rose-300">- @subOrder.SellerVoucherDiscountAmount.ToString("N0") d</span></div>
+                        }
                         <div class="flex w-full items-center justify-between border-b border-white/5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400"><span>Logistics Fee</span><span class="text-slate-300">+ @subOrder.ShippingFee.ToString("N0") d</span></div>
-                        <div class="mt-2 flex w-full items-center justify-between"><span class="text-base font-black uppercase tracking-tighter text-white">Grand Total</span><span class="text-3xl font-black tracking-tighter text-white drop-shadow-lg">@subOrder.GrandTotal.ToString("N0") <span class="text-sm font-medium">d</span></span></div>
+                        @if (subOrder.ShippingVoucherDiscountAmount > 0)
+                        {
+                            <div class="flex w-full items-center justify-between border-b border-white/5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400"><span>Shipping Voucher</span><span class="text-rose-300">- @subOrder.ShippingVoucherDiscountAmount.ToString("N0") d</span></div>
+                        }
+                        <div class="mt-2 flex w-full items-center justify-between"><span class="text-base font-black uppercase tracking-tighter text-white">Store Total</span><span class="text-3xl font-black tracking-tighter text-white drop-shadow-lg">@subOrder.StoreOrderTotal.ToString("N0") <span class="text-sm font-medium">d</span></span></div>
                     </div>
                 </div>
             </div>

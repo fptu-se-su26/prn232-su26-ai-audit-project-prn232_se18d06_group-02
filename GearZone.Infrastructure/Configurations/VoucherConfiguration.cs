@@ -23,6 +23,7 @@ namespace GearZone.Infrastructure.Configurations
             builder.Property(x => x.DiscountValue).HasColumnType("decimal(18,2)");
             builder.Property(x => x.MaxDiscount).HasColumnType("decimal(18,2)");
             builder.Property(x => x.MinOrderAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.RowVersion).IsRowVersion();
 
             builder.HasIndex(x => x.Code).IsUnique();
 

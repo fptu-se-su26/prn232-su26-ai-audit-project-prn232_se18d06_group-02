@@ -12,6 +12,10 @@ namespace GearZone.Application.Features.Catalog.DTOs
         public string BrandName { get; set; } = string.Empty;
         public decimal BasePrice { get; set; }
         public decimal? OriginalPrice { get; set; } // Assuming BasePrice is sale price and Original is higher, or we just map it.
+        public Guid? PromotionCampaignId { get; set; }
+        public string? PromotionName { get; set; }
+        public DateTime? PromotionEndAt { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
         public string ImageUrl { get; set; } = string.Empty;
         public decimal Rating { get; set; }
         public int ReviewCount { get; set; }
@@ -22,5 +26,6 @@ namespace GearZone.Application.Features.Catalog.DTOs
         public List<string> HighlightTags { get; set; } = new List<string>(); // e.g. "12GB VRAM"
         public bool IsInStock { get; set; }
         public Guid DefaultVariantId { get; set; }
+        public bool HasPromotion => PromotionCampaignId.HasValue && PromotionDiscountAmount > 0;
     }
 }

@@ -80,11 +80,11 @@ namespace GearZone.Application.Features.Seller
             var voucher = await _voucherRepository.Query()
                 .AsNoTracking()
                 .Include(v => v.Category)
+                .Include(v => v.Usages)
                 .FirstOrDefaultAsync(v =>
                     v.Id == voucherId &&
                     v.StoreId == store.Id &&
-                    v.Scope == VoucherScope.Seller &&
-                    v.Type == VoucherType.OrderDiscount);
+                    v.Scope == VoucherScope.Seller);
 
             return voucher == null ? null : MapToDto(voucher);
         }
@@ -115,19 +115,21 @@ namespace GearZone.Application.Features.Seller
                 return (false, "Voucher code already exists.");
             }
 
+            var voucherType = ParseVoucherType(dto.Type);
+            var discountType = ParseDiscountType(dto.DiscountType);
             var voucher = new Voucher
             {
                 Id = Guid.NewGuid(),
                 Code = code,
                 Name = dto.Name.Trim(),
                 Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
-                Type = VoucherType.OrderDiscount,
+                Type = voucherType,
                 Scope = VoucherScope.Seller,
                 StoreId = store.Id,
-                CategoryId = dto.CategoryId,
-                DiscountType = ParseDiscountType(dto.DiscountType),
+                CategoryId = voucherType == VoucherType.OrderDiscount ? dto.CategoryId : null,
+                DiscountType = discountType,
                 DiscountValue = dto.DiscountValue,
-                MaxDiscount = ParseDiscountType(dto.DiscountType) == DiscountType.FixedAmount ? null : dto.MaxDiscount,
+                MaxDiscount = discountType == DiscountType.FixedAmount ? null : dto.MaxDiscount,
                 MinOrderAmount = dto.MinOrderAmount,
                 UsageLimit = dto.UsageLimit,
                 UsedCount = 0,
@@ -162,12 +164,16 @@ namespace GearZone.Application.Features.Seller
                 .FirstOrDefaultAsync(v =>
                     v.Id == voucherId &&
                     v.StoreId == store.Id &&
-                    v.Scope == VoucherScope.Seller &&
-                    v.Type == VoucherType.OrderDiscount);
+                    v.Scope == VoucherScope.Seller);
 
             if (voucher == null)
             {
                 return (false, "Voucher not found.");
+            }
+
+            if (dto.UsageLimit < voucher.UsedCount)
+            {
+                return (false, "Usage limit cannot be lower than reserved or redeemed usages.");
             }
 
             var validationError = ValidateVoucherInput(dto);
@@ -184,14 +190,15 @@ namespace GearZone.Application.Features.Seller
             }
 
             var discountType = ParseDiscountType(dto.DiscountType);
+            var voucherType = ParseVoucherType(dto.Type);
 
             voucher.Code = code;
             voucher.Name = dto.Name.Trim();
             voucher.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
-            voucher.Type = VoucherType.OrderDiscount;
+            voucher.Type = voucherType;
             voucher.Scope = VoucherScope.Seller;
             voucher.StoreId = store.Id;
-            voucher.CategoryId = dto.CategoryId;
+            voucher.CategoryId = voucherType == VoucherType.OrderDiscount ? dto.CategoryId : null;
             voucher.DiscountType = discountType;
             voucher.DiscountValue = dto.DiscountValue;
             voucher.MaxDiscount = discountType == DiscountType.FixedAmount ? null : dto.MaxDiscount;
@@ -226,8 +233,7 @@ namespace GearZone.Application.Features.Seller
                 .FirstOrDefaultAsync(v =>
                     v.Id == voucherId &&
                     v.StoreId == store.Id &&
-                    v.Scope == VoucherScope.Seller &&
-                    v.Type == VoucherType.OrderDiscount);
+                    v.Scope == VoucherScope.Seller);
 
             if (voucher == null)
             {
@@ -272,6 +278,14 @@ namespace GearZone.Application.Features.Seller
             }
 
             return DiscountType.Percent;
+        }
+
+        private static VoucherType ParseVoucherType(string value)
+        {
+            return string.Equals(value, "Shipping", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "ShippingDiscount", StringComparison.OrdinalIgnoreCase)
+                ? VoucherType.ShippingDiscount
+                : VoucherType.OrderDiscount;
         }
 
         private static string? ValidateVoucherInput(SellerCreateVoucherDto dto)
@@ -333,6 +347,7 @@ namespace GearZone.Application.Features.Seller
                 Code = voucher.Code,
                 Name = voucher.Name,
                 Description = voucher.Description,
+                Type = voucher.Type,
                 DiscountType = voucher.DiscountType,
                 DiscountValue = voucher.DiscountValue,
                 MaxDiscount = voucher.MaxDiscount,
@@ -340,6 +355,11 @@ namespace GearZone.Application.Features.Seller
                 UsageLimit = voucher.UsageLimit,
                 MaxUsagePerUser = voucher.MaxUsagePerUser,
                 UsedCount = voucher.UsedCount,
+                RedeemedCount = voucher.Usages.Count(x =>
+                    x.Status == VoucherUsageStatus.Redeemed),
+                TotalSavedAmount = voucher.Usages
+                    .Where(x => x.Status == VoucherUsageStatus.Redeemed)
+                    .Sum(x => x.DiscountAmount),
                 CategoryId = voucher.CategoryId,
                 CategoryName = voucher.Category?.Name,
                 StartAt = voucher.StartAt,

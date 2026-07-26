@@ -988,6 +988,9 @@ namespace GearZone.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("CheckoutRequestId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1001,8 +1004,16 @@ namespace GearZone.Infrastructure.Migrations
                     b.Property<decimal>("OrderDiscountAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("OrderVoucherCodeSnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<Guid?>("OrderVoucherId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OrderVoucherScopeSnapshot")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
@@ -1028,8 +1039,16 @@ namespace GearZone.Infrastructure.Migrations
                     b.Property<string>("ShippingProvider")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ShippingVoucherCodeSnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<Guid?>("ShippingVoucherId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ShippingVoucherScopeSnapshot")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("TrackingNumber")
                         .HasColumnType("nvarchar(max)");
@@ -1050,6 +1069,10 @@ namespace GearZone.Infrastructure.Migrations
 
                     b.HasIndex("ShippingVoucherId");
 
+                    b.HasIndex("UserId", "CheckoutRequestId")
+                        .IsUnique()
+                        .HasFilter("[CheckoutRequestId] IS NOT NULL");
+
                     b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("Orders", (string)null);
@@ -1064,9 +1087,25 @@ namespace GearZone.Infrastructure.Migrations
                     b.Property<decimal>("LineTotal")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("OriginalUnitPriceSnapshot")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("ProductNameSnapshot")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("PromotionCampaignId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("PromotionDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PromotionDiscountPerUnit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PromotionNameSnapshot")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -1089,6 +1128,8 @@ namespace GearZone.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PromotionCampaignId");
 
                     b.HasIndex("SubOrderId");
 
@@ -1625,6 +1666,130 @@ namespace GearZone.Infrastructure.Migrations
                     b.ToTable("ProductVariants", (string)null);
                 });
 
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionCampaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("EndAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("RedeemedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReservedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime>("StartAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("TotalQuantityLimit")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId", "IsEnabled");
+
+                    b.HasIndex("StoreId", "StartAt", "EndAt");
+
+                    b.ToTable("PromotionCampaigns", (string)null);
+                });
+
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionProduct", b =>
+                {
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("CampaignId", "ProductId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("PromotionProducts", (string)null);
+                });
+
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("RedeemedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReleasedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("OrderItemId")
+                        .IsUnique();
+
+                    b.HasIndex("CampaignId", "Status");
+
+                    b.ToTable("PromotionReservations", (string)null);
+                });
+
             modelBuilder.Entity("GearZone.Domain.Entities.Shipment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1634,8 +1799,14 @@ namespace GearZone.Infrastructure.Migrations
                     b.Property<double>("DistanceKm")
                         .HasColumnType("float");
 
+                    b.Property<decimal>("NetShippingFee")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ShippingDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("ShippingFee")
                         .HasColumnType("decimal(18,2)");
@@ -1830,6 +2001,9 @@ namespace GearZone.Infrastructure.Migrations
                     b.Property<decimal>("CommissionRateSnapshot")
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<decimal>("CommissionableAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1846,6 +2020,12 @@ namespace GearZone.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("PromotionDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SellerVoucherDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2196,6 +2376,12 @@ namespace GearZone.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Scope")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -2247,6 +2433,17 @@ namespace GearZone.Infrastructure.Migrations
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("RedeemedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReleasedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<DateTime>("UsedAt")
                         .HasColumnType("datetime2");
 
@@ -2263,7 +2460,10 @@ namespace GearZone.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("VoucherId");
+                    b.HasIndex("VoucherId", "OrderId")
+                        .IsUnique();
+
+                    b.HasIndex("VoucherId", "UserId", "Status");
 
                     b.ToTable("VoucherUsages", (string)null);
                 });
@@ -2662,6 +2862,11 @@ namespace GearZone.Infrastructure.Migrations
 
             modelBuilder.Entity("GearZone.Domain.Entities.OrderItem", b =>
                 {
+                    b.HasOne("GearZone.Domain.Entities.PromotionCampaign", "PromotionCampaign")
+                        .WithMany()
+                        .HasForeignKey("PromotionCampaignId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("GearZone.Domain.Entities.SubOrder", "SubOrder")
                         .WithMany("Items")
                         .HasForeignKey("SubOrderId")
@@ -2673,6 +2878,8 @@ namespace GearZone.Infrastructure.Migrations
                         .HasForeignKey("VariantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("PromotionCampaign");
 
                     b.Navigation("SubOrder");
 
@@ -2854,6 +3061,63 @@ namespace GearZone.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionCampaign", b =>
+                {
+                    b.HasOne("GearZone.Domain.Entities.Store", "Store")
+                        .WithMany("PromotionCampaigns")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionProduct", b =>
+                {
+                    b.HasOne("GearZone.Domain.Entities.PromotionCampaign", "Campaign")
+                        .WithMany("Products")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GearZone.Domain.Entities.Product", "Product")
+                        .WithMany("PromotionProducts")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionReservation", b =>
+                {
+                    b.HasOne("GearZone.Domain.Entities.PromotionCampaign", "Campaign")
+                        .WithMany("Reservations")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GearZone.Domain.Entities.Order", "Order")
+                        .WithMany("PromotionReservations")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GearZone.Domain.Entities.OrderItem", "OrderItem")
+                        .WithOne("PromotionReservation")
+                        .HasForeignKey("GearZone.Domain.Entities.PromotionReservation", "OrderItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("OrderItem");
                 });
 
             modelBuilder.Entity("GearZone.Domain.Entities.Shipment", b =>
@@ -3141,6 +3405,8 @@ namespace GearZone.Infrastructure.Migrations
                 {
                     b.Navigation("Payments");
 
+                    b.Navigation("PromotionReservations");
+
                     b.Navigation("Shipments");
 
                     b.Navigation("StatusHistories");
@@ -3150,6 +3416,8 @@ namespace GearZone.Infrastructure.Migrations
 
             modelBuilder.Entity("GearZone.Domain.Entities.OrderItem", b =>
                 {
+                    b.Navigation("PromotionReservation");
+
                     b.Navigation("Review");
                 });
 
@@ -3169,6 +3437,8 @@ namespace GearZone.Infrastructure.Migrations
 
                     b.Navigation("Images");
 
+                    b.Navigation("PromotionProducts");
+
                     b.Navigation("Reviews");
 
                     b.Navigation("Variants");
@@ -3181,11 +3451,20 @@ namespace GearZone.Infrastructure.Migrations
                     b.Navigation("InventoryTransactions");
                 });
 
+            modelBuilder.Entity("GearZone.Domain.Entities.PromotionCampaign", b =>
+                {
+                    b.Navigation("Products");
+
+                    b.Navigation("Reservations");
+                });
+
             modelBuilder.Entity("GearZone.Domain.Entities.Store", b =>
                 {
                     b.Navigation("Conversations");
 
                     b.Navigation("Products");
+
+                    b.Navigation("PromotionCampaigns");
 
                     b.Navigation("StoreFollows");
                 });

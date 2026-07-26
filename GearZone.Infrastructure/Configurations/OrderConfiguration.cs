@@ -19,6 +19,9 @@ namespace GearZone.Infrastructure.Configurations
 
             builder.HasIndex(x => x.OrderCode).IsUnique();
             builder.HasIndex(x => new { x.UserId, x.CreatedAt });
+            builder.HasIndex(x => new { x.UserId, x.CheckoutRequestId })
+                   .IsUnique()
+                   .HasFilter("[CheckoutRequestId] IS NOT NULL");
 
             builder.HasOne(x => x.User)
                    .WithMany(x => x.Orders)
@@ -27,6 +30,10 @@ namespace GearZone.Infrastructure.Configurations
 
             builder.Property(x => x.OrderDiscountAmount).HasColumnType("decimal(18,2)");
             builder.Property(x => x.ShippingDiscountAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.OrderVoucherCodeSnapshot).HasMaxLength(50);
+            builder.Property(x => x.ShippingVoucherCodeSnapshot).HasMaxLength(50);
+            builder.Property(x => x.OrderVoucherScopeSnapshot).HasConversion<string>().HasMaxLength(30);
+            builder.Property(x => x.ShippingVoucherScopeSnapshot).HasConversion<string>().HasMaxLength(30);
 
             builder.HasOne(x => x.OrderVoucher)
                    .WithMany()

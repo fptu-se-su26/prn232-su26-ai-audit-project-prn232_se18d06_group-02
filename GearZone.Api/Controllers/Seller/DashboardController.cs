@@ -62,14 +62,14 @@ public class DashboardController : BaseApiController
 
         dto.GrossRevenue = await orderQuery
             .Where(x => x.Status != OrderStatus.Cancelled && x.Status != OrderStatus.Rejected && x.Status != OrderStatus.Refunded)
-            .SumAsync(x => (decimal?)x.Subtotal, ct) ?? 0m;
+            .SumAsync(x => (decimal?)x.CommissionableAmount, ct) ?? 0m;
 
         var now = DateTime.UtcNow;
         var startMonth = new DateTime(now.Year, now.Month, 1).AddMonths(-5);
         var monthlyData = await orderQuery
             .Where(x => x.CreatedAt >= startMonth)
             .GroupBy(x => new { x.CreatedAt.Year, x.CreatedAt.Month })
-            .Select(g => new { g.Key.Year, g.Key.Month, Revenue = g.Sum(x => x.Subtotal) })
+            .Select(g => new { g.Key.Year, g.Key.Month, Revenue = g.Sum(x => x.CommissionableAmount) })
             .ToListAsync(ct);
 
         for (var i = 0; i < 6; i++)
@@ -92,7 +92,7 @@ public class DashboardController : BaseApiController
                 OrderCode = x.Order.OrderCode,
                 BuyerName = x.Order.User.FullName ?? x.Order.User.UserName ?? x.Order.User.Email ?? "Buyer",
                 Status = x.Status,
-                Subtotal = x.Subtotal,
+                Subtotal = x.CommissionableAmount,
                 CreatedAt = x.CreatedAt
             })
             .ToListAsync(ct);

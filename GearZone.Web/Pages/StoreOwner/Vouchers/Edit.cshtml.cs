@@ -49,6 +49,9 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
             Input.Name = voucher.Name;
             Input.Code = voucher.Code;
             Input.Description = voucher.Description;
+            Input.Type = voucher.Type == VoucherType.ShippingDiscount
+                ? "Shipping"
+                : "Order";
             Input.DiscountType = voucher.DiscountType == DiscountType.FixedAmount ? "Fixed" : "Percent";
             Input.DiscountValue = voucher.DiscountValue;
             Input.MaxDiscount = voucher.MaxDiscount;

@@ -194,6 +194,11 @@
                 <span class="font-medium text-sm sidebar-text">Vouchers</span>
             </a>
 
+            <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Promotions" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/StoreOwner/Promotions/Index">
+                <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Promotions" ? "filled" : "")">sell</span>
+                <span class="font-medium text-sm sidebar-text">Promotions</span>
+            </a>
+
             <a class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg @(ViewData["ActivePage"]?.ToString() == "Messages" ? "active-link" : "text-slate-500 hover:text-primary hover:bg-slate-50") transition-all group" asp-page="/StoreOwner/Messages/Index">
                 <span class="material-symbols-outlined @(ViewData["ActivePage"]?.ToString() == "Messages" ? "filled" : "")">chat</span>
                 <span class="font-medium text-sm sidebar-text">Messages</span>

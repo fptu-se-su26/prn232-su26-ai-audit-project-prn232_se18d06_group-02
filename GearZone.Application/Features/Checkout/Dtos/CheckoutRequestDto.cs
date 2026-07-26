@@ -6,6 +6,7 @@ namespace GearZone.Application.Features.Checkout.Dtos
 {
     public class CheckoutRequestDto
     {
+        public Guid RequestId { get; set; }
         public List<Guid> CartItemIds { get; set; } = new List<Guid>();
         public ShippingInfoDto ShippingInfo { get; set; } = null!;
         public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.COD;
@@ -32,6 +33,7 @@ namespace GearZone.Application.Features.Checkout.Dtos
     public class CheckoutResponseDto
     {
         public bool Success { get; set; }
+        public bool IsConflict { get; set; }
         public Guid? OrderId { get; set; }
         public string? OrderCode { get; set; }
         public string? CheckoutUrl { get; set; }

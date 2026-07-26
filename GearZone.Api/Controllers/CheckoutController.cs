@@ -13,7 +13,6 @@ public class CheckoutController : BaseApiController
     private readonly ICheckoutService _checkoutService;
     private readonly IOrderService _orderService;
     private readonly IUserService _userService;
-    private readonly IVoucherService _voucherService;
     private readonly IShippingService _shippingService;
     private readonly IPaymentService _paymentService;
     private readonly IBackgroundJobService _backgroundJobService;
@@ -22,7 +21,6 @@ public class CheckoutController : BaseApiController
         ICheckoutService checkoutService,
         IOrderService orderService,
         IUserService userService,
-        IVoucherService voucherService,
         IShippingService shippingService,
         IPaymentService paymentService,
         IBackgroundJobService backgroundJobService)
@@ -30,7 +28,6 @@ public class CheckoutController : BaseApiController
         _checkoutService = checkoutService;
         _orderService = orderService;
         _userService = userService;
-        _voucherService = voucherService;
         _shippingService = shippingService;
         _paymentService = paymentService;
         _backgroundJobService = backgroundJobService;
@@ -46,9 +43,21 @@ public class CheckoutController : BaseApiController
         if (!items.Any()) return FailResponse("Selected items not found or are unavailable.");
 
         var addresses = await _userService.GetUserAddressesAsync(CurrentUserId!);
-        var grandTotal = items.Sum(ci => ci.Quantity * ci.Variant.Price);
+        var quote = await _checkoutService.GetQuoteAsync(
+            CurrentUserId!,
+            new CheckoutQuoteRequestDto { CartItemIds = cartItemIds });
+        if (!quote.Success)
+            return FailResponse(
+                quote.ErrorMessage ?? "Unable to calculate checkout quote.",
+                quote.IsConflict ? 409 : 400);
 
-        return OkResponse(new { items, addresses, grandTotal });
+        return OkResponse(new
+        {
+            items,
+            addresses,
+            grandTotal = quote.MerchandiseSubtotal,
+            quote
+        });
     }
 
     // POST /api/checkout
@@ -60,7 +69,9 @@ public class CheckoutController : BaseApiController
         var result = await _checkoutService.ProcessCheckoutAsync(CurrentUserId!, request);
 
         if (!result.Success)
-            return FailResponse(result.ErrorMessage ?? "Checkout failed.");
+            return FailResponse(
+                result.ErrorMessage ?? "Checkout failed.",
+                result.IsConflict ? 409 : 400);
 
         // COD — return order ID directly
         if (string.IsNullOrEmpty(result.CheckoutUrl))
@@ -80,6 +91,23 @@ public class CheckoutController : BaseApiController
             qrCode = result.QrCode,
             checkoutUrl = result.CheckoutUrl
         }, "Order created. Complete payment via QR.");
+    }
+
+    // POST /api/checkout/quote
+    [HttpPost("quote")]
+    public async Task<IActionResult> Quote(
+        [FromBody] CheckoutQuoteRequestDto request,
+        CancellationToken ct)
+    {
+        if (request.CartItemIds.Count == 0)
+            return FailResponse("No cart items selected.");
+
+        var quote = await _checkoutService.GetQuoteAsync(CurrentUserId!, request, ct);
+        return quote.Success
+            ? OkResponse(quote)
+            : FailResponse(
+                quote.ErrorMessage ?? "Unable to calculate checkout quote.",
+                quote.IsConflict ? 409 : 400);
     }
 
     // POST /api/checkout/cancel-payment
@@ -148,29 +176,68 @@ public class CheckoutController : BaseApiController
         if (string.IsNullOrWhiteSpace(request.Code))
             return OkResponse(new { isValid = false, errorMessage = "Please enter a voucher code." });
 
-        var expectedType = request.Type == "shipping" ? VoucherType.ShippingDiscount : VoucherType.OrderDiscount;
-        var result = await _voucherService.ValidateVoucherAsync(
-            request.Code, CurrentUserId!, request.MerchandiseTotal, request.ShippingFee, expectedType);
+        if (request.CartItemIds.Count == 0)
+            return FailResponse("Cart item IDs are required.");
+
+        var isShipping = request.Type.Equals("shipping", StringComparison.OrdinalIgnoreCase);
+        var quote = await _checkoutService.GetQuoteAsync(
+            CurrentUserId!,
+            new CheckoutQuoteRequestDto
+            {
+                CartItemIds = request.CartItemIds,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                OrderVoucherCode = isShipping ? null : request.Code,
+                ShippingVoucherCode = isShipping ? request.Code : null
+            });
+
+        var applied = isShipping ? quote.ShippingVoucher : quote.OrderVoucher;
+        if (!quote.Success || applied == null)
+        {
+            return OkResponse(new
+            {
+                isValid = false,
+                errorMessage = quote.ErrorMessage ?? "Voucher is not eligible."
+            });
+        }
 
         return OkResponse(new
         {
-            isValid = result.IsValid,
-            errorMessage = result.ErrorMessage,
-            voucherId = result.VoucherId,
-            voucherName = result.VoucherName,
-            voucherCode = result.VoucherCode,
-            discountAmount = result.DiscountAmount,
-            discountLabel = result.DiscountLabel
+            isValid = true,
+            voucherId = applied.VoucherId,
+            voucherName = applied.Name,
+            voucherCode = applied.Code,
+            discountAmount = applied.DiscountAmount,
+            scope = applied.Scope,
+            storeId = applied.StoreId
         });
     }
 
-    // GET /api/checkout/vouchers?type=&merchandiseTotal=&shippingFee=
+    // GET /api/checkout/vouchers?type=&cartItemIds=&latitude=&longitude=
     [HttpGet("vouchers")]
-    public async Task<IActionResult> AvailableVouchers([FromQuery] string type, [FromQuery] decimal merchandiseTotal, [FromQuery] decimal shippingFee)
+    public async Task<IActionResult> AvailableVouchers(
+        [FromQuery] string type,
+        [FromQuery] List<Guid> cartItemIds,
+        [FromQuery] double latitude,
+        [FromQuery] double longitude)
     {
-        var voucherType = type == "shipping" ? VoucherType.ShippingDiscount : VoucherType.OrderDiscount;
-        var vouchers = await _voucherService.GetAvailableVouchersForCheckoutAsync(
-            CurrentUserId!, merchandiseTotal, shippingFee, voucherType);
+        if (cartItemIds.Count == 0)
+            return FailResponse("Cart item IDs are required.");
+
+        var quote = await _checkoutService.GetQuoteAsync(
+            CurrentUserId!,
+            new CheckoutQuoteRequestDto
+            {
+                CartItemIds = cartItemIds,
+                Latitude = latitude,
+                Longitude = longitude
+            });
+        if (!quote.Success)
+            return FailResponse(quote.ErrorMessage ?? "Unable to load vouchers.", 409);
+
+        var vouchers = type.Equals("shipping", StringComparison.OrdinalIgnoreCase)
+            ? quote.AvailableShippingVouchers
+            : quote.AvailableOrderVouchers;
         return OkResponse(vouchers);
     }
 }
@@ -191,6 +258,7 @@ public class ApplyVoucherRequest
 {
     public string Code { get; set; } = string.Empty;
     public string Type { get; set; } = "order";
-    public decimal MerchandiseTotal { get; set; }
-    public decimal ShippingFee { get; set; }
+    public List<Guid> CartItemIds { get; set; } = new();
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
 }

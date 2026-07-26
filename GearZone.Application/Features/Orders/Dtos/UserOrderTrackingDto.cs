@@ -17,7 +17,10 @@ namespace GearZone.Application.Features.Orders.Dtos
         public DateTime? DeliveredAt { get; set; }
 
         public decimal Subtotal { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public decimal SellerVoucherDiscountAmount { get; set; }
         public decimal ShippingFee { get; set; }
+        public decimal ShippingVoucherDiscountAmount { get; set; }
         public decimal GrandTotal { get; set; }
 
         public string ReceiverName { get; set; } = string.Empty;
@@ -40,6 +43,9 @@ namespace GearZone.Application.Features.Orders.Dtos
         public string VariantName { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        public decimal OriginalUnitPrice { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public string? PromotionName { get; set; }
         public decimal LineTotal { get; set; }
     }
 
