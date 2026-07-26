@@ -119,8 +119,9 @@ namespace GearZone.Infrastructure.Repositories
         {
             var baseQuery = Query()
                 .Include(v => v.Category)
+                .Include(v => v.Usages)
                 .AsNoTracking()
-                .Where(v => v.StoreId == storeId && v.Scope == VoucherScope.Seller && v.Type == VoucherType.OrderDiscount);
+                .Where(v => v.StoreId == storeId && v.Scope == VoucherScope.Seller);
 
             if (!string.IsNullOrEmpty(query.Search))
             {
@@ -131,6 +132,11 @@ namespace GearZone.Infrastructure.Repositories
             if (query.Status.HasValue)
             {
                 baseQuery = baseQuery.Where(v => v.Status == query.Status.Value);
+            }
+
+            if (query.VoucherType.HasValue)
+            {
+                baseQuery = baseQuery.Where(v => v.Type == query.VoucherType.Value);
             }
 
             if (query.DiscountType.HasValue)
@@ -178,28 +184,44 @@ namespace GearZone.Infrastructure.Repositories
 
         public async Task<SellerVoucherSummaryDto> GetSellerVoucherSummaryAsync(Guid storeId)
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var vouchers = await Query()
                 .AsNoTracking()
-                .Where(v => v.StoreId == storeId && v.Scope == VoucherScope.Seller && v.Type == VoucherType.OrderDiscount)
+                .Where(v => v.StoreId == storeId && v.Scope == VoucherScope.Seller)
                 .ToListAsync();
 
             var totalLimit = vouchers.Sum(v => v.UsageLimit);
-            var totalUsed = vouchers.Sum(v => v.UsedCount);
-            var redemptionRate = totalLimit > 0 ? Math.Round((decimal)totalUsed / totalLimit * 100, 1) : 0;
+            var redeemed = await _context.VoucherUsages
+                .Where(x =>
+                    x.Voucher.StoreId == storeId &&
+                    x.Voucher.Scope == VoucherScope.Seller &&
+                    x.Status == VoucherUsageStatus.Redeemed)
+                .Select(x => new { x.DiscountAmount })
+                .ToListAsync();
+            var redemptionRate = totalLimit > 0
+                ? Math.Round((decimal)redeemed.Count / totalLimit * 100, 1)
+                : 0;
 
             return new SellerVoucherSummaryDto
             {
                 TotalVouchers = vouchers.Count,
-                ActiveToday = vouchers.Count(v => v.Status == VoucherStatus.Active && v.IsActive && v.EndAt >= now),
-                RedemptionRate = redemptionRate
+                ActiveToday = vouchers.Count(v =>
+                    v.IsActive &&
+                    v.StartAt <= now &&
+                    v.EndAt > now &&
+                    v.UsedCount < v.UsageLimit),
+                RedemptionRate = redemptionRate,
+                TotalSavedAmount = redeemed.Sum(x => x.DiscountAmount)
             };
         }
 
         public async Task<Voucher?> GetByCodeAsync(string code)
         {
+            var normalized = code.Trim().ToUpper();
             return await Query()
-                .FirstOrDefaultAsync(v => v.Code == code);
+                .Include(v => v.Store)
+                .Include(v => v.Category)
+                .FirstOrDefaultAsync(v => v.Code == normalized);
         }
 
         public async Task<List<Voucher>> GetAvailableVouchersAsync(VoucherType type)
@@ -207,14 +229,43 @@ namespace GearZone.Infrastructure.Repositories
             var now = DateTime.Now;
             return await Query()
                 .AsNoTracking()
+                .Include(v => v.Store)
+                .Include(v => v.Category)
                 .Where(v => v.Type == type
-                    && v.Status == VoucherStatus.Active
                     && v.IsActive
                     && v.StartAt <= now
                     && v.EndAt >= now
                     && v.UsedCount < v.UsageLimit)
                 .OrderByDescending(v => v.DiscountValue)
                 .ToListAsync();
+        }
+
+        public async Task<bool> TryReserveUsageAsync(
+            Guid voucherId,
+            DateTime utcNow,
+            CancellationToken ct = default)
+        {
+            var affected = await _dbSet
+                .Where(v =>
+                    v.Id == voucherId &&
+                    v.IsActive &&
+                    v.StartAt <= utcNow &&
+                    v.EndAt > utcNow &&
+                    v.UsedCount < v.UsageLimit)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(v => v.UsedCount, v => v.UsedCount + 1), ct);
+
+            return affected == 1;
+        }
+
+        public async Task ReleaseUsageCapacityAsync(
+            Guid voucherId,
+            CancellationToken ct = default)
+        {
+            await _dbSet
+                .Where(v => v.Id == voucherId && v.UsedCount > 0)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(v => v.UsedCount, v => v.UsedCount - 1), ct);
         }
     }
 }

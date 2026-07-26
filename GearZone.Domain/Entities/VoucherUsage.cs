@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using GearZone.Domain.Enums;
 
 namespace GearZone.Domain.Entities
 {
@@ -13,6 +14,9 @@ namespace GearZone.Domain.Entities
         public decimal DiscountAmount { get; set; }
 
         public DateTime UsedAt { get; set; }
+        public VoucherUsageStatus Status { get; set; } = VoucherUsageStatus.Reserved;
+        public DateTime? RedeemedAt { get; set; }
+        public DateTime? ReleasedAt { get; set; }
 
         // Navigation
         public Voucher Voucher { get; set; } = null!;

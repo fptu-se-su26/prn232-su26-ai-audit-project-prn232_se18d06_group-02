@@ -20,6 +20,8 @@ namespace GearZone.Application.Features.Payment
         private readonly IUnitOfWork _unitOfWork;
         private readonly IPaymentGateway _paymentGateway;
         private readonly IOrderTrackingNotifier _orderTrackingNotifier;
+        private readonly IPromotionLifecycleService _promotionLifecycle;
+        private readonly IVoucherService _voucherService;
         private readonly ILogger<PaymentService> _logger;
 
         public PaymentService(
@@ -28,6 +30,8 @@ namespace GearZone.Application.Features.Payment
             IUnitOfWork unitOfWork,
             IPaymentGateway paymentGateway,
             IOrderTrackingNotifier orderTrackingNotifier,
+            IPromotionLifecycleService promotionLifecycle,
+            IVoucherService voucherService,
             ILogger<PaymentService> logger)
         {
             _orderRepository = orderRepository;
@@ -35,6 +39,8 @@ namespace GearZone.Application.Features.Payment
             _unitOfWork = unitOfWork;
             _paymentGateway = paymentGateway;
             _orderTrackingNotifier = orderTrackingNotifier;
+            _promotionLifecycle = promotionLifecycle;
+            _voucherService = voucherService;
             _logger = logger;
         }
 
@@ -73,31 +79,44 @@ namespace GearZone.Application.Features.Payment
                 // 3. If paid, update everything
                 if (gatewayResult.IsPaid)
                 {
-                    payment.Status = PaymentStatus.Paid;
-                    payment.TransactionRef = gatewayResult.TransactionId;
-                    payment.PaidAt = DateTime.UtcNow;
-                    payment.UpdatedAt = DateTime.UtcNow;
-                    await _paymentRepository.UpdateAsync(payment);
-
-                    order.PaidAt = DateTime.UtcNow;
-                    order.UpdatedAt = DateTime.UtcNow;
-
-                    foreach (var subOrder in order.SubOrders)
+                    await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>
                     {
-                        subOrder.Status = OrderStatus.Paid;
-                        subOrder.UpdatedAt = DateTime.UtcNow;
-                    }
+                        var paidAt = DateTime.UtcNow;
+                        payment.Status = PaymentStatus.Paid;
+                        payment.TransactionRef = gatewayResult.TransactionId;
+                        payment.PaidAt = paidAt;
+                        payment.UpdatedAt = paidAt;
+                        await _paymentRepository.UpdateAsync(payment);
 
-                    ApplyPaidSoldCount(order);
+                        order.PaidAt = paidAt;
+                        order.UpdatedAt = paidAt;
 
-                    order.StatusHistories.Add(new OrderStatusHistory
-                    {
-                        NewStatus = OrderStatus.Paid,
-                        ChangedAt = DateTime.UtcNow,
-                        Note = "Payment confirmed via PayOS"
-                    });
+                        foreach (var subOrder in order.SubOrders)
+                        {
+                            subOrder.Status = OrderStatus.Paid;
+                            subOrder.UpdatedAt = paidAt;
+                        }
 
-                    await _unitOfWork.SaveChangesAsync(ct);
+                        ApplyPaidSoldCount(order);
+
+                        order.StatusHistories.Add(new OrderStatusHistory
+                        {
+                            NewStatus = OrderStatus.Paid,
+                            ChangedAt = paidAt,
+                            Note = "Payment confirmed via PayOS"
+                        });
+
+                        await _promotionLifecycle.RedeemForOrderAsync(
+                            order.Id,
+                            null,
+                            transactionCt);
+                        await _voucherService.RedeemOrderVouchersAsync(
+                            order.Id,
+                            null,
+                            transactionCt);
+                        await _unitOfWork.SaveChangesAsync(transactionCt);
+                        return true;
+                    }, ct);
 
                     foreach (var subOrder in order.SubOrders)
                     {

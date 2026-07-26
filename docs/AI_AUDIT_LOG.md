@@ -150,3 +150,123 @@ The team commits that:
 | Representative | Date |
 |---|---|
 | Ho Huy Hoang | 2026-05-27 |
+
+---
+
+## 10. Promotion Campaign & Voucher Implementation
+
+| Field | Detail |
+|---|---|
+| Date | 2026-07-27 |
+| Tool | Codex |
+| Purpose | Implement the approved seller promotion campaign and voucher plan across the Clean Architecture solution |
+| Prompt Reference | `PROMPTS.md#prompt-4----2026-07-27` |
+| AI Involvement | Heavy implementation and verification assistance |
+
+**AI output summary:**
+
+Implemented seller campaign entities and CRUD, product/date overlap validation,
+centralized effective pricing, conditional quota and stock updates, voucher
+reservation states, authoritative checkout quote, idempotent checkout request
+handling, payment/COD lifecycle transitions, financial snapshots,
+promotion-aware Razor UI, EF migration, tests, and deployment documentation.
+
+**Project decisions preserved:**
+
+- Campaigns are seller-only and apply to all variants of selected products.
+- Existing Super Admin platform vouchers remain compatible.
+- Campaign and seller voucher discounts reduce seller commissionable amount;
+  platform vouchers do not reduce seller payout.
+- Quote does not reserve capacity; place order revalidates and reserves inside
+  a transaction.
+- Historical financial records are backfilled without recalculating prior
+  payouts.
+
+**Human review requirement:**
+
+The team-provided plan was treated as authoritative. The team should review the
+migration against a staging backup and complete the PayOS/COD browser acceptance
+flow before production deployment.
+
+**Applied to:**
+
+`GearZone.Domain`, `GearZone.Application`, `GearZone.Infrastructure`,
+`GearZone.Api`, `GearZone.Web`, `GearZone.Tests`, and
+`docs/PROMOTION_CAMPAIGNS_AND_VOUCHERS.md`.
+
+**Verification:**
+
+- `dotnet build GearZone.sln --no-restore` passed.
+- `dotnet test GearZone.Tests/GearZone.Tests.csproj --no-restore` passed 64/64.
+- EF Core forward migration SQL and rollback SQL were both generated
+  successfully without applying changes to the configured database.
+
+---
+
+## 11. Customer Promotion UI Completion
+
+| Field | Detail |
+|---|---|
+| Date | 2026-07-27 |
+| Tool | Codex |
+| Purpose | Add missing sale-off information to customer search results and product detail |
+| Prompt Reference | `PROMPTS.md#prompt-5----2026-07-27` |
+| AI Involvement | Focused UI implementation and verification |
+
+**AI output summary:**
+
+Updated the shared customer product card to show the active campaign discount
+percentage, campaign name, original price, effective price, and savings. Updated
+product detail to show the campaign summary and end time, and to keep all sale
+metadata synchronized with the selected variant.
+
+**Human review requirement:**
+
+The team should confirm campaign colors and wording against the desired product
+design and run a browser check with an active percentage campaign and an active
+fixed-amount campaign.
+
+**Applied to:**
+
+`GearZone.Web` customer catalog and product detail Razor pages.
+
+**Verification:**
+
+- `dotnet build GearZone.sln --no-restore` passed with 0 errors.
+- `dotnet test GearZone.Tests/GearZone.Tests.csproj --no-build --no-restore`
+  passed 64/64.
+
+---
+
+## 12. Checkout Cart-Cleanup Concurrency Fix
+
+| Field | Detail |
+|---|---|
+| Date | 2026-07-27 |
+| Tool | Codex |
+| Purpose | Diagnose and fix checkout `DbUpdateConcurrencyException` |
+| Prompt Reference | `PROMPTS.md#prompt-6----2026-07-27` |
+| AI Involvement | Root-cause analysis, implementation, and regression testing |
+
+**AI output summary:**
+
+Changed purchased-cart cleanup from tracked `RemoveRange` deletes to an
+idempotent `ExecuteDeleteAsync` operation. Payment persistence and cart cleanup
+now run in one database transaction, and the checkout UI disables repeated
+submissions while processing.
+
+**Human review requirement:**
+
+The team should exercise COD and PayOS checkout in the browser, including a
+double-click/repeated-submit scenario.
+
+**Applied to:**
+
+`GearZone.Application`, `GearZone.Infrastructure`, `GearZone.Web`, and
+`GearZone.Tests`.
+
+**Verification:**
+
+- `dotnet build GearZone.sln --no-restore` passed with 0 errors.
+- Checkout concurrency regression test passed.
+- Full test suite passed 65/65.

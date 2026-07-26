@@ -1,6 +1,26 @@
 @using GearZone.Application.Features.Catalog.DTOs
 @using GearZone.Web.Pages.Shared.Models
 @model ProductDetailDto
+@{
+    var firstVariant = Model.Variants.FirstOrDefault();
+    var initialPrice = firstVariant?.Price ?? Model.BasePrice;
+    var initialOriginalPrice = firstVariant?.OriginalPrice ?? Model.OriginalPrice ?? initialPrice;
+    var initialPromotionDiscount = firstVariant?.PromotionDiscountAmount
+        ?? Math.Max(0m, initialOriginalPrice - initialPrice);
+    var hasInitialPromotion = (firstVariant?.PromotionCampaignId ?? Model.PromotionCampaignId).HasValue
+        && initialPromotionDiscount > 0
+        && initialOriginalPrice > initialPrice;
+    var initialPromotionPercent = hasInitialPromotion && initialOriginalPrice > 0
+        ? Math.Clamp(
+            (int)Math.Round(
+                initialPromotionDiscount * 100m / initialOriginalPrice,
+                MidpointRounding.AwayFromZero),
+            1,
+            100)
+        : 0;
+    var initialPromotionName = firstVariant?.PromotionName ?? Model.PromotionName ?? "Promotion sale";
+    var initialPromotionEndAt = firstVariant?.PromotionEndAt ?? Model.PromotionEndAt;
+}
 
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12" id="product-root" data-variants='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Variants))'>
     
@@ -10,7 +30,11 @@
             <img id="main-product-image" alt="@Model.Name main view"
                  class="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                  src="@(Model.ImageUrls.FirstOrDefault() ?? "/images/placeholder.png")" />
-            <div class="absolute top-4 left-4 bg-secondary text-white text-xs font-bold px-2 py-1 rounded">-15% OFF</div>
+            <div id="gallery-promotion-badge"
+                 class="absolute left-4 top-4 flex items-center gap-1 rounded-lg bg-price-red px-3 py-1.5 text-xs font-extrabold text-white shadow-md @(!hasInitialPromotion ? "hidden" : "")">
+                <span class="material-symbols-outlined text-[16px]">sell</span>
+                <span id="gallery-promotion-badge-text">-@initialPromotionPercent% OFF</span>
+            </div>
         </div>
         
         @if (Model.ImageUrls.Count > 1)
@@ -106,15 +130,36 @@
         </div>
 
         <!-- Price Section -->
-        <div class="bg-slate-50 dark:bg-surface-dark/50 p-5 rounded-xl">
+        <div class="rounded-xl bg-slate-50 p-5 dark:bg-surface-dark/50">
+            <div id="promotion-summary"
+                 class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/20 @(!hasInitialPromotion ? "hidden" : "")">
+                <div class="flex min-w-0 items-center gap-2 text-price-red">
+                    <span class="material-symbols-outlined text-[19px]">local_offer</span>
+                    <span id="promotion-name" class="truncate text-sm font-bold">@initialPromotionName</span>
+                </div>
+                <time id="promotion-end-at"
+                      class="text-xs font-medium text-slate-600 dark:text-slate-300"
+                      datetime="@(initialPromotionEndAt?.ToString("O"))">
+                    @if (initialPromotionEndAt.HasValue)
+                    {
+                        <text>Ends @initialPromotionEndAt.Value.ToString("dd/MM/yyyy HH:mm") UTC</text>
+                    }
+                </time>
+            </div>
             <div class="flex items-end gap-3 flex-wrap">
-                <span id="display-price" class="text-4xl font-extrabold text-secondary tracking-tight">
-                    @(Model.Variants.FirstOrDefault()?.Price.ToString("N0") ?? Model.BasePrice.ToString("N0")) VND
+                <span id="display-price" class="text-4xl font-extrabold @(hasInitialPromotion ? "text-price-red" : "text-secondary") tracking-tight">
+                    @initialPrice.ToString("N0") VND
                 </span>
-                <span id="display-original-price" class="text-lg text-slate-400 line-through mb-1">
-                    @(( (Model.Variants.FirstOrDefault()?.Price ?? Model.BasePrice) * 1.15m ).ToString("N0")) VND
+                <span id="display-original-price" class="text-lg text-slate-400 line-through mb-1 @(!hasInitialPromotion ? "hidden" : "")">
+                    @initialOriginalPrice.ToString("N0") VND
                 </span>
-                <span class="text-sm font-bold text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded mb-1">Save 15%</span>
+                <span id="promotion-badge" class="mb-1 rounded bg-price-red px-2 py-1 text-sm font-extrabold text-white @(!hasInitialPromotion ? "hidden" : "")">
+                    -@initialPromotionPercent%
+                </span>
+            </div>
+            <div id="promotion-saving"
+                 class="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 @(!hasInitialPromotion ? "hidden" : "")">
+                You save @initialPromotionDiscount.ToString("N0") VND
             </div>
         </div>
 

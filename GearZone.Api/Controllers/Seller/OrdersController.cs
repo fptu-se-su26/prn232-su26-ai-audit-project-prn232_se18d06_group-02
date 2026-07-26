@@ -46,7 +46,12 @@ public class OrdersController : BaseApiController
             stats.TotalOrders = await q.CountAsync();
             stats.PaidOrders = await q.CountAsync(x => x.Status == OrderStatus.Paid || x.Status == OrderStatus.Processing || x.Status == OrderStatus.Delivered || x.Status == OrderStatus.Completed);
             stats.UnpaidOrders = await q.CountAsync(x => x.Status == OrderStatus.Pending || x.Status == OrderStatus.AwaitingPayment || x.Status == OrderStatus.Approved);
-            stats.TotalRevenue = await q.Where(x => x.Status != OrderStatus.Cancelled && x.Status != OrderStatus.Rejected && x.Status != OrderStatus.Refunded).SumAsync(x => (decimal?)x.Subtotal) ?? 0m;
+            stats.TotalRevenue = await q
+                .Where(x =>
+                    x.Status != OrderStatus.Cancelled &&
+                    x.Status != OrderStatus.Rejected &&
+                    x.Status != OrderStatus.Refunded)
+                .SumAsync(x => (decimal?)x.CommissionableAmount) ?? 0m;
         }
 
         return OkResponse(new SellerOrderListDto { Orders = orders, Stats = stats });

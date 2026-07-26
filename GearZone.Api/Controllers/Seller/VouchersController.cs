@@ -3,6 +3,7 @@ using GearZone.Application.Features.Seller.Dtos;
 using GearZone.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GearZone.Api.Controllers.Seller;
 
@@ -62,8 +63,17 @@ public class VouchersController : BaseApiController
 
         if (dto.DiscountType == "Fixed") dto.MaxDiscount = null;
 
-        var (success, error) = await _voucherService.CreateVoucherAsync(CurrentUserId!, dto);
-        if (!success) return FailResponse(error ?? "Failed to create voucher.");
+        try
+        {
+            var (success, error) = await _voucherService.CreateVoucherAsync(CurrentUserId!, dto);
+            if (!success) return VoucherFailure(error, "Failed to create voucher.");
+        }
+        catch (DbUpdateException)
+        {
+            return FailResponse(
+                "Voucher creation conflicted with another request. Reload and try again.",
+                409);
+        }
 
         return OkResponse("Voucher created.");
     }
@@ -76,8 +86,23 @@ public class VouchersController : BaseApiController
 
         if (dto.DiscountType == "Fixed") dto.MaxDiscount = null;
 
-        var (success, error) = await _voucherService.UpdateVoucherAsync(CurrentUserId!, id, dto);
-        if (!success) return FailResponse(error ?? "Failed to update voucher.");
+        try
+        {
+            var (success, error) = await _voucherService.UpdateVoucherAsync(CurrentUserId!, id, dto);
+            if (!success) return VoucherFailure(error, "Failed to update voucher.");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return FailResponse(
+                "The voucher was changed by another request. Reload and try again.",
+                409);
+        }
+        catch (DbUpdateException)
+        {
+            return FailResponse(
+                "Voucher update conflicted with another request. Reload and try again.",
+                409);
+        }
 
         return OkResponse("Voucher updated.");
     }
@@ -86,8 +111,30 @@ public class VouchersController : BaseApiController
     [HttpPatch("{id:guid}/toggle-status")]
     public async Task<IActionResult> ToggleStatus(Guid id)
     {
-        var (success, error) = await _voucherService.ToggleVoucherStatusAsync(CurrentUserId!, id);
-        if (!success) return FailResponse(error ?? "Failed to update voucher status.");
+        try
+        {
+            var (success, error) = await _voucherService.ToggleVoucherStatusAsync(CurrentUserId!, id);
+            if (!success) return VoucherFailure(error, "Failed to update voucher status.");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return FailResponse(
+                "The voucher was changed by another request. Reload and try again.",
+                409);
+        }
         return OkResponse("Voucher status updated.");
+    }
+
+    private IActionResult VoucherFailure(string? error, string fallback)
+    {
+        var message = error ?? fallback;
+        var statusCode =
+            message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                ? 404
+                : message.Contains("already exists", StringComparison.OrdinalIgnoreCase) ||
+                  message.Contains("cannot be lower", StringComparison.OrdinalIgnoreCase)
+                    ? 409
+                    : 400;
+        return FailResponse(message, statusCode);
     }
 }

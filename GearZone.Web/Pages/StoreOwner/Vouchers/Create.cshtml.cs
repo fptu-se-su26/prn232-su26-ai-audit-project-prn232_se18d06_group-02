@@ -43,7 +43,9 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
                     {
                         Name = sourceVoucher.Name + " (Copy)",
                         Description = sourceVoucher.Description,
-                        Type = "Order",
+                        Type = sourceVoucher.Type == GearZone.Domain.Enums.VoucherType.ShippingDiscount
+                            ? "Shipping"
+                            : "Order",
                         DiscountType = sourceVoucher.DiscountType.ToString(),
                         DiscountValue = sourceVoucher.DiscountValue,
                         MaxDiscount = sourceVoucher.MaxDiscount,
@@ -63,6 +65,7 @@ namespace GearZone.Web.Pages.StoreOwner.Vouchers
             Input.StartAt = DateTime.Now;
             Input.EndAt = DateTime.Now.AddDays(30);
             Input.DiscountType = "Percent";
+            Input.Type = "Order";
             Input.DiscountValue = 10;
             Input.MinOrderAmount = 50000;
             Input.UsageLimit = 100;

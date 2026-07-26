@@ -16,6 +16,9 @@ namespace GearZone.Application.Features.Checkout.Dtos
         public DateTime EndAt { get; set; }
         public int UsedCount { get; set; }
         public int UsageLimit { get; set; }
+        public GearZone.Domain.Enums.VoucherScope Scope { get; set; }
+        public Guid? StoreId { get; set; }
+        public string? StoreName { get; set; }
         public bool IsEligible { get; set; }
         public string? IneligibleReason { get; set; }
     }

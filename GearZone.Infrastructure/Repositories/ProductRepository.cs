@@ -210,16 +210,6 @@ namespace GearZone.Infrastructure.Repositories
                 query = query.Where(p => filter.BrandSlugs.Contains(p.Brand.Slug));
             }
 
-            if (filter.MinPrice.HasValue)
-            {
-                query = query.Where(p => p.BasePrice >= filter.MinPrice.Value);
-            }
-
-            if (filter.MaxPrice.HasValue)
-            {
-                query = query.Where(p => p.BasePrice <= filter.MaxPrice.Value);
-            }
-
             if (filter.InStockOnly == true)
             {
                 query = query.Where(p => p.Variants.Any(v => v.StockQuantity > 0));
@@ -243,44 +233,86 @@ namespace GearZone.Infrastructure.Repositories
                 }
             }
 
-            // Efficient CountAsync: Navigation loading is stripped out by EF for counts
-            var totalCount = await query.CountAsync();
-
-            // Ordering - Add ThenBy(p => p.Id) for deterministic pagination
-            query = (filter.SortBy?.ToLower()) switch
+            var now = DateTime.UtcNow;
+            var pricedQuery = query.Select(product => new
             {
-                "newest" => query.OrderByDescending(p => p.CreatedAt).ThenBy(p => p.Id),
-                "price_asc" => query.OrderBy(p => p.BasePrice).ThenBy(p => p.Id),
-                "price_desc" => query.OrderByDescending(p => p.BasePrice).ThenBy(p => p.Id),
-                _ => query.OrderByDescending(p => p.SoldCount).ThenBy(p => p.Id) // Default "popular"
+                Product = product,
+                EffectivePrice = product.PromotionProducts
+                    .Where(link =>
+                        link.Campaign.IsEnabled &&
+                        link.Campaign.StartAt <= now &&
+                        link.Campaign.EndAt > now &&
+                        link.Campaign.ReservedQuantity + link.Campaign.RedeemedQuantity <
+                            link.Campaign.TotalQuantityLimit)
+                    .Select(link => (decimal?)(
+                        link.Campaign.DiscountType == DiscountType.Percent
+                            ? product.BasePrice -
+                              product.BasePrice * link.Campaign.DiscountValue / 100m
+                            : product.BasePrice > link.Campaign.DiscountValue
+                                ? product.BasePrice - link.Campaign.DiscountValue
+                                : 0m))
+                    .FirstOrDefault() ?? product.BasePrice
+            });
+
+            if (filter.MinPrice.HasValue)
+            {
+                pricedQuery = pricedQuery.Where(x =>
+                    x.EffectivePrice >= filter.MinPrice.Value);
+            }
+
+            if (filter.MaxPrice.HasValue)
+            {
+                pricedQuery = pricedQuery.Where(x =>
+                    x.EffectivePrice <= filter.MaxPrice.Value);
+            }
+
+            var totalCount = await pricedQuery.CountAsync();
+
+            // Price filters and ordering use the same effective-price expression
+            // as the promotion pricing service. DTO mapping retains the original
+            // price so Application applies promotion metadata exactly once.
+            pricedQuery = (filter.SortBy?.ToLower()) switch
+            {
+                "newest" => pricedQuery
+                    .OrderByDescending(x => x.Product.CreatedAt)
+                    .ThenBy(x => x.Product.Id),
+                "price_asc" => pricedQuery
+                    .OrderBy(x => x.EffectivePrice)
+                    .ThenBy(x => x.Product.Id),
+                "price_desc" => pricedQuery
+                    .OrderByDescending(x => x.EffectivePrice)
+                    .ThenBy(x => x.Product.Id),
+                _ => pricedQuery
+                    .OrderByDescending(x => x.Product.SoldCount)
+                    .ThenBy(x => x.Product.Id)
             };
 
             // PRODUCTION OPTIMIZED PROJECTION
             // Maps directly to DTO to fetch ONLY required columns and avoid Cartesian joins
-            var items = await query
+            var items = await pricedQuery
                 .Skip((filter.PageNumber - 1) * filter.PageSize)
                 .Take(filter.PageSize)
-                .Select(p => new CatalogProductDto
+                .Select(x => new CatalogProductDto
                 {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Slug = p.Slug,
-                    CategoryId = p.CategoryId,
-                    BrandName = p.Brand.Name,
-                    BasePrice = p.BasePrice,
-                    ImageUrl = p.Images.Where(i => i.IsPrimary).Select(i => i.ImageUrl).FirstOrDefault() 
-                               ?? p.Images.Select(i => i.ImageUrl).FirstOrDefault() ?? "",
-                    Rating = p.Reviews.Where(r => !r.IsDeleted).Select(r => (decimal?)r.Rating).Average() ?? 0,
-                    ReviewCount = p.Reviews.Count(r => !r.IsDeleted),
-                    StoreName = p.Store.StoreName,
-                    StoreSlug = p.Store.Slug,
-                    StoreLogoUrl = p.Store.LogoUrl,
-                    IsInStock = p.Variants.Any(v => v.StockQuantity > 0),
-                    DefaultVariantId = p.Variants
+                    Id = x.Product.Id,
+                    Name = x.Product.Name,
+                    Slug = x.Product.Slug,
+                    CategoryId = x.Product.CategoryId,
+                    BrandName = x.Product.Brand.Name,
+                    BasePrice = x.Product.BasePrice,
+                    ImageUrl = x.Product.Images.Where(i => i.IsPrimary).Select(i => i.ImageUrl).FirstOrDefault()
+                               ?? x.Product.Images.Select(i => i.ImageUrl).FirstOrDefault() ?? "",
+                    Rating = x.Product.Reviews.Where(r => !r.IsDeleted).Select(r => (decimal?)r.Rating).Average() ?? 0,
+                    ReviewCount = x.Product.Reviews.Count(r => !r.IsDeleted),
+                    StoreName = x.Product.Store.StoreName,
+                    StoreSlug = x.Product.Store.Slug,
+                    StoreLogoUrl = x.Product.Store.LogoUrl,
+                    IsInStock = x.Product.Variants.Any(v => v.StockQuantity > 0),
+                    DefaultVariantId = x.Product.Variants
                         .OrderByDescending(v => v.IsActive)
                         .Select(v => v.Id)
                         .FirstOrDefault(),
-                    HighlightTags = p.Variants
+                    HighlightTags = x.Product.Variants
                         .SelectMany(v => v.AttributeValues)
                         .Select(av => av.CategoryAttributeOption.Value)
                         .Distinct()

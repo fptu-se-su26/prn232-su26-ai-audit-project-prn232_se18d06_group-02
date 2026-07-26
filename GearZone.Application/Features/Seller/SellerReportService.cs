@@ -58,7 +58,7 @@ namespace GearZone.Application.Features.Seller
                 .Where(x => x.StoreId == store.Id
                     && x.CreatedAt >= p.PrevStart && x.CreatedAt <= p.End
                     && !NonRevenueStatuses.Contains(x.Status))
-                .Select(x => new { x.CreatedAt, x.Subtotal, x.NetAmount })
+                .Select(x => new { x.CreatedAt, x.CommissionableAmount, x.NetAmount })
                 .ToListAsync(ct);
 
             var itemRows = await _orderItemRepository.Query()
@@ -73,8 +73,8 @@ namespace GearZone.Application.Features.Seller
             var curItems = itemRows.Where(r => r.CreatedAt >= p.Start).ToList();
             var prevItems = itemRows.Where(r => r.CreatedAt < p.Start).ToList();
 
-            decimal curRevenue = curOrders.Sum(r => r.Subtotal);
-            decimal prevRevenue = prevOrders.Sum(r => r.Subtotal);
+            decimal curRevenue = curOrders.Sum(r => r.CommissionableAmount);
+            decimal prevRevenue = prevOrders.Sum(r => r.CommissionableAmount);
             decimal curNet = curOrders.Sum(r => r.NetAmount);
             decimal prevNet = prevOrders.Sum(r => r.NetAmount);
             int curCount = curOrders.Count;
@@ -90,7 +90,7 @@ namespace GearZone.Application.Features.Seller
             {
                 var idx = BucketIndex(r.CreatedAt, p.Start, p.Granularity, buckets.Count);
                 if (idx < 0) continue;
-                series[idx].Revenue += r.Subtotal;
+                series[idx].Revenue += r.CommissionableAmount;
                 series[idx].Orders += 1;
             }
             foreach (var r in curItems)
@@ -104,7 +104,7 @@ namespace GearZone.Application.Features.Seller
             {
                 var idx = BucketIndex(r.CreatedAt, p.PrevStart, p.Granularity, buckets.Count);
                 if (idx < 0) continue;
-                series[idx].PreviousRevenue += r.Subtotal;
+                series[idx].PreviousRevenue += r.CommissionableAmount;
             }
 
             return new SalesReportDto

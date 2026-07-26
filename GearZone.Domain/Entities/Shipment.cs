@@ -10,6 +10,12 @@ namespace GearZone.Domain.Entities
         
         [Column(TypeName = "decimal(18,2)")]
         public decimal ShippingFee { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ShippingDiscountAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal NetShippingFee { get; set; }
         
         public double DistanceKm { get; set; }
         

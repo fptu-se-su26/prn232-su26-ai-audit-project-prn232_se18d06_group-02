@@ -151,7 +151,13 @@ namespace GearZone.Application.Features.Chat.Dtos
         public DateTime? UpdatedAt { get; set; }
         public OrderStatus Status { get; set; }
         public decimal Subtotal { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public decimal SellerVoucherDiscountAmount { get; set; }
+        public decimal CommissionableAmount { get; set; }
         public decimal ShippingFee { get; set; }
+        public decimal ShippingVoucherDiscountAmount { get; set; }
+        public decimal NetShippingFee { get; set; }
+        public decimal StoreOrderTotal { get; set; }
         public decimal GrandTotal { get; set; }
         public decimal CommissionRateSnapshot { get; set; }
         public decimal CommissionAmount { get; set; }
@@ -173,7 +179,10 @@ namespace GearZone.Application.Features.Chat.Dtos
         public string VariantName { get; set; } = string.Empty;
         public string Sku { get; set; } = string.Empty;
         public int Quantity { get; set; }
+        public decimal OriginalUnitPrice { get; set; }
         public decimal UnitPrice { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public string? PromotionName { get; set; }
         public decimal LineTotal { get; set; }
     }
 

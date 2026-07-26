@@ -24,6 +24,7 @@ namespace GearZone.Application.Features.Catalog
         private readonly IStoreFollowRepository _storeFollowRepository;
         private readonly IProductReviewRepository _productReviewRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IPromotionPricingService _promotionPricing;
 
         private static readonly string[] HomeCategorySlugs =
         {
@@ -48,7 +49,8 @@ namespace GearZone.Application.Features.Catalog
             IStoreRepository storeRepository,
             IStoreFollowRepository storeFollowRepository,
             IProductReviewRepository productReviewRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IPromotionPricingService promotionPricing)
         {
             _productRepository = productRepository;
             _categoryRepository = categoryRepository;
@@ -58,11 +60,13 @@ namespace GearZone.Application.Features.Catalog
             _storeFollowRepository = storeFollowRepository;
             _productReviewRepository = productReviewRepository;
             _unitOfWork = unitOfWork;
+            _promotionPricing = promotionPricing;
         }
 
         public async Task<HomePageDto> GetHomePageAsync(string? currentUserId)
         {
             var latestProducts = await _productRepository.GetLatestHomeProductsAsync(24);
+            await ApplyProductPromotionsAsync(latestProducts);
             var categories = await _categoryRepository.GetHomeCategoriesBySlugsAsync(HomeCategorySlugs);
             var stores = await _storeRepository.GetHomeStoresBySlugsAsync(HomeStoreSlugs);
             var featuredStore = stores.FirstOrDefault();
@@ -177,7 +181,9 @@ namespace GearZone.Application.Features.Catalog
 
         public async Task<PagedResult<CatalogProductDto>> GetProductsAsync(ProductFilterDto filter)
         {
-            return await _productRepository.GetFilteredProductsAsync(filter);
+            var result = await _productRepository.GetFilteredProductsAsync(filter);
+            await ApplyProductPromotionsAsync(result.Items);
+            return result;
         }
 
         public async Task<StoreProfileDto?> GetStoreProfileAsync(string slug, string? currentUserId = null)
@@ -442,6 +448,10 @@ namespace GearZone.Application.Features.Catalog
 
             if (product == null) return null;
 
+            var variantPrices = await _promotionPricing.GetPricesAsync(product.Variants.ToArray());
+            var productPrice = (await _promotionPricing.GetProductPricesAsync(
+                new Dictionary<Guid, decimal> { [product.Id] = product.BasePrice }))[product.Id];
+
             var dto = new ProductDetailDto
             {
                 Id = product.Id,
@@ -449,7 +459,11 @@ namespace GearZone.Application.Features.Catalog
                 Name = product.Name,
                 Slug = product.Slug,
                 Description = product.Description,
-                BasePrice = product.BasePrice,
+                BasePrice = productPrice.EffectivePrice,
+                OriginalPrice = productPrice.HasPromotion ? productPrice.OriginalPrice : null,
+                PromotionCampaignId = productPrice.CampaignId,
+                PromotionName = productPrice.CampaignName,
+                PromotionEndAt = productPrice.CampaignEndAt,
                 SoldCount = product.SoldCount,
                 BrandName = product.Brand.Name,
                 BrandSlug = product.Brand.Slug,
@@ -493,7 +507,12 @@ namespace GearZone.Application.Features.Catalog
                 {
                     Id = v.Id,
                     VariantName = v.VariantName,
-                    Price = v.Price,
+                    Price = variantPrices[v.Id].EffectivePrice,
+                    OriginalPrice = variantPrices[v.Id].OriginalPrice,
+                    PromotionDiscountAmount = variantPrices[v.Id].DiscountPerUnit,
+                    PromotionCampaignId = variantPrices[v.Id].CampaignId,
+                    PromotionName = variantPrices[v.Id].CampaignName,
+                    PromotionEndAt = variantPrices[v.Id].CampaignEndAt,
                     StockQuantity = v.StockQuantity,
                     SelectedOptionIds = v.AttributeValues.Select(av => av.CategoryAttributeOptionId).ToList()
                 }).ToList();
@@ -604,6 +623,7 @@ namespace GearZone.Application.Features.Catalog
                 })
                 .ToListAsync();
 
+            await ApplyProductPromotionsAsync(relatedProducts);
             return relatedProducts;
         }
 
@@ -677,9 +697,9 @@ namespace GearZone.Application.Features.Catalog
             if (!comparableAttributes.Any())
             {
                 comparableAttributes = await _categoryAttributeRepository.Query()
-                    .Where(a => a.CategoryId == categoryId)
+                .Where(a => a.CategoryId == categoryId)
                     .OrderBy(a => a.DisplayOrder)
-                    .ToListAsync();
+                .ToListAsync();
             }
 
             var comparisonDefinitions = comparableAttributes
@@ -832,6 +852,31 @@ namespace GearZone.Application.Features.Catalog
             }
 
             return result;
+        }
+
+        private async Task ApplyProductPromotionsAsync(List<CatalogProductDto> products)
+        {
+            if (products.Count == 0)
+            {
+                return;
+            }
+
+            var prices = await _promotionPricing.GetProductPricesAsync(
+                products.ToDictionary(x => x.Id, x => x.BasePrice));
+            foreach (var product in products)
+            {
+                var price = prices[product.Id];
+                product.OriginalPrice = price.HasPromotion ? price.OriginalPrice : null;
+                product.BasePrice = price.EffectivePrice;
+                product.PromotionCampaignId = price.CampaignId;
+                product.PromotionName = price.CampaignName;
+                product.PromotionEndAt = price.CampaignEndAt;
+                product.PromotionDiscountAmount = price.DiscountPerUnit;
+                if (price.HasPromotion && !product.SaleBadges.Contains("Promotion"))
+                {
+                    product.SaleBadges.Add("Promotion");
+                }
+            }
         }
 
         private static Dictionary<string, string> ParseSpecificationsJson(string rawJson)

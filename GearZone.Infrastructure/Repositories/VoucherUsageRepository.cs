@@ -13,7 +13,20 @@ namespace GearZone.Infrastructure.Repositories
         public async Task<int> GetUsageCountByUserAsync(Guid voucherId, string userId)
         {
             return await Query()
-                .CountAsync(vu => vu.VoucherId == voucherId && vu.UserId == userId);
+                .CountAsync(vu =>
+                    vu.VoucherId == voucherId &&
+                    vu.UserId == userId &&
+                    vu.Status != GearZone.Domain.Enums.VoucherUsageStatus.Released);
+        }
+
+        public Task<List<VoucherUsage>> GetByOrderAsync(
+            Guid orderId,
+            CancellationToken ct = default)
+        {
+            return Query()
+                .Include(x => x.Voucher)
+                .Where(x => x.OrderId == orderId)
+                .ToListAsync(ct);
         }
     }
 }

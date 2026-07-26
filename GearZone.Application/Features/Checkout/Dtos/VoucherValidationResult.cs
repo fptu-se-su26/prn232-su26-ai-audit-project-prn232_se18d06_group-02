@@ -12,6 +12,8 @@ namespace GearZone.Application.Features.Checkout.Dtos
         public decimal DiscountAmount { get; set; }
         public string DiscountLabel { get; set; } = string.Empty;
         public VoucherType Type { get; set; }
+        public VoucherScope Scope { get; set; }
+        public Guid? StoreId { get; set; }
 
         public static VoucherValidationResult Fail(string message) => new()
         {

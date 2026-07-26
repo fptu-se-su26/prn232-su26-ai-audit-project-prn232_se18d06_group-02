@@ -14,6 +14,9 @@ namespace GearZone.Domain.Entities
         public PayoutStatus PayoutStatus { get; set; } = PayoutStatus.Unpaid;
 
         public decimal Subtotal { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public decimal SellerVoucherDiscountAmount { get; set; }
+        public decimal CommissionableAmount { get; set; }
         public decimal CommissionRateSnapshot { get; set; }
         public decimal CommissionAmount { get; set; }
         public decimal NetAmount { get; set; }

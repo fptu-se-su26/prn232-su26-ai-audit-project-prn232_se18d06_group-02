@@ -37,6 +37,9 @@ namespace GearZone.Application.Features.Orders.Dtos
         public string VariantName { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        public decimal OriginalUnitPrice { get; set; }
+        public decimal PromotionDiscountAmount { get; set; }
+        public string? PromotionName { get; set; }
         public bool CanReview { get; set; }
         public bool CanEditReview { get; set; }
         public Guid? ReviewId { get; set; }

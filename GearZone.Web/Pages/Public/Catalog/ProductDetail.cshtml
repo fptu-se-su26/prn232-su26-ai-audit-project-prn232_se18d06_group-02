@@ -69,7 +69,10 @@
                         <div class="mt-auto">
                             <div class="flex flex-wrap items-baseline gap-2 mb-4">
                                 <span class="text-lg font-bold text-secondary">@p.BasePrice.ToString("N0") VND</span>
-                                <span class="text-xs text-slate-400 line-through">@((p.BasePrice * 1.15m).ToString("N0")) VND</span>
+                                @if (p.OriginalPrice.HasValue)
+                                {
+                                    <span class="text-xs text-slate-400 line-through">@p.OriginalPrice.Value.ToString("N0") VND</span>
+                                }
                             </div>
                             <button class="w-full py-2 rounded-lg border border-primary text-primary text-xs font-bold hover:bg-primary/5 transition-colors flex items-center justify-center gap-2">
                                 <span class="material-symbols-outlined text-sm">add_shopping_cart</span>
@@ -167,6 +170,89 @@
                 return null;
             }
 
+            function formatPromotionEnd(value) {
+                if (!value) return '';
+
+                const hasTimeZone = /(?:z|[+-]\d{2}:\d{2})$/i.test(value);
+                const parsed = new Date(hasTimeZone ? value : value + 'Z');
+                if (Number.isNaN(parsed.getTime())) return '';
+
+                return 'Ends ' + new Intl.DateTimeFormat('vi-VN', {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                }).format(parsed);
+            }
+
+            function updatePromotionUI(variant) {
+                const effectivePrice = Number(variant.Price || 0);
+                const originalPrice = Number(variant.OriginalPrice || effectivePrice);
+                const discountAmount = Math.max(
+                    0,
+                    Number(variant.PromotionDiscountAmount || (originalPrice - effectivePrice))
+                );
+                const hasPromotion = Boolean(
+                    variant.PromotionCampaignId
+                    && discountAmount > 0
+                    && originalPrice > effectivePrice
+                );
+                const discountPercent = hasPromotion && originalPrice > 0
+                    ? Math.min(100, Math.max(1, Math.round(discountAmount * 100 / originalPrice)))
+                    : 0;
+
+                const displayPrice = document.getElementById('display-price');
+                const displayOriginal = document.getElementById('display-original-price');
+                const promotionBadge = document.getElementById('promotion-badge');
+                const promotionSummary = document.getElementById('promotion-summary');
+                const promotionName = document.getElementById('promotion-name');
+                const promotionEnd = document.getElementById('promotion-end-at');
+                const promotionSaving = document.getElementById('promotion-saving');
+                const galleryBadge = document.getElementById('gallery-promotion-badge');
+                const galleryBadgeText = document.getElementById('gallery-promotion-badge-text');
+
+                if (displayPrice) {
+                    displayPrice.textContent = effectivePrice.toLocaleString('vi-VN') + ' VND';
+                    displayPrice.classList.toggle('text-price-red', hasPromotion);
+                    displayPrice.classList.toggle('text-secondary', !hasPromotion);
+                }
+
+                if (displayOriginal) {
+                    displayOriginal.textContent = originalPrice.toLocaleString('vi-VN') + ' VND';
+                    displayOriginal.classList.toggle('hidden', !hasPromotion);
+                }
+
+                if (promotionBadge) {
+                    promotionBadge.textContent = `-${discountPercent}%`;
+                    promotionBadge.classList.toggle('hidden', !hasPromotion);
+                }
+
+                if (promotionName) {
+                    promotionName.textContent = variant.PromotionName || 'Promotion sale';
+                }
+
+                if (promotionEnd) {
+                    const endText = formatPromotionEnd(variant.PromotionEndAt);
+                    promotionEnd.textContent = endText;
+                    promotionEnd.classList.toggle('hidden', !endText);
+                }
+
+                if (promotionSaving) {
+                    promotionSaving.textContent = `You save ${discountAmount.toLocaleString('vi-VN')} VND`;
+                    promotionSaving.classList.toggle('hidden', !hasPromotion);
+                }
+
+                if (promotionSummary) {
+                    promotionSummary.classList.toggle('hidden', !hasPromotion);
+                }
+
+                if (galleryBadge) {
+                    galleryBadge.classList.toggle('hidden', !hasPromotion);
+                }
+
+                if (galleryBadgeText) {
+                    galleryBadgeText.textContent = `-${discountPercent}% OFF`;
+                }
+            }
+
             function syncOptionsFromVariant(variant) {
                 if (!variant || groups.length === 0) return;
 
@@ -220,12 +306,8 @@
                     url.searchParams.set('variantId', variant.Id);
                     window.history.replaceState({}, '', url);
 
-                    // Update Price
-                    const newPrice = variant.Price;
-                    document.getElementById('display-price').textContent = newPrice.toLocaleString('vi-VN') + ' VND';
-                    const originalPrice = newPrice * 1.15;
-                    const displayOriginalElement = document.getElementById('display-original-price');
-                    if(displayOriginalElement) displayOriginalElement.textContent = originalPrice.toLocaleString('vi-VN') + ' VND';
+                    // Update campaign pricing and sale metadata for the selected variant.
+                    updatePromotionUI(variant);
                     
                     // Update Stock
                     const qtyInput = document.getElementById('qty-input');
