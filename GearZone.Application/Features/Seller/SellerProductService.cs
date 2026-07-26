@@ -178,12 +178,20 @@ namespace GearZone.Application.Features.Seller
             await _productRepository.AddAsync(product);
 
             const int maxImages = 5;
+            var uploadedImageUrls = new List<string>();
             if (dto.Images != null && dto.Images.Any())
             {
-                var imagesToUpload = dto.Images.Take(maxImages).ToList();
-                var imageUrls = await _fileStorageService.UploadAsync(imagesToUpload);
+                uploadedImageUrls.AddRange(await _fileStorageService.UploadAsync(dto.Images.Take(maxImages).ToList()));
+            }
+            // Remote image URLs (e.g. bulk import): Cloudinary fetches + re-hosts them.
+            if (dto.ImageUrls != null && dto.ImageUrls.Any() && uploadedImageUrls.Count < maxImages)
+            {
+                var remaining = maxImages - uploadedImageUrls.Count;
+                uploadedImageUrls.AddRange(await _fileStorageService.UploadFromUrlsAsync(dto.ImageUrls.Take(remaining).ToList()));
+            }
+            {
                 int sortOrder = 0;
-                foreach (var imageUrl in imageUrls)
+                foreach (var imageUrl in uploadedImageUrls.Take(maxImages))
                 {
                     await _productImageRepository.AddAsync(new ProductImage
                     {
@@ -582,6 +590,22 @@ namespace GearZone.Application.Features.Seller
             for (var i = 0; i < variants.Count; i++)
             {
                 var variant = variants[i];
+
+                // Variants supplied with an explicit SKU + name and no attributes (e.g. bulk import)
+                // keep their own identity — don't overwrite them or run the attribute-uniqueness check
+                // (that check assumes every variant is distinguished by an attribute combination).
+                var hasAttributes = (variant.Attributes ?? new List<AttributeSelectionDto>())
+                    .Any(a => a.AttributeId > 0 && a.OptionId > 0);
+                if (!hasAttributes
+                    && !string.IsNullOrWhiteSpace(variant.Sku)
+                    && !string.IsNullOrWhiteSpace(variant.VariantName))
+                {
+                    variant.Sku = variant.Sku.Trim();
+                    if (!usedSkus.Add(variant.Sku))
+                        throw new InvalidOperationException($"Duplicate SKU '{variant.Sku}' among the product's variants.");
+                    continue;
+                }
+
                 var combinationKey = string.Join(
                     "|",
                     (variant.Attributes ?? new List<AttributeSelectionDto>())
@@ -782,6 +806,120 @@ namespace GearZone.Application.Features.Seller
             product.UpdatedAt = DateTime.UtcNow;
 
             await _productRepository.UpdateAsync(product);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<HashSet<string>> GetExistingSkusAsync(IEnumerable<string> skus)
+        {
+            var list = skus?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList() ?? new List<string>();
+            if (list.Count == 0) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var existing = await _productVariantRepository.Query()
+                .Where(v => list.Contains(v.Sku))
+                .Select(v => v.Sku)
+                .ToListAsync();
+            return existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        public async Task<HashSet<string>> GetExistingSlugsAsync(Guid storeId, IEnumerable<string> slugs)
+        {
+            var list = slugs?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList() ?? new List<string>();
+            if (list.Count == 0) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var existing = await _productRepository.Query()
+                .Where(p => p.StoreId == storeId && !p.IsDeleted && list.Contains(p.Slug))
+                .Select(p => p.Slug)
+                .ToListAsync();
+            return existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        public async Task<Dictionary<string, StoreVariantRefDto>> GetStoreVariantsBySkuAsync(Guid storeId, IEnumerable<string> skus)
+        {
+            var list = skus?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList() ?? new List<string>();
+            if (list.Count == 0) return new Dictionary<string, StoreVariantRefDto>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = await _productVariantRepository.Query()
+                .Where(v => v.Product.StoreId == storeId && !v.IsDeleted && list.Contains(v.Sku))
+                .Select(v => new { v.Sku, v.Id, v.ProductId, v.StockQuantity })
+                .ToListAsync();
+
+            var dict = new Dictionary<string, StoreVariantRefDto>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in rows)
+                dict[r.Sku] = new StoreVariantRefDto { VariantId = r.Id, ProductId = r.ProductId, StockQuantity = r.StockQuantity };
+            return dict;
+        }
+
+        public async Task<Dictionary<string, Guid>> GetStoreProductIdsBySlugAsync(Guid storeId, IEnumerable<string> slugs)
+        {
+            var list = slugs?.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList() ?? new List<string>();
+            if (list.Count == 0) return new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = await _productRepository.Query()
+                .Where(p => p.StoreId == storeId && !p.IsDeleted && list.Contains(p.Slug))
+                .Select(p => new { p.Slug, p.Id })
+                .ToListAsync();
+
+            var dict = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in rows)
+                dict[r.Slug] = r.Id;
+            return dict;
+        }
+
+        public async Task RestockVariantAsync(Guid variantId, int addQuantity, string userId)
+        {
+            var variant = await _productVariantRepository.Query().FirstOrDefaultAsync(v => v.Id == variantId);
+            if (variant == null) return;
+
+            variant.StockQuantity += addQuantity;
+            variant.UpdatedAt = DateTime.UtcNow;
+            await _productVariantRepository.UpdateAsync(variant);
+
+            if (addQuantity != 0)
+            {
+                await _inventoryRepository.AddAsync(new InventoryTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    VariantId = variant.Id,
+                    Type = "StockIn",
+                    QuantityChange = addQuantity,
+                    Reason = "Import restock",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = userId
+                });
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task AddVariantToProductAsync(Guid productId, string variantName, string sku, decimal price, int stockQuantity, string userId)
+        {
+            var variant = new ProductVariant
+            {
+                Id = Guid.NewGuid(),
+                ProductId = productId,
+                Sku = sku,
+                VariantName = variantName,
+                Price = price,
+                StockQuantity = stockQuantity,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _productVariantRepository.AddAsync(variant);
+
+            if (stockQuantity > 0)
+            {
+                await _inventoryRepository.AddAsync(new InventoryTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    VariantId = variant.Id,
+                    Type = "StockIn",
+                    QuantityChange = stockQuantity,
+                    Reason = "Import - new variant",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = userId
+                });
+            }
+
             await _unitOfWork.SaveChangesAsync();
         }
 

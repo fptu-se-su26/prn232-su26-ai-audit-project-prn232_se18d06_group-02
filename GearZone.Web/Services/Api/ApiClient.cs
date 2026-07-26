@@ -33,6 +33,8 @@ public interface IApiClient
     Task<ApiResult> PostAsync(string path, CancellationToken ct = default);
     /// <summary>POSTs multipart/form-data, for endpoints that take file uploads.</summary>
     Task<ApiResult> PostFormAsync(string path, MultipartFormDataContent form, CancellationToken ct = default);
+    /// <summary>POSTs multipart/form-data and unwraps a typed payload from the response envelope.</summary>
+    Task<ApiResult<TResponse>> PostFormAndReadAsync<TResponse>(string path, MultipartFormDataContent form, CancellationToken ct = default);
     /// <summary>POSTs with no body and returns the unwrapped payload (null on failure).</summary>
     Task<TResponse?> PostAndReadAsync<TResponse>(string path, CancellationToken ct = default);
     Task<ApiResult<TResponse>> PostAndReadAsync<TBody, TResponse>(string path, TBody body, CancellationToken ct = default);
@@ -96,6 +98,34 @@ public class ApiClient : IApiClient
 
     public Task<ApiResult> PostFormAsync(string path, MultipartFormDataContent form, CancellationToken ct = default) =>
         SendContentAsync(HttpMethod.Post, path, form, ct);
+
+    public async Task<ApiResult<TResponse>> PostFormAndReadAsync<TResponse>(
+        string path, MultipartFormDataContent form, CancellationToken ct = default)
+    {
+        using var response = await _http.PostAsync(path, form, ct);
+
+        ApiResponse<TResponse>? payload = null;
+        try
+        {
+            payload = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>(cancellationToken: ct);
+        }
+        catch
+        {
+            // Non-JSON body — fall back to the status code below.
+        }
+
+        if (payload is not null)
+        {
+            return new ApiResult<TResponse>(
+                payload.Success, payload.Data, payload.Message,
+                payload.Errors?.ToList() ?? new List<string>());
+        }
+
+        return new ApiResult<TResponse>(
+            response.IsSuccessStatusCode, default,
+            response.IsSuccessStatusCode ? null : $"Request failed ({(int)response.StatusCode}).",
+            new List<string>());
+    }
 
     public async Task<TResponse?> PostAndReadAsync<TResponse>(string path, CancellationToken ct = default)
     {

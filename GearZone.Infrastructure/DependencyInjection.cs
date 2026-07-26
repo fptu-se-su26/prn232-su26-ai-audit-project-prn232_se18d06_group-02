@@ -150,6 +150,7 @@ namespace GearZone.Infrastructure
             services.AddTransient<IAiInsightProvider>(sp => sp.GetRequiredService<GeminiInsightProvider>());
             services.AddScoped<IAiInsightProviderResolver, AiInsightProviderResolver>();
             services.AddScoped<IAdminReportExportService, AdminReportExportService>();
+            services.AddScoped<IProductImportService, ProductImportService>();
             services.AddScoped<IBrandRepository, BrandRepository>();
             services.AddScoped<ICategoryAttributeRepository, CategoryAttributeRepository>();
             services.AddScoped<ICartRepository, CartRepository>();

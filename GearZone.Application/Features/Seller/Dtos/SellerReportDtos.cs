@@ -150,6 +150,8 @@ namespace GearZone.Application.Features.Seller.Dtos
         public string Label { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public int NewFollowers { get; set; }
+        /// <summary>New followers in the equivalent bucket of the previous period (trend comparison).</summary>
+        public int PreviousNewFollowers { get; set; }
     }
 
     public class CustomerReportDto
@@ -197,6 +199,8 @@ namespace GearZone.Application.Features.Seller.Dtos
         public DateTime Date { get; set; }
         public double AvgRating { get; set; }
         public int Count { get; set; }
+        /// <summary>Review count in the equivalent bucket of the previous period (trend comparison).</summary>
+        public int PreviousCount { get; set; }
     }
 
     public class ReviewsReportDto

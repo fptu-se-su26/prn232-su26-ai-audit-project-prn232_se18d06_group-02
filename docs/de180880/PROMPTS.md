@@ -65,3 +65,45 @@ Please help build the customer cart experience in `GearZone-FE` as a new React f
 
 ### Evaluation
 This prompt was useful because it combined UX, state management, and interaction behavior into one customer shopping flow instead of treating them as isolated fixes. The AI output helped accelerate the cart page structure and interaction logic, but manual review and browser testing were still necessary to confirm that quantity updates felt smooth, the delete dialog matched the UI, and both price-slider handles worked correctly.
+
+## Prompt #04
+
+- Date: 2026-07-19
+- AI Tool: Claude Code
+- Author: Dang Cong Quoc Khanh (DE180880)
+- Purpose: Improve the Store Owner report/analytics page in the GearZone .NET/Razor application
+
+### Prompt
+The seller report bar chart looks too plain — please replace it with a more professional chart consistent with the existing dashboard, and suggest further improvements for the seller report. Then implement: CSV export for the report tables that need it, a "previous period" comparison line on the revenue chart, and a new section that flags slow-moving / dead-stock products so a seller can act on them, including a 30/60/90-day window, pagination, and no full-page reload when switching. Keep everything on the Razor web side (no React).
+
+### Expected Output
+- An area/line revenue trend chart (inline SVG) matching the dashboard style, reused for the follower and review trends
+- A dashed previous-period comparison line with a legend
+- CSV export for Top products, Low stock, and Voucher performance tables
+- A "Slow-moving & dead stock" analytics section with status classification, capital tied up, sell-out estimate, a 30/60/90-day selector, pagination, and an AJAX no-reload interaction
+- Correct handling of voucher data near date boundaries
+- Successful `dotnet build` verification
+
+### Evaluation
+This prompt was useful because it framed the work as a rounded analytics improvement rather than a single visual tweak, which surfaced a real timezone bug in the marketing report (vouchers stored in local time compared against a UTC period). The AI accelerated the chart, exports, and dead-stock logic, but I still reviewed the classification rules, kept the fix scoped so the working sales logic was untouched, and validated the pages in the browser.
+
+## Prompt #05
+
+- Date: 2026-07-20
+- AI Tool: Claude Code
+- Author: Dang Cong Quoc Khanh (DE180880)
+- Purpose: Build a seller bulk product import feature from an Excel file in the GearZone application
+
+### Prompt
+Help me add a feature so sellers can import an Excel file to bulk-add products to their store. Give an idea and a plan first, then implement it on the Razor web side. The template should let fields that must be chosen (category, brand) use a dropdown instead of free typing, validate the file and show a preview before writing anything, and reuse the existing product-creation logic.
+
+### Expected Output
+- A downloadable `.xlsx` template with instructions, valid category/brand reference sheets, and in-cell dropdowns for Category and Brand
+- One-row-per-variant parsing that groups rows into products by name
+- A preview step that validates each row (required fields, category/brand existence, SKU uniqueness in-file and in the database, numeric price/stock) without writing
+- An import step that creates only the valid products as Draft and reports created/skipped counts
+- Seller API endpoints (template/preview/import) and a Razor Import page reachable from the product list
+- Clean-architecture separation (Application contract, Infrastructure ClosedXML implementation) and successful builds
+
+### Evaluation
+This prompt was useful because asking for the idea and plan first clarified the key decisions (Excel vs CSV, one-row-per-variant grouping, how to handle unknown categories/brands, and status after import) before any code was written, and it surfaced that the ClosedXML library was already available. The AI implemented the cross-layer wiring quickly, but I still confirmed the Phase-1 defaults, kept the feature server-side only, and relied on a temporary round-trip test plus builds to verify the spreadsheet parsing and validation actually worked at runtime.
