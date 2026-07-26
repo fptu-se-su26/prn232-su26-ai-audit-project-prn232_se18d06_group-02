@@ -11,6 +11,8 @@
     var currentSlug = ViewContext.RouteData.Values["CategorySlug"]?.ToString() ?? "";
     var currentPath = Context.Request.Path.Value ?? "";
     var currentTab = Context.Request.Query["tab"].ToString() ?? "";
+    var isHomePage = currentPath.Equals("/", StringComparison.OrdinalIgnoreCase)
+        || currentPath.Equals("/Index", StringComparison.OrdinalIgnoreCase);
     var navLabelOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["Console & Controllers"] = "Console",
@@ -42,6 +44,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - GearZone</title>
+    @if (ViewData["Description"] is string description && !string.IsNullOrWhiteSpace(description))
+    {
+        <meta name="description" content="@description" />
+    }
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -130,7 +136,13 @@
     }
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="bg-slate-50 text-text-primary min-h-screen flex flex-col">
+<body class="bg-slate-50 text-text-primary min-h-screen flex flex-col @(ViewData["BodyClass"]?.ToString() ?? string.Empty)">
+    @if (isHomePage)
+    {
+        <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-slate-950 focus:shadow-xl">
+            Skip to content
+        </a>
+    }
     <!-- Sticky Header -->
     <header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -170,6 +182,17 @@
                 </div>
                 <!-- Right Actions -->
                 <div class="flex items-center gap-4 flex-shrink-0">
+                    @if (isHomePage)
+                    {
+                        <button type="button"
+                                class="gz-mobile-nav-toggle"
+                                data-home-nav-toggle
+                                aria-controls="home-mobile-navigation"
+                                aria-expanded="false"
+                                aria-label="Open navigation">
+                            <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+                        </button>
+                    }
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <a href="/profile?tab=messages" class="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-gray-100" id="header-chat-icon">
@@ -253,6 +276,42 @@
         </div>
     </header>
 
+    @if (isHomePage)
+    {
+        <aside id="home-mobile-navigation"
+               class="gz-mobile-nav"
+               data-home-mobile-nav
+               data-open="false"
+               aria-hidden="true"
+               aria-label="Mobile navigation">
+            <div class="gz-mobile-nav__panel">
+                <form action="/products" method="get" class="gz-mobile-nav__search">
+                    <input name="search" type="search" aria-label="Search products" placeholder="Search products and brands" />
+                    <button type="submit" aria-label="Submit search">
+                        <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                    </button>
+                </form>
+                <nav class="gz-mobile-nav__links" aria-label="Product categories">
+                    <a href="/products">
+                        All categories
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                    </a>
+                    @foreach (var category in layoutCategories)
+                    {
+                        <a asp-page="/Public/Catalog/Browse" asp-route-slug="@category.Slug">
+                            @GetCategoryNavLabel(category.Name)
+                            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                        </a>
+                    }
+                    <a href="/#home-flash-zone">
+                        Fresh arrivals
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+    }
+
     <!-- Secondary Nav -->
     <nav class="bg-white border-b border-gray-200 hidden md:block relative z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative overflow-visible" data-category-nav-shell>
@@ -319,11 +378,55 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow overflow-x-clip">
+    <main class="flex-grow overflow-x-clip" id="main-content">
         @RenderBody()
     </main>
 
     <!-- Footer -->
+    @if (isHomePage)
+    {
+        <footer class="gz-home-footer">
+            <div class="gz-shell">
+                <div class="gz-home-footer__top">
+                    <div class="gz-home-footer__intro">
+                        <a class="gz-home-footer__brand" asp-page="/Index">
+                            <span class="material-symbols-outlined" aria-hidden="true">memory</span>
+                            <span>GearZone</span>
+                        </a>
+                        <p class="gz-home-footer__statement">Gaming hardware from verified stores.</p>
+                    </div>
+                    <div>
+                        <h2 class="gz-home-footer__title">Explore</h2>
+                        <div class="gz-home-footer__links">
+                            <a href="/products">All products</a>
+                            @foreach (var category in layoutCategories.Take(3))
+                            {
+                                <a asp-page="/Public/Catalog/Browse" asp-route-slug="@category.Slug">@GetCategoryNavLabel(category.Name)</a>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="gz-home-footer__title">Account</h2>
+                        <div class="gz-home-footer__links">
+                            <a href="/profile">Profile</a>
+                            <a href="/cart">Cart</a>
+                            <a href="/profile?tab=orders">Orders</a>
+                            <a href="/profile?tab=messages">Messages</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="gz-home-footer__bottom">
+                    <p>&copy; @DateTime.UtcNow.Year GearZone. All rights reserved.</p>
+                    <div class="gz-home-footer__legal">
+                        <a asp-page="/Privacy">Privacy</a>
+                        <a href="/products">Sitemap</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    }
+    else
+    {
     <footer class="bg-[#1E2937] text-gray-300 py-12 border-t border-gray-700">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
@@ -400,6 +503,7 @@
             </div>
         </div>
     </footer>
+    }
 
     @if (showBuyerChatWidget)
     {
