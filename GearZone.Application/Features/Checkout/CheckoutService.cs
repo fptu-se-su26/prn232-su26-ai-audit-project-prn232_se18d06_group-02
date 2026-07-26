@@ -15,6 +15,7 @@ namespace GearZone.Application.Features.Checkout
         private readonly ICartItemRepository _cartItems;
         private readonly IProductVariantRepository _variants;
         private readonly IOrderRepository _orders;
+        private readonly IPaymentRepository _payments;
         private readonly IOrderService _orderService;
         private readonly ICartService _cartService;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -31,6 +32,7 @@ namespace GearZone.Application.Features.Checkout
             ICartItemRepository cartItemRepository,
             IProductVariantRepository productVariantRepository,
             IOrderRepository orderRepository,
+            IPaymentRepository paymentRepository,
             IOrderService orderService,
             ICartService cartService,
             UserManager<ApplicationUser> userManager,
@@ -46,6 +48,7 @@ namespace GearZone.Application.Features.Checkout
             _cartItems = cartItemRepository;
             _variants = productVariantRepository;
             _orders = orderRepository;
+            _payments = paymentRepository;
             _orderService = orderService;
             _cartService = cartService;
             _userManager = userManager;
@@ -210,6 +213,13 @@ namespace GearZone.Application.Features.Checkout
                 return Fail(ex.Message, true);
             }
 
+            // The reservation transaction uses set-based stock/quota/voucher
+            // updates. Those operations advance database values (including
+            // row-version tokens) without updating every entity previously loaded
+            // for the quote. Start payment persistence from a clean tracker so no
+            // stale entity can be included in the next SaveChanges batch.
+            _unitOfWork.ClearTrackedEntities();
+
             var paymentResult = await _paymentStrategies
                 .GetStrategy(request.PaymentMethod)
                 .ProcessPaymentAsync(order);
@@ -220,19 +230,40 @@ namespace GearZone.Application.Features.Checkout
                 return Fail(paymentResult.ErrorMessage ?? "Payment processing failed.");
             }
 
-            // Persist the payment record and clear purchased cart lines atomically.
-            // Cart clearing is set-based/idempotent, so a repeated request cannot
-            // fail with "expected 1 row, affected 0 rows".
-            await _unitOfWork.ExecuteInTransactionAsync(
-                async transactionCt =>
-                {
-                    await _cartService.ClearCartItemsAsync(
-                        request.CartItemIds,
-                        transactionCt);
-                    await _unitOfWork.SaveChangesAsync(transactionCt);
-                    return true;
-                },
-                ct);
+            var payment = order.Payments
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefault();
+            if (payment == null)
+            {
+                await _orderService.CancelOrderAsync(order.Id, userId, ct);
+                return Fail("The payment record could not be created.");
+            }
+
+            try
+            {
+                // Persist the payment record and clear purchased cart lines
+                // atomically. Cart clearing is set-based/idempotent, so repeated
+                // requests safely observe an already-empty cart.
+                await _unitOfWork.ExecuteInTransactionAsync(
+                    async transactionCt =>
+                    {
+                        await _payments.AddAsync(payment, transactionCt);
+                        await _cartService.ClearCartItemsAsync(
+                            request.CartItemIds,
+                            transactionCt);
+                        await _unitOfWork.SaveChangesAsync(transactionCt);
+                        return true;
+                    },
+                    ct);
+            }
+            catch (DbUpdateException)
+            {
+                _unitOfWork.ClearTrackedEntities();
+                await _orderService.CancelOrderAsync(order.Id, userId, ct);
+                return Fail(
+                    "Checkout could not be finalized. Reserved stock and discounts were released; please try again.",
+                    true);
+            }
 
             if (request.SaveAddress)
             {

@@ -3,6 +3,7 @@
     public interface IUnitOfWork
     {
         Task<int> SaveChangesAsync(CancellationToken ct = default);
+        void ClearTrackedEntities();
         Task<T> ExecuteInTransactionAsync<T>(
             Func<CancellationToken, Task<T>> action,
             CancellationToken ct = default);

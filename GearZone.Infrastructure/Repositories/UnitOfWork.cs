@@ -16,6 +16,9 @@ namespace GearZone.Infrastructure.Repositories
         public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _dbContext.SaveChangesAsync(ct);
 
+        public void ClearTrackedEntities()
+            => _dbContext.ChangeTracker.Clear();
+
         public async Task<T> ExecuteInTransactionAsync<T>(
             Func<CancellationToken, Task<T>> action,
             CancellationToken ct = default)

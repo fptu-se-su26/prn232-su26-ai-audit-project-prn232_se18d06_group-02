@@ -253,7 +253,11 @@ fixed-amount campaign.
 Changed purchased-cart cleanup from tracked `RemoveRange` deletes to an
 idempotent `ExecuteDeleteAsync` operation. Payment persistence and cart cleanup
 now run in one database transaction, and the checkout UI disables repeated
-submissions while processing.
+submissions while processing. Follow-up database inspection confirmed that
+failed attempts had committed orders but no payment rows. The final correction
+clears the quote/reservation ChangeTracker boundary and explicitly adds only the
+new payment to the post-payment transaction, preventing stale row-version
+entities from entering that save batch.
 
 **Human review requirement:**
 
