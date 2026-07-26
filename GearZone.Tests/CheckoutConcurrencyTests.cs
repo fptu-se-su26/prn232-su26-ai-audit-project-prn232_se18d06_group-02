@@ -35,8 +35,15 @@ public class CheckoutConcurrencyTests
 
         await repository.DeleteRangeByIdsAsync(new[] { cartItemId });
         await repository.DeleteRangeByIdsAsync(new[] { cartItemId });
+
+        // Simulate a stale tracked delete left by work performed before the
+        // payment-persistence boundary. Clearing the tracker prevents that stale
+        // command from joining the payment SaveChanges batch.
+        db.CartItems.Remove(db.CartItems.Local.Single(x => x.Id == cartItemId));
+        new UnitOfWork(db).ClearTrackedEntities();
         await db.SaveChangesAsync();
 
+        Assert.Empty(db.ChangeTracker.Entries());
         Assert.False(await db.CartItems.AsNoTracking().AnyAsync(x => x.Id == cartItemId));
     }
 }

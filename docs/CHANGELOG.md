@@ -48,6 +48,9 @@ Full project bootstrapping: solution structure, .gitignore, dependency wiring
   persisted across checkout/payment state transitions
 - Prevented checkout from throwing `DbUpdateConcurrencyException` when a
   purchased cart line was already cleared by a repeated/concurrent request
+- Isolated post-payment persistence from stale quote/reservation tracking so
+  row-version changes made by conditional updates cannot leak into the payment
+  `SaveChanges` batch
 
 ### Notes
 - All changes target `develop` as the merge destination
