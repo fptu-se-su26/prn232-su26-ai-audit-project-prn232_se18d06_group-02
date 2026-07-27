@@ -26,6 +26,7 @@ class ToastManager {
         toast.className = `transform translate-x-full opacity-0 transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) 
                            relative overflow-hidden flex items-center p-4 pr-3 bg-white dark:bg-gray-800 rounded-[1.25rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] pointer-events-auto border border-gray-100 dark:border-gray-700`;
 
+        const safeMessage = this._escapeHtml(message);
         toast.innerHTML = `
             <div class="flex-shrink-0 mr-4">
                 <div class="flex items-center justify-center w-[38px] h-[38px] rounded-full ${theme.iconBg}">
@@ -34,7 +35,7 @@ class ToastManager {
             </div>
             <div class="flex-grow mr-2 pt-0.5">
                 <h4 class="text-[16px] font-semibold ${theme.titleColor} m-0 leading-none">${theme.title}</h4>
-                <p class="text-[14px] text-gray-500 dark:text-gray-400 m-0 mt-1 leading-snug">${message}</p>
+                <p class="text-[14px] text-gray-500 dark:text-gray-400 m-0 mt-1 leading-snug">${safeMessage}</p>
             </div>
             <button class="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 transition-colors">
                 <span class="material-symbols-outlined text-[20px]">close</span>
@@ -123,6 +124,15 @@ class ToastManager {
             }
         };
         return themes[type] || themes.info;
+    }
+
+    _escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }
 

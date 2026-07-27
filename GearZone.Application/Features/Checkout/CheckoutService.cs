@@ -1,4 +1,5 @@
 using GearZone.Application.Abstractions.Persistence;
+using GearZone.Application.Abstractions.External;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Checkout.Dtos;
 using GearZone.Application.Features.Payment;
@@ -27,6 +28,7 @@ namespace GearZone.Application.Features.Checkout
         private readonly IShippingService _shipping;
         private readonly IPromotionPricingService _pricing;
         private readonly IPromotionLifecycleService _promotionLifecycle;
+        private readonly IOrderTrackingNotifier _orderTrackingNotifier;
 
         public CheckoutService(
             ICartItemRepository cartItemRepository,
@@ -43,7 +45,8 @@ namespace GearZone.Application.Features.Checkout
             IVoucherService voucherService,
             IShippingService shippingService,
             IPromotionPricingService pricing,
-            IPromotionLifecycleService promotionLifecycle)
+            IPromotionLifecycleService promotionLifecycle,
+            IOrderTrackingNotifier orderTrackingNotifier)
         {
             _cartItems = cartItemRepository;
             _variants = productVariantRepository;
@@ -60,6 +63,7 @@ namespace GearZone.Application.Features.Checkout
             _shipping = shippingService;
             _pricing = pricing;
             _promotionLifecycle = promotionLifecycle;
+            _orderTrackingNotifier = orderTrackingNotifier;
         }
 
         public async Task<CheckoutResponseDto> ProcessCheckoutAsync(
@@ -264,6 +268,8 @@ namespace GearZone.Application.Features.Checkout
                     "Checkout could not be finalized. Reserved stock and discounts were released; please try again.",
                     true);
             }
+
+            await NotifySellersOrderCreatedAsync(order, user, ct);
 
             if (request.SaveAddress)
             {
@@ -538,6 +544,44 @@ namespace GearZone.Application.Features.Checkout
                 CheckoutUrl = payment?.CheckoutUrl,
                 Amount = payment == null ? (long)order.GrandTotal : (long)payment.Amount
             };
+        }
+
+        private async Task NotifySellersOrderCreatedAsync(
+            Order order,
+            ApplicationUser user,
+            CancellationToken ct)
+        {
+            var buyerDisplayName = user.FullName ??
+                                   user.UserName ??
+                                   user.Email ??
+                                   "Buyer";
+
+            foreach (var subOrder in order.SubOrders)
+            {
+                var sellerUserId = subOrder.Store?.OwnerUserId;
+                if (string.IsNullOrWhiteSpace(sellerUserId))
+                {
+                    continue;
+                }
+
+                await _orderTrackingNotifier.NotifySellerOrderCreatedAsync(
+                    new SellerOrderCreatedNotification
+                    {
+                        SellerUserId = sellerUserId,
+                        SubOrderId = subOrder.Id,
+                        OrderCode = order.OrderCode,
+                        BuyerDisplayName = buyerDisplayName,
+                        CreatedAt = subOrder.CreatedAt,
+                        Status = subOrder.Status.ToString(),
+                        Subtotal = subOrder.Subtotal,
+                        ItemCount = subOrder.Items.Sum(x => x.Quantity),
+                        ProductPreview = subOrder.Items
+                            .OrderBy(x => x.ProductNameSnapshot)
+                            .Select(x => x.ProductNameSnapshot)
+                            .FirstOrDefault() ?? "Order items"
+                    },
+                    ct);
+            }
         }
     }
 }

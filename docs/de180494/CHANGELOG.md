@@ -30,3 +30,20 @@ Author: DE180494
 - Used Codex to help design and implement the new customer profile account center, API integration, route wiring, and seller registration flow.
 - Reviewed the generated changes manually and kept the implementation aligned with the current GearZone API + React architecture.
 - Verified the implementation with backend and frontend build commands.
+
+## [2026-07-27] - Realtime Seller Order Notification
+Author: DE180494
+
+### Added
+- Added realtime seller notifications when customer checkout creates new seller sub-orders.
+- Extended the existing order tracking SignalR hub with a Store Owner channel for order creation events.
+- Added Store Owner layout runtime code that joins the seller order channel, shows a new-order toast, and refreshes `/storeowner/orders` when it is open.
+
+### Changed
+- Extended the order tracking notifier contract with a seller order creation payload.
+- Preserved store owner information on newly created sub-orders so checkout can notify the correct seller without an extra database query.
+- Escaped toast message text before rendering to keep realtime buyer/order text safe in the DOM.
+
+### AI-assisted
+- Used Codex to implement the SignalR notification flow and update DE180494 documentation.
+- Verification: `dotnet test GearZone.sln` passed with 65 tests.

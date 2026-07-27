@@ -387,6 +387,94 @@
     </script>
     
     <partial name="_Toast" />
+    <script>
+        (function () {
+            const hubUrl = '/hubs/order-tracking';
+            let connection = null;
+
+            function loadSignalR() {
+                if (window.signalR) {
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve, reject) => {
+                    const existing = document.querySelector('script[data-signalr-runtime]');
+                    if (existing) {
+                        existing.addEventListener('load', resolve, { once: true });
+                        existing.addEventListener('error', reject, { once: true });
+                        return;
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
+                    script.crossOrigin = 'anonymous';
+                    script.referrerPolicy = 'no-referrer';
+                    script.dataset.signalrRuntime = 'true';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            function formatCurrency(value) {
+                const amount = Number(value || 0);
+                return new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
+            }
+
+            function handleSellerOrderCreated(payload) {
+                if (!payload || !payload.subOrderId) {
+                    return;
+                }
+
+                const orderCode = payload.orderCode ? `#${payload.orderCode}` : 'new order';
+                const buyer = payload.buyerDisplayName || 'Buyer';
+                const total = formatCurrency(payload.subtotal);
+                window.toast?.info(`New order ${orderCode} from ${buyer} - ${total}`);
+
+                window.dispatchEvent(new CustomEvent('gearzone:seller-order-created', {
+                    detail: payload
+                }));
+
+                if (window.location.pathname.toLowerCase() === '/storeowner/orders') {
+                    window.setTimeout(() => window.location.reload(), 1200);
+                }
+            }
+
+            async function startSellerOrderRealtime() {
+                try {
+                    await loadSignalR();
+                    if (!window.signalR || connection) {
+                        return;
+                    }
+
+                    connection = new signalR.HubConnectionBuilder()
+                        .withUrl(hubUrl)
+                        .withAutomaticReconnect([0, 2000, 5000, 10000])
+                        .build();
+
+                    connection.on('SellerOrderCreated', handleSellerOrderCreated);
+                    connection.onreconnected(async () => {
+                        try {
+                            await connection.invoke('JoinSellerOrders');
+                        } catch (error) {
+                            console.warn('Unable to rejoin seller order realtime channel.', error);
+                        }
+                    });
+
+                    await connection.start();
+                    await connection.invoke('JoinSellerOrders');
+                } catch (error) {
+                    console.warn('Seller order realtime is unavailable.', error);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', startSellerOrderRealtime);
+            window.addEventListener('beforeunload', function () {
+                connection?.invoke('LeaveSellerOrders').catch(() => {});
+                connection?.stop().catch(() => {});
+            });
+        })();
+    </script>
     
     <!-- Generic Confirmation Modal -->
     <div id="confirm-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
