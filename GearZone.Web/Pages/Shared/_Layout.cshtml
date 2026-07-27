@@ -878,5 +878,85 @@
             });
         });
     </script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            (function () {
+                const hubUrl = '/hubs/order-tracking';
+                let connection = null;
+
+                function loadSignalR() {
+                    if (window.signalR) {
+                        return Promise.resolve();
+                    }
+
+                    return new Promise((resolve, reject) => {
+                        const existing = document.querySelector('script[data-signalr-runtime]');
+                        if (existing) {
+                            existing.addEventListener('load', resolve, { once: true });
+                            existing.addEventListener('error', reject, { once: true });
+                            return;
+                        }
+
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
+                        script.crossOrigin = 'anonymous';
+                        script.referrerPolicy = 'no-referrer';
+                        script.dataset.signalrRuntime = 'true';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                function handleBuyerOrderStatusChanged(payload) {
+                    if (!payload || !payload.orderCode) return;
+
+                    const statusMsg = payload.status || 'Updated';
+                    if (window.toast) {
+                        window.toast.info(`Your order #${payload.orderCode} status is now: ${statusMsg}`);
+                    }
+
+                    if (window.location.pathname.toLowerCase().includes('/profile') && window.location.search.toLowerCase().includes('tab=orders')) {
+                        window.setTimeout(() => window.location.reload(), 1500);
+                    }
+                }
+
+                async function startBuyerOrderRealtime() {
+                    try {
+                        await loadSignalR();
+                        if (!window.signalR || connection) {
+                            return;
+                        }
+
+                        connection = new signalR.HubConnectionBuilder()
+                            .withUrl(hubUrl)
+                            .withAutomaticReconnect([0, 2000, 5000, 10000])
+                            .build();
+
+                        connection.on('BuyerOrderStatusChanged', handleBuyerOrderStatusChanged);
+                        connection.onreconnected(async () => {
+                            try {
+                                await connection.invoke('JoinBuyerOrders');
+                            } catch (error) {
+                                console.warn('Unable to rejoin buyer order realtime channel.', error);
+                            }
+                        });
+
+                        await connection.start();
+                        await connection.invoke('JoinBuyerOrders');
+                    } catch (error) {
+                        console.warn('Buyer order realtime is unavailable.', error);
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', startBuyerOrderRealtime);
+                window.addEventListener('beforeunload', function () {
+                    connection?.invoke('LeaveBuyerOrders').catch(() => {});
+                    connection?.stop().catch(() => {});
+                });
+            })();
+        </script>
+    }
 </body>
 </html>

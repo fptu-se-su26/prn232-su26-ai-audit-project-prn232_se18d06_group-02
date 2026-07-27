@@ -73,5 +73,31 @@ namespace GearZone.Web.Hubs
         {
             return $"seller-orders:{sellerUserId}";
         }
+
+        public async Task JoinBuyerOrders()
+        {
+            var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new HubException("Authentication required.");
+            }
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, GetBuyerOrdersGroupName(userId));
+        }
+
+        public Task LeaveBuyerOrders()
+        {
+            var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            return string.IsNullOrWhiteSpace(userId)
+                ? Task.CompletedTask
+                : Groups.RemoveFromGroupAsync(
+                    Context.ConnectionId,
+                    GetBuyerOrdersGroupName(userId));
+        }
+
+        public static string GetBuyerOrdersGroupName(string buyerUserId)
+        {
+            return $"buyer-orders:{buyerUserId}";
+        }
     }
 }

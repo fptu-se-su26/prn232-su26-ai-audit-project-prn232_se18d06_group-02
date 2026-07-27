@@ -561,6 +561,16 @@ namespace GearZone.Application.Features.Checkout
                 var sellerUserId = subOrder.Store?.OwnerUserId;
                 if (string.IsNullOrWhiteSpace(sellerUserId))
                 {
+                    sellerUserId = await _orders.Query()
+                        .Where(o => o.Id == order.Id)
+                        .SelectMany(o => o.SubOrders)
+                        .Where(s => s.Id == subOrder.Id)
+                        .Select(s => s.Store.OwnerUserId)
+                        .FirstOrDefaultAsync(ct);
+                }
+
+                if (string.IsNullOrWhiteSpace(sellerUserId))
+                {
                     continue;
                 }
 
