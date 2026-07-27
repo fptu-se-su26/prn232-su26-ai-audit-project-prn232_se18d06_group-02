@@ -8,5 +8,12 @@ namespace GearZone.Application.Features.Orders
         {
             return Task.CompletedTask;
         }
+
+        public Task NotifySellerOrderCreatedAsync(
+            SellerOrderCreatedNotification notification,
+            CancellationToken ct = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

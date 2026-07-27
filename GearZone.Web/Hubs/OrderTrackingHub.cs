@@ -42,9 +42,36 @@ namespace GearZone.Web.Hubs
             return Groups.RemoveFromGroupAsync(Context.ConnectionId, GetGroupName(subOrderId));
         }
 
+        public async Task JoinSellerOrders()
+        {
+            var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId) ||
+                Context.User?.IsInRole("Store Owner") != true)
+            {
+                throw new HubException("Seller access is required.");
+            }
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, GetSellerOrdersGroupName(userId));
+        }
+
+        public Task LeaveSellerOrders()
+        {
+            var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            return string.IsNullOrWhiteSpace(userId)
+                ? Task.CompletedTask
+                : Groups.RemoveFromGroupAsync(
+                    Context.ConnectionId,
+                    GetSellerOrdersGroupName(userId));
+        }
+
         public static string GetGroupName(Guid subOrderId)
         {
             return $"order-tracking:{subOrderId}";
+        }
+
+        public static string GetSellerOrdersGroupName(string sellerUserId)
+        {
+            return $"seller-orders:{sellerUserId}";
         }
     }
 }

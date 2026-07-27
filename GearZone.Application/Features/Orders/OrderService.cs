@@ -97,6 +97,7 @@ namespace GearZone.Application.Features.Orders
             foreach (var group in storeGroups)
             {
                 var storeId = group.Key;
+                var store = group.First().Variant.Product.Store;
                 decimal subtotal = group.Sum(ci => quoteLines[ci.Id].LineTotal);
                 decimal promotionDiscount = group.Sum(ci => quoteLines[ci.Id].PromotionDiscountAmount);
                 decimal sellerVoucherDiscount =
@@ -114,6 +115,7 @@ namespace GearZone.Application.Features.Orders
                     Id = Guid.NewGuid(),
                     OrderId = order.Id,
                     StoreId = storeId,
+                    Store = store,
                     Status = initialStatus,
                     PayoutStatus = PayoutStatus.Unpaid,
                     Subtotal = subtotal,
