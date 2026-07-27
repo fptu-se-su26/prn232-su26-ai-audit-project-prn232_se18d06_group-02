@@ -181,6 +181,8 @@ namespace GearZone.Infrastructure
             services.AddScoped<IPlatformTransactionRepository, PlatformTransactionRepository>();
             services.AddScoped<IVoucherRepository, VoucherRepository>();
             services.AddScoped<IVoucherUsageRepository, VoucherUsageRepository>();
+            services.AddScoped<IPromotionCampaignRepository, PromotionCampaignRepository>();
+            services.AddScoped<IPromotionReservationRepository, PromotionReservationRepository>();
             services.AddScoped<IUserAddressRepository, UserAddressRepository>();
             services.AddScoped<IAiConversationRepository, AiConversationRepository>();
             services.AddScoped<IAiMessageRepository, AiMessageRepository>();

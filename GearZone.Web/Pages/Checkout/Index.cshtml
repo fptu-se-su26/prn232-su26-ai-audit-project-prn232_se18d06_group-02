@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "Checkout - GearZone";
     var storeGroups = Model.SelectedItems.GroupBy(ci => ci.Variant.Product.Store).ToList();
+    var quoteLines = Model.Quote.Lines.ToDictionary(line => line.CartItemId);
 }
 
 @* ─── VOUCHER TICKET STYLES ───────────────────────────────── *@
@@ -101,6 +102,7 @@
     {
         <input type="hidden" name="CheckoutRequest.CartItemIds" value="@id" />
     }
+    <input type="hidden" asp-for="CheckoutRequest.RequestId" />
     <input type="hidden" asp-for="CheckoutRequest.ShippingInfo.EmailAddress" />
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -301,6 +303,9 @@
 
                             @foreach (var item in items)
                             {
+                                var quoteLine = quoteLines.GetValueOrDefault(item.Id);
+                                var effectivePrice = quoteLine?.EffectiveUnitPrice ?? item.Variant.Price;
+                                var originalPrice = quoteLine?.OriginalUnitPrice ?? item.Variant.Price;
                                 <div class="px-6 py-4 flex gap-4 items-center">
                                     <div class="size-16 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
                                          @{
@@ -326,7 +331,16 @@
                                         </div>
                                     </div>
                                     <div class="text-right shrink-0">
-                                        <div class="text-sm font-bold text-slate-900 dark:text-white">@((item.Quantity * item.Variant.Price).ToString("N0"))₫</div>
+                                        @if (quoteLine?.PromotionCampaignId != null)
+                                        {
+                                            <div class="text-xs text-slate-400 line-through">@((item.Quantity * originalPrice).ToString("N0"))₫</div>
+                                            <div class="text-sm font-bold text-rose-600">@((item.Quantity * effectivePrice).ToString("N0"))₫</div>
+                                            <div class="mt-1 text-[10px] font-semibold text-rose-500">@quoteLine.PromotionName</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-sm font-bold text-slate-900 dark:text-white">@((item.Quantity * effectivePrice).ToString("N0"))₫</div>
+                                        }
                                     </div>
                                 </div>
                             }
@@ -337,7 +351,10 @@
                                     <span class="text-slate-500">Shipping (Standard)</span>
                                     <span class="text-[10px] text-slate-400" id="store-distance-@store?.Id">Distance: -- km</span>
                                 </div>
-                                <span class="font-medium text-slate-900 dark:text-white" id="store-shipping-@store?.Id">Calculating...</span>
+                                @{
+                                    var storeFee = Model.Quote.StoreShippingFees.FirstOrDefault(x => x.StoreId == store?.Id);
+                                }
+                                <span class="font-medium text-slate-900 dark:text-white" id="store-shipping-@store?.Id">@(storeFee == null ? "Calculating..." : $"{storeFee.ShippingFee:N0}₫")</span>
                             </div>
                         </div>
                     }
@@ -354,11 +371,15 @@
                     <div class="space-y-4 text-sm text-slate-600 dark:text-slate-300">
                         <div class="flex justify-between items-center">
                             <span>Merchandise Subtotal</span>
-                            <span class="font-medium text-slate-900 dark:text-white" id="summary-subtotal">@Model.GrandTotal.ToString("N0")₫</span>
+                            <span class="font-medium text-slate-900 dark:text-white" id="summary-subtotal">@Model.Quote.MerchandiseSubtotalBeforePromotion.ToString("N0")₫</span>
+                        </div>
+                        <div class="flex justify-between items-center @(Model.Quote.PromotionDiscountAmount > 0 ? "" : "hidden")" id="summary-promotion-discount-row">
+                            <span class="flex items-center gap-1 text-rose-600"><span class="material-symbols-outlined text-[14px]">sell</span> Campaign Discount</span>
+                            <span class="font-medium text-rose-600" id="summary-promotion-discount">-@Model.Quote.PromotionDiscountAmount.ToString("N0")₫</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span>Shipping Total</span>
-                            <span class="font-medium text-slate-900 dark:text-white" id="summary-shipping">0₫</span>
+                            <span class="font-medium text-slate-900 dark:text-white" id="summary-shipping">@Model.Quote.ShippingFee.ToString("N0")₫</span>
                         </div>
                         <div class="flex justify-between items-center hidden" id="summary-order-discount-row">
                             <span class="flex items-center gap-1 text-green-600"><span class="material-symbols-outlined text-[14px]">confirmation_number</span> Order Discount</span>
@@ -375,7 +396,7 @@
                     <div class="flex justify-between items-center mb-6">
                         <span class="text-lg font-semibold text-slate-900 dark:text-white">Total Payment</span>
                         <div class="text-right">
-                            <span class="block text-3xl font-bold text-secondary" id="summary-total">@Model.GrandTotal.ToString("N0")₫</span>
+                            <span class="block text-3xl font-bold text-secondary" id="summary-total">@Model.Quote.GrandTotal.ToString("N0")₫</span>
                         </div>
                     </div>
                     
@@ -634,6 +655,25 @@
     <script src="~/js/goong-autocomplete.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const checkoutForm = document.getElementById('checkout-form');
+            const placeOrderButton = document.getElementById('place-order-btn');
+            let checkoutSubmitting = false;
+
+            checkoutForm?.addEventListener('submit', function (event) {
+                if (checkoutSubmitting) {
+                    event.preventDefault();
+                    return;
+                }
+
+                checkoutSubmitting = true;
+                if (placeOrderButton) {
+                    placeOrderButton.disabled = true;
+                    placeOrderButton.classList.add('cursor-wait', 'opacity-70');
+                    placeOrderButton.innerHTML =
+                        '<span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span> PROCESSING...';
+                }
+            });
+
             const apiKey = '@Model.GoongApiKey';
             const mapKey = '@Model.GoongMapKey';
 
@@ -1107,7 +1147,8 @@
             let currentVoucherType = 'order'; // 'order' or 'shipping'
             let appliedOrderVoucher = null;
             let appliedShippingVoucher = null;
-            let currentShippingFee = 0;
+            let currentShippingFee = parseFloat("@Model.Quote.ShippingFee.ToString(System.Globalization.CultureInfo.InvariantCulture)");
+            const checkoutCartItemIds = @Html.Raw(Json.Serialize(Model.SelectedCartItemIds));
 
             window.calculateShipping = async function(lat, lng) {
                 if (!lat || !lng || lat === 0) return;
@@ -1127,9 +1168,11 @@
                             'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                         },
                         body: JSON.stringify({
-                            cartItemIds: @Html.Raw(Json.Serialize(Model.SelectedCartItemIds)),
+                            cartItemIds: checkoutCartItemIds,
                             latitude: lat,
-                            longitude: lng
+                            longitude: lng,
+                            orderVoucherCode: document.getElementById('order-voucher-code-input').value || null,
+                            shippingVoucherCode: document.getElementById('shipping-voucher-code-input').value || null
                         })
                     });
 
@@ -1184,16 +1227,16 @@
                 const list = document.getElementById('vouchers-list');
                 const skeleton = list.querySelector('.voucher-skeleton');
                 const emptyMsg = document.getElementById('no-vouchers-msg');
-                const merchandiseTotal = parseFloat("@Model.GrandTotal");
-                const shippingFee = currentShippingFee;
-
                 list.innerHTML = '';
                 list.appendChild(skeleton);
                 skeleton.classList.remove('hidden');
                 emptyMsg.classList.add('hidden');
 
                 try {
-                    const response = await fetch(`/Checkout?handler=AvailableVouchers&type=${currentVoucherType}&merchandiseTotal=${merchandiseTotal}&shippingFee=${shippingFee}`);
+                    const itemQuery = checkoutCartItemIds.map(id => `cartItemIds=${encodeURIComponent(id)}`).join('&');
+                    const latitude = document.getElementById('shipping-lat-input').value || 0;
+                    const longitude = document.getElementById('shipping-lng-input').value || 0;
+                    const response = await fetch(`/Checkout?handler=AvailableVouchers&type=${currentVoucherType}&${itemQuery}&latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`);
                     const vouchers = await response.json();
 
                     skeleton.classList.add('hidden');
@@ -1291,7 +1334,6 @@
                 const btn = document.getElementById('apply-manual-btn');
                 const errorMsg = document.getElementById('voucher-error-msg');
                 const originalText = btn.innerHTML;
-                const merchandiseTotal = parseFloat("@Model.GrandTotal");
                 btn.innerHTML = '<span class="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>';
                 btn.disabled = true;
                 errorMsg.classList.add('hidden');
@@ -1306,8 +1348,11 @@
                         body: JSON.stringify({
                             code: code,
                             type: currentVoucherType,
-                            merchandiseTotal: merchandiseTotal,
-                            shippingFee: currentShippingFee
+                            cartItemIds: checkoutCartItemIds,
+                            latitude: parseFloat(document.getElementById('shipping-lat-input').value || 0),
+                            longitude: parseFloat(document.getElementById('shipping-lng-input').value || 0),
+                            orderVoucherCode: document.getElementById('order-voucher-code-input').value || null,
+                            shippingVoucherCode: document.getElementById('shipping-voucher-code-input').value || null
                         })
                     });
 

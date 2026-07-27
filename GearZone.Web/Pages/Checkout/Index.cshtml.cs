@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Security.Claims;
+using GearZone.Web.Services.Api;
 
 namespace GearZone.Web.Pages.Checkout
 {
@@ -15,29 +16,23 @@ namespace GearZone.Web.Pages.Checkout
     public class IndexModel : PageModel
     {
         private readonly ICheckoutService _checkoutService;
-        private readonly IOrderService _orderService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
         private readonly IUserService _userService;
-        private readonly IVoucherService _voucherService;
-        private readonly IShippingService _shippingService;
+        private readonly IApiClient _api;
 
         public IndexModel(
             ICheckoutService checkoutService,
-            IOrderService orderService,
             UserManager<ApplicationUser> userManager,
             IConfiguration configuration,
             IUserService userService,
-            IVoucherService voucherService,
-            IShippingService shippingService)
+            IApiClient api)
         {
             _checkoutService = checkoutService;
-            _orderService = orderService;
             _userManager = userManager;
             _configuration = configuration;
             _userService = userService;
-            _voucherService = voucherService;
-            _shippingService = shippingService;
+            _api = api;
         }
 
         public string? GoongApiKey => _configuration["GOONG_API_KEY"];
@@ -54,13 +49,16 @@ namespace GearZone.Web.Pages.Checkout
         public List<CartItem> SelectedItems { get; set; } = new();
         public List<UserAddressDto> UserAddresses { get; set; } = new();
         public decimal GrandTotal { get; set; }
+        public CheckoutQuoteDto Quote { get; set; } = new();
 
         public async Task<IActionResult> OnGetAsync()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return RedirectToPage("/Public/Auth/Login");
 
-            CurrentUser = await _userManager.FindByIdAsync(userId);
+            var currentUser = await _userManager.FindByIdAsync(userId);
+            if (currentUser == null) return RedirectToPage("/Public/Auth/Login");
+            CurrentUser = currentUser;
 
             if (SelectedCartItemIds == null || !SelectedCartItemIds.Any())
             {
@@ -74,8 +72,6 @@ namespace GearZone.Web.Pages.Checkout
             {
                 return RedirectToPage("/Cart/Index");
             }
-
-            GrandTotal = SelectedItems.Sum(ci => ci.Quantity * ci.Variant.Price);
 
             // Load user addresses
             UserAddresses = (await _userService.GetUserAddressesAsync(userId)).ToList();
@@ -95,6 +91,8 @@ namespace GearZone.Web.Pages.Checkout
                 Longitude = defaultAddress?.Longitude ?? 0
             };
             CheckoutRequest.CartItemIds = SelectedCartItemIds;
+            CheckoutRequest.RequestId = Guid.NewGuid();
+            await LoadQuoteAsync(userId);
 
             return Page();
         }
@@ -103,6 +101,10 @@ namespace GearZone.Web.Pages.Checkout
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return RedirectToPage("/Public/Auth/Login");
+
+            var currentUser = await _userManager.FindByIdAsync(userId);
+            if (currentUser == null) return RedirectToPage("/Public/Auth/Login");
+            CurrentUser = currentUser;
 
             if (CheckoutRequest.CartItemIds == null || CheckoutRequest.CartItemIds.Count == 0)
             {
@@ -114,11 +116,10 @@ namespace GearZone.Web.Pages.Checkout
 
             // We MUST capture the items before they potentially get cleared from the cart
             SelectedItems = await _checkoutService.GetCheckoutItemsAsync(userId, CheckoutRequest.CartItemIds);
-            GrandTotal = SelectedItems.Sum(ci => ci.Quantity * ci.Variant.Price);
+            await LoadQuoteAsync(userId);
 
             if (!ModelState.IsValid)
             {
-                CurrentUser = await _userManager.FindByIdAsync(userId);
                 UserAddresses = (await _userService.GetUserAddressesAsync(userId)).ToList();
                 SelectedCartItemIds = CheckoutRequest.CartItemIds;
                 return Page();
@@ -130,7 +131,6 @@ namespace GearZone.Web.Pages.Checkout
             if (!result.Success)
             {
                 ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Checkout failed.");
-                CurrentUser = await _userManager.FindByIdAsync(userId);
                 UserAddresses = (await _userService.GetUserAddressesAsync(userId)).ToList();
                 SelectedCartItemIds = CheckoutRequest.CartItemIds;
                 return Page();
@@ -192,10 +192,23 @@ namespace GearZone.Web.Pages.Checkout
             if (request.CartItemIds == null || !request.CartItemIds.Any())
                 return BadRequest("No items selected.");
 
-            var items = await _checkoutService.GetCheckoutItemsAsync(userId, request.CartItemIds);
-            var result = await _shippingService.CalculateShippingFeeAsync(request.Latitude, request.Longitude, items);
+            var quote = await GetQuoteFromApiAsync(
+                request.CartItemIds,
+                request.Latitude,
+                request.Longitude,
+                request.OrderVoucherCode,
+                request.ShippingVoucherCode);
+            if (!quote.Success)
+                return StatusCode(409, new { errorMessage = quote.ErrorMessage });
 
-            return new JsonResult(result);
+            return new JsonResult(new
+            {
+                totalShippingFee = quote.ShippingFee,
+                storeFees = quote.StoreShippingFees,
+                orderVoucherDiscountAmount = quote.OrderVoucherDiscountAmount,
+                shippingVoucherDiscountAmount = quote.ShippingVoucherDiscountAmount,
+                grandTotal = quote.GrandTotal
+            });
         }
 
         // ─── Voucher AJAX Handlers ────────────────────────
@@ -208,38 +221,108 @@ namespace GearZone.Web.Pages.Checkout
             if (string.IsNullOrWhiteSpace(request.Code))
                 return new JsonResult(new { isValid = false, errorMessage = "Please enter a voucher code." });
 
-            var expectedType = request.Type == "shipping"
-                ? VoucherType.ShippingDiscount
-                : VoucherType.OrderDiscount;
+            if (request.CartItemIds.Count == 0)
+                return BadRequest(new { errorMessage = "Cart item IDs are required." });
 
-            var result = await _voucherService.ValidateVoucherAsync(
-                request.Code, userId, request.MerchandiseTotal, request.ShippingFee, expectedType);
+            var isShipping = request.Type.Equals("shipping", StringComparison.OrdinalIgnoreCase);
+            var quote = await GetQuoteFromApiAsync(
+                request.CartItemIds,
+                request.Latitude,
+                request.Longitude,
+                isShipping ? request.OrderVoucherCode : request.Code,
+                isShipping ? request.Code : request.ShippingVoucherCode);
+            var result = isShipping ? quote.ShippingVoucher : quote.OrderVoucher;
+            if (!quote.Success || result == null)
+            {
+                return new JsonResult(new
+                {
+                    isValid = false,
+                    errorMessage = quote.ErrorMessage ?? "Voucher is not eligible."
+                });
+            }
 
             return new JsonResult(new
             {
-                isValid = result.IsValid,
-                errorMessage = result.ErrorMessage,
+                isValid = true,
                 voucherId = result.VoucherId,
-                voucherName = result.VoucherName,
-                voucherCode = result.VoucherCode,
+                voucherName = result.Name,
+                voucherCode = result.Code,
                 discountAmount = result.DiscountAmount,
-                discountLabel = result.DiscountLabel
+                discountLabel = result.DiscountAmount.ToString("N0") + "₫",
+                grandTotal = quote.GrandTotal
             });
         }
 
-        public async Task<IActionResult> OnGetAvailableVouchersAsync(string type, decimal merchandiseTotal, decimal shippingFee)
+        public async Task<IActionResult> OnGetAvailableVouchersAsync(
+            string type,
+            List<Guid> cartItemIds,
+            double latitude,
+            double longitude)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null) return Unauthorized();
 
-            var voucherType = type == "shipping"
-                ? VoucherType.ShippingDiscount
-                : VoucherType.OrderDiscount;
+            var quote = await GetQuoteFromApiAsync(
+                cartItemIds,
+                latitude,
+                longitude,
+                null,
+                null);
+            if (!quote.Success)
+                return StatusCode(409, new { errorMessage = quote.ErrorMessage });
 
-            var vouchers = await _voucherService.GetAvailableVouchersForCheckoutAsync(
-                userId, merchandiseTotal, shippingFee, voucherType);
+            return new JsonResult(
+                type.Equals("shipping", StringComparison.OrdinalIgnoreCase)
+                    ? quote.AvailableShippingVouchers
+                    : quote.AvailableOrderVouchers);
+        }
 
-            return new JsonResult(vouchers);
+        private async Task LoadQuoteAsync(string userId)
+        {
+            Quote = await GetQuoteFromApiAsync(
+                CheckoutRequest.CartItemIds,
+                CheckoutRequest.ShippingInfo.Latitude,
+                CheckoutRequest.ShippingInfo.Longitude,
+                CheckoutRequest.OrderVoucherCode,
+                CheckoutRequest.ShippingVoucherCode);
+            if (Quote.Success)
+            {
+                GrandTotal = Quote.MerchandiseSubtotal;
+                return;
+            }
+
+            var error = Quote.ErrorMessage ?? "Unable to calculate checkout quote.";
+            var fallbackSubtotal =
+                SelectedItems.Sum(ci => ci.Quantity * ci.Variant.Price);
+            Quote.MerchandiseSubtotalBeforePromotion = fallbackSubtotal;
+            Quote.MerchandiseSubtotal = fallbackSubtotal;
+            Quote.GrandTotal = fallbackSubtotal;
+            GrandTotal = fallbackSubtotal;
+            ModelState.AddModelError(string.Empty, error);
+        }
+
+        private async Task<CheckoutQuoteDto> GetQuoteFromApiAsync(
+            List<Guid> cartItemIds,
+            double latitude,
+            double longitude,
+            string? orderVoucherCode,
+            string? shippingVoucherCode)
+        {
+            var result = await _api.PostAndReadAsync<CheckoutQuoteRequestDto, CheckoutQuoteDto>(
+                "/api/checkout/quote",
+                new CheckoutQuoteRequestDto
+                {
+                    CartItemIds = cartItemIds,
+                    Latitude = latitude,
+                    Longitude = longitude,
+                    OrderVoucherCode = orderVoucherCode,
+                    ShippingVoucherCode = shippingVoucherCode
+                });
+            return result.Data ?? new CheckoutQuoteDto
+            {
+                Success = false,
+                ErrorMessage = result.FirstError ?? "Unable to calculate checkout quote."
+            };
         }
     }
 
@@ -247,8 +330,11 @@ namespace GearZone.Web.Pages.Checkout
     {
         public string Code { get; set; } = string.Empty;
         public string Type { get; set; } = "order"; // "order" or "shipping"
-        public decimal MerchandiseTotal { get; set; }
-        public decimal ShippingFee { get; set; }
+        public List<Guid> CartItemIds { get; set; } = new();
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string? OrderVoucherCode { get; set; }
+        public string? ShippingVoucherCode { get; set; }
     }
 
     public class CalculateShippingRequest
@@ -256,6 +342,8 @@ namespace GearZone.Web.Pages.Checkout
         public List<Guid> CartItemIds { get; set; } = new();
         public double Latitude { get; set; }
         public double Longitude { get; set; }
+        public string? OrderVoucherCode { get; set; }
+        public string? ShippingVoucherCode { get; set; }
     }
 }
 

@@ -18,6 +18,8 @@ namespace GearZone.Application.Features.Chat
         private readonly ISubOrderRepository _subOrderRepository;
         private readonly IOrderStatusHistoryRepository _orderStatusHistoryRepository;
         private readonly IOrderTrackingNotifier _orderTrackingNotifier;
+        private readonly IPromotionLifecycleService _promotionLifecycle;
+        private readonly IVoucherService _voucherService;
         private readonly IUnitOfWork _unitOfWork;
 
         public ChatService(
@@ -28,6 +30,8 @@ namespace GearZone.Application.Features.Chat
             ISubOrderRepository subOrderRepository,
             IOrderStatusHistoryRepository orderStatusHistoryRepository,
             IOrderTrackingNotifier orderTrackingNotifier,
+            IPromotionLifecycleService promotionLifecycle,
+            IVoucherService voucherService,
             IUnitOfWork unitOfWork)
         {
             _conversationRepository = conversationRepository;
@@ -37,6 +41,8 @@ namespace GearZone.Application.Features.Chat
             _subOrderRepository = subOrderRepository;
             _orderStatusHistoryRepository = orderStatusHistoryRepository;
             _orderTrackingNotifier = orderTrackingNotifier;
+            _promotionLifecycle = promotionLifecycle;
+            _voucherService = voucherService;
             _unitOfWork = unitOfWork;
         }
 
@@ -608,59 +614,111 @@ namespace GearZone.Application.Features.Chat
                 return false;
             }
 
-            var subOrder = await _subOrderRepository.Query()
-                .Include(x => x.Order)
-                .ThenInclude(x => x.Payments)
-                .Include(x => x.Order.User)
-                .Include(x => x.Store)
-                .Include(x => x.Items)
-                    .ThenInclude(x => x.Variant)
-                        .ThenInclude(x => x.Product)
-                .FirstOrDefaultAsync(x => x.Id == subOrderId && x.Store.OwnerUserId == ownerUserId);
-            if (subOrder == null)
+            var changed = false;
+            var succeeded = await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>
             {
-                return false;
-            }
+                var subOrder = await _subOrderRepository.Query()
+                    .Include(x => x.Order)
+                    .ThenInclude(x => x.Payments)
+                    .Include(x => x.Order)
+                    .ThenInclude(x => x.SubOrders)
+                    .Include(x => x.Order.User)
+                    .Include(x => x.Store)
+                    .Include(x => x.Items)
+                        .ThenInclude(x => x.Variant)
+                            .ThenInclude(x => x.Product)
+                    .FirstOrDefaultAsync(
+                        x => x.Id == subOrderId && x.Store.OwnerUserId == ownerUserId,
+                        transactionCt);
+                if (subOrder == null)
+                {
+                    return false;
+                }
 
-            var oldStatus = subOrder.Status;
-            if (oldStatus == targetStatus)
-            {
+                var oldStatus = subOrder.Status;
+                if (oldStatus == targetStatus)
+                {
+                    return true;
+                }
+
+                var isValidTransition =
+                    (oldStatus == OrderStatus.Pending && (targetStatus == OrderStatus.Approved || targetStatus == OrderStatus.Rejected)) ||
+                    ((oldStatus == OrderStatus.Approved || oldStatus == OrderStatus.Paid) && targetStatus == OrderStatus.Processing) ||
+                    (oldStatus == OrderStatus.Processing && targetStatus == OrderStatus.Delivered);
+
+                if (!isValidTransition)
+                {
+                    return false;
+                }
+
+                changed = true;
+                var changedAt = DateTime.UtcNow;
+                subOrder.Status = targetStatus;
+                subOrder.UpdatedAt = changedAt;
+                if (targetStatus == OrderStatus.Delivered)
+                {
+                    subOrder.DeliveredAt = changedAt;
+                    ApplyDeliveredSoldCount(subOrder);
+                }
+
+                await _subOrderRepository.UpdateAsync(subOrder);
+                await _orderStatusHistoryRepository.AddAsync(new OrderStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    OrderId = subOrder.OrderId,
+                    OldStatus = oldStatus,
+                    NewStatus = targetStatus,
+                    ChangedAt = changedAt,
+                    ChangedByUserId = ownerUserId,
+                    Note = note
+                });
+
+                if (oldStatus == OrderStatus.Pending && targetStatus == OrderStatus.Approved)
+                {
+                    await _promotionLifecycle.RedeemForOrderAsync(
+                        subOrder.OrderId,
+                        subOrder.StoreId,
+                        transactionCt);
+                    await _voucherService.RedeemOrderVouchersAsync(
+                        subOrder.OrderId,
+                        subOrder.StoreId,
+                        transactionCt);
+                }
+                else if (oldStatus == OrderStatus.Pending && targetStatus == OrderStatus.Rejected)
+                {
+                    foreach (var item in subOrder.Items)
+                    {
+                        if (item.Variant != null)
+                        {
+                            item.Variant.StockQuantity += item.Quantity;
+                        }
+                    }
+
+                    await _promotionLifecycle.ReleaseForOrderAsync(
+                        subOrder.OrderId,
+                        subOrder.StoreId,
+                        transactionCt);
+                    var allSubOrdersReleased = subOrder.Order.SubOrders.All(x =>
+                        x.Status == OrderStatus.Rejected ||
+                        x.Status == OrderStatus.Cancelled ||
+                        x.Status == OrderStatus.Refunded);
+                    await _voucherService.ReleaseOrderVouchersAsync(
+                        subOrder.OrderId,
+                        subOrder.StoreId,
+                        transactionCt,
+                        includePlatform: allSubOrdersReleased);
+                }
+
+                await _unitOfWork.SaveChangesAsync(transactionCt);
                 return true;
-            }
-
-            var isValidTransition =
-                (oldStatus == OrderStatus.Pending && (targetStatus == OrderStatus.Approved || targetStatus == OrderStatus.Rejected)) ||
-                ((oldStatus == OrderStatus.Approved || oldStatus == OrderStatus.Paid) && targetStatus == OrderStatus.Processing) ||
-                (oldStatus == OrderStatus.Processing && targetStatus == OrderStatus.Delivered);
-
-            if (!isValidTransition)
-            {
-                return false;
-            }
-
-            subOrder.Status = targetStatus;
-            subOrder.UpdatedAt = DateTime.UtcNow;
-            if (targetStatus == OrderStatus.Delivered)
-            {
-                subOrder.DeliveredAt = DateTime.UtcNow;
-                ApplyDeliveredSoldCount(subOrder);
-            }
-
-            await _subOrderRepository.UpdateAsync(subOrder);
-            await _orderStatusHistoryRepository.AddAsync(new OrderStatusHistory
-            {
-                Id = Guid.NewGuid(),
-                OrderId = subOrder.OrderId,
-                OldStatus = oldStatus,
-                NewStatus = targetStatus,
-                ChangedAt = DateTime.UtcNow,
-                ChangedByUserId = ownerUserId,
-                Note = note
             });
 
-            await _unitOfWork.SaveChangesAsync();
-            await _orderTrackingNotifier.NotifySubOrderUpdatedAsync(subOrder.Id);
-            return true;
+            if (succeeded && changed)
+            {
+                await _orderTrackingNotifier.NotifySubOrderUpdatedAsync(subOrderId);
+            }
+
+            return succeeded;
         }
 
         private static void ApplyDeliveredSoldCount(SubOrder subOrder)

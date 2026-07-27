@@ -14,6 +14,12 @@ namespace GearZone.Infrastructure.Configurations
             builder.ToTable("OrderItems");
 
             builder.HasKey(x => x.Id);
+            builder.Property(x => x.OriginalUnitPriceSnapshot).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.UnitPriceSnapshot).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.PromotionDiscountPerUnit).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.PromotionDiscountAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.LineTotal).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.PromotionNameSnapshot).HasMaxLength(150);
 
             builder.HasOne(x => x.SubOrder)
                    .WithMany(x => x.Items)
@@ -22,6 +28,11 @@ namespace GearZone.Infrastructure.Configurations
             builder.HasOne(x => x.Variant)
                    .WithMany()
                    .HasForeignKey(x => x.VariantId);
+
+            builder.HasOne(x => x.PromotionCampaign)
+                   .WithMany()
+                   .HasForeignKey(x => x.PromotionCampaignId)
+                   .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

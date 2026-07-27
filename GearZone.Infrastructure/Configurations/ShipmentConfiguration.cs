@@ -13,6 +13,8 @@ namespace GearZone.Infrastructure.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.ShippingFee).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.ShippingDiscountAmount).HasColumnType("decimal(18,2)");
+            builder.Property(x => x.NetShippingFee).HasColumnType("decimal(18,2)");
             builder.Property(x => x.DistanceKm).HasColumnType("float");
             builder.Property(x => x.TrackingNumber).HasMaxLength(100);
             builder.Property(x => x.ShippingProvider).HasMaxLength(100);

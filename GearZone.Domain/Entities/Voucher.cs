@@ -33,6 +33,7 @@ namespace GearZone.Domain.Entities
         public VoucherStatus Status { get; set; }
 
         public DateTime CreatedAt { get; set; }
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
         // Navigation
         public Store? Store { get; set; }

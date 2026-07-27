@@ -2,35 +2,37 @@ using GearZone.Application.Abstractions.Persistence;
 using GearZone.Application.Abstractions.Services;
 using GearZone.Application.Features.Checkout.Dtos;
 using GearZone.Application.Features.Payment;
+using GearZone.Application.Features.Promotions;
 using GearZone.Domain.Entities;
 using GearZone.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GearZone.Application.Features.Checkout
 {
     public class CheckoutService : ICheckoutService
     {
-        private readonly ICartItemRepository _cartItemRepository;
-        private readonly IProductVariantRepository _productVariantRepository;
+        private readonly ICartItemRepository _cartItems;
+        private readonly IProductVariantRepository _variants;
+        private readonly IOrderRepository _orders;
+        private readonly IPaymentRepository _payments;
         private readonly IOrderService _orderService;
         private readonly ICartService _cartService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly PaymentStrategyFactory _paymentStrategyFactory;
-        private readonly IBackgroundJobService _backgroundJobService;
-        private readonly IUserService _userService;
-        private readonly IVoucherService _voucherService;
-        private readonly IShippingService _shippingService;
+        private readonly PaymentStrategyFactory _paymentStrategies;
+        private readonly IBackgroundJobService _backgroundJobs;
+        private readonly IUserService _users;
+        private readonly IVoucherService _vouchers;
+        private readonly IShippingService _shipping;
+        private readonly IPromotionPricingService _pricing;
+        private readonly IPromotionLifecycleService _promotionLifecycle;
 
         public CheckoutService(
             ICartItemRepository cartItemRepository,
             IProductVariantRepository productVariantRepository,
+            IOrderRepository orderRepository,
+            IPaymentRepository paymentRepository,
             IOrderService orderService,
             ICartService cartService,
             UserManager<ApplicationUser> userManager,
@@ -39,19 +41,25 @@ namespace GearZone.Application.Features.Checkout
             IBackgroundJobService backgroundJobService,
             IUserService userService,
             IVoucherService voucherService,
-            IShippingService shippingService)
+            IShippingService shippingService,
+            IPromotionPricingService pricing,
+            IPromotionLifecycleService promotionLifecycle)
         {
-            _cartItemRepository = cartItemRepository;
-            _productVariantRepository = productVariantRepository;
+            _cartItems = cartItemRepository;
+            _variants = productVariantRepository;
+            _orders = orderRepository;
+            _payments = paymentRepository;
             _orderService = orderService;
             _cartService = cartService;
             _userManager = userManager;
             _unitOfWork = unitOfWork;
-            _paymentStrategyFactory = paymentStrategyFactory;
-            _backgroundJobService = backgroundJobService;
-            _userService = userService;
-            _voucherService = voucherService;
-            _shippingService = shippingService;
+            _paymentStrategies = paymentStrategyFactory;
+            _backgroundJobs = backgroundJobService;
+            _users = userService;
+            _vouchers = voucherService;
+            _shipping = shippingService;
+            _pricing = pricing;
+            _promotionLifecycle = promotionLifecycle;
         }
 
         public async Task<CheckoutResponseDto> ProcessCheckoutAsync(
@@ -59,145 +67,226 @@ namespace GearZone.Application.Features.Checkout
             CheckoutRequestDto request,
             CancellationToken ct = default)
         {
-            // 1. Validate input
-            if (request.CartItemIds == null || !request.CartItemIds.Any())
-                return new CheckoutResponseDto { Success = false, ErrorMessage = "No items selected for checkout." };
+            if (request.CartItemIds == null || request.CartItemIds.Count == 0)
+            {
+                return Fail("No items selected for checkout.");
+            }
+
+            if (request.ShippingInfo == null)
+            {
+                return Fail("Shipping information is required.");
+            }
+
+            if (request.RequestId == Guid.Empty)
+            {
+                request.RequestId = Guid.NewGuid();
+            }
 
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
-                return new CheckoutResponseDto { Success = false, ErrorMessage = "User not found." };
-
-            // 2. Fetch cart items
-            var cartItems = await _cartItemRepository.GetCartItemsForCheckoutAsync(
-                request.CartItemIds, userId, ct);
-
-            if (cartItems.Count != request.CartItemIds.Count)
-                return new CheckoutResponseDto { Success = false, ErrorMessage = "One or more invalid cart items selected." };
-
-            // 3. Validate stock & deduct
-            foreach (var cartItem in cartItems)
             {
-                if (cartItem.Variant.StockQuantity < cartItem.Quantity)
-                    return new CheckoutResponseDto
+                return Fail("User not found.");
+            }
+
+            var existing = await _orders.Query()
+                .AsNoTracking()
+                .Include(x => x.Payments)
+                .Include(x => x.StatusHistories)
+                .FirstOrDefaultAsync(
+                    x => x.UserId == userId && x.CheckoutRequestId == request.RequestId,
+                    ct);
+            if (existing != null)
+            {
+                return FromExisting(existing);
+            }
+
+            Order order;
+            CheckoutQuoteDto quote;
+            try
+            {
+                (order, quote) = await _unitOfWork.ExecuteInTransactionAsync(
+                    async transactionCt =>
                     {
-                        Success = false,
-                        ErrorMessage = $"Insufficient stock for {cartItem.Variant.Product.Name}."
-                    };
+                        var transactionItems = await GetCheckoutItemsAsync(
+                            userId,
+                            request.CartItemIds,
+                            transactionCt);
+                        if (transactionItems.Count != request.CartItemIds.Distinct().Count())
+                        {
+                            throw new InvalidOperationException(
+                                "One or more selected cart items are unavailable.");
+                        }
 
-                cartItem.Variant.StockQuantity -= cartItem.Quantity;
-                await _productVariantRepository.UpdateAsync(cartItem.Variant);
+                        quote = await BuildQuoteAsync(
+                            userId,
+                            transactionItems,
+                            new CheckoutQuoteRequestDto
+                            {
+                                CartItemIds = request.CartItemIds,
+                                Latitude = request.ShippingInfo.Latitude,
+                                Longitude = request.ShippingInfo.Longitude,
+                                OrderVoucherCode = request.OrderVoucherCode,
+                                ShippingVoucherCode = request.ShippingVoucherCode
+                            },
+                            transactionCt);
+
+                        if (!quote.Success)
+                        {
+                            throw new InvalidOperationException(
+                                quote.ErrorMessage ?? "Checkout quote is no longer valid.");
+                        }
+
+                        foreach (var item in transactionItems)
+                        {
+                            if (!await _variants.TryReserveStockAsync(
+                                    item.VariantId,
+                                    item.Quantity,
+                                    transactionCt))
+                            {
+                                throw new InvalidOperationException(
+                                    $"Insufficient stock for {item.Variant.Product.Name}.");
+                            }
+                        }
+
+                        var createdOrder = await _orderService.CreateOrderAsync(
+                            userId,
+                            request,
+                            transactionItems,
+                            quote,
+                            transactionCt);
+
+                        await _promotionLifecycle.ReserveForOrderAsync(
+                            createdOrder,
+                            transactionCt);
+
+                        if (quote.OrderVoucher != null &&
+                            !await _vouchers.ReserveVoucherUsageAsync(
+                                quote.OrderVoucher.VoucherId,
+                                userId,
+                                createdOrder.Id,
+                                quote.OrderVoucher.DiscountAmount,
+                                transactionCt))
+                        {
+                            throw new InvalidOperationException(
+                                "The order voucher is no longer available.");
+                        }
+
+                        if (quote.ShippingVoucher != null &&
+                            !await _vouchers.ReserveVoucherUsageAsync(
+                                quote.ShippingVoucher.VoucherId,
+                                userId,
+                                createdOrder.Id,
+                                quote.ShippingVoucher.DiscountAmount,
+                                transactionCt))
+                        {
+                            throw new InvalidOperationException(
+                                "The shipping voucher is no longer available.");
+                        }
+
+                        await _unitOfWork.SaveChangesAsync(transactionCt);
+                        return (createdOrder, quote);
+                    },
+                    ct);
             }
-
-            // 4. Calculate shipping fees if coordinates available
-            decimal totalShippingFee = 0;
-            List<Shipping.Dtos.StoreShippingFeeDto>? storeShippingFees = null;
-
-            if (request.ShippingInfo.Latitude != null && request.ShippingInfo.Longitude != null)
+            catch (PromotionQuotaExceededException ex)
             {
-                var shippingResult = await _shippingService.CalculateShippingFeeAsync(
-                    (double)request.ShippingInfo.Latitude,
-                    (double)request.ShippingInfo.Longitude,
-                    cartItems);
-                
-                totalShippingFee = shippingResult.TotalShippingFee;
-                storeShippingFees = shippingResult.StoreFees;
+                return Fail(ex.Message, true);
             }
-
-            // 5. Validate vouchers with final checkout numbers
-            Guid? orderVoucherId = null;
-            decimal orderDiscountAmount = 0;
-            Guid? shippingVoucherId = null;
-            decimal shippingDiscountAmount = 0;
-
-            var merchandiseTotal = cartItems.Sum(ci => ci.Quantity * ci.Variant.Price);
-
-            if (!string.IsNullOrWhiteSpace(request.OrderVoucherCode))
+            catch (DbUpdateException)
             {
-                var orderVoucherResult = await _voucherService.ValidateVoucherAsync(
-                    request.OrderVoucherCode,
-                    userId,
-                    merchandiseTotal,
-                    totalShippingFee,
-                    Domain.Enums.VoucherType.OrderDiscount);
-
-                if (!orderVoucherResult.IsValid)
-                    return new CheckoutResponseDto { Success = false, ErrorMessage = orderVoucherResult.ErrorMessage };
-
-                orderVoucherId = orderVoucherResult.VoucherId;
-                orderDiscountAmount = orderVoucherResult.DiscountAmount;
+                var duplicate = await _orders.Query()
+                    .AsNoTracking()
+                    .Include(x => x.Payments)
+                    .Include(x => x.StatusHistories)
+                    .FirstOrDefaultAsync(
+                        x => x.UserId == userId &&
+                             x.CheckoutRequestId == request.RequestId,
+                        ct);
+                return duplicate != null
+                    ? FromExisting(duplicate)
+                    : Fail(
+                        "Checkout conflicted with another request. Please refresh and try again.",
+                        true);
             }
-
-            if (!string.IsNullOrWhiteSpace(request.ShippingVoucherCode))
+            catch (InvalidOperationException ex)
             {
-                var shippingVoucherResult = await _voucherService.ValidateVoucherAsync(
-                    request.ShippingVoucherCode,
-                    userId,
-                    merchandiseTotal,
-                    totalShippingFee,
-                    Domain.Enums.VoucherType.ShippingDiscount);
-
-                if (!shippingVoucherResult.IsValid)
-                    return new CheckoutResponseDto { Success = false, ErrorMessage = shippingVoucherResult.ErrorMessage };
-
-                shippingVoucherId = shippingVoucherResult.VoucherId;
-                shippingDiscountAmount = shippingVoucherResult.DiscountAmount;
+                return Fail(ex.Message, true);
             }
 
-            // 6. Create order
-            var order = await _orderService.CreateOrderAsync(
-                userId, request, cartItems,
-                orderVoucherId, orderDiscountAmount,
-                shippingVoucherId, shippingDiscountAmount,
-                totalShippingFee, storeShippingFees,
-                ct);
+            // The reservation transaction uses set-based stock/quota/voucher
+            // updates. Those operations advance database values (including
+            // row-version tokens) without updating every entity previously loaded
+            // for the quote. Start payment persistence from a clean tracker so no
+            // stale entity can be included in the next SaveChanges batch.
+            _unitOfWork.ClearTrackedEntities();
 
-            // 6. Process payment via Strategy Pattern
-            var strategy = _paymentStrategyFactory.GetStrategy(request.PaymentMethod);
-            var paymentResult = await strategy.ProcessPaymentAsync(order);
+            var paymentResult = await _paymentStrategies
+                .GetStrategy(request.PaymentMethod)
+                .ProcessPaymentAsync(order);
 
             if (!paymentResult.Success)
             {
-                return new CheckoutResponseDto
-                {
-                    Success = false,
-                    ErrorMessage = paymentResult.ErrorMessage ?? "Payment processing failed."
-                };
+                await _orderService.CancelOrderAsync(order.Id, userId, ct);
+                return Fail(paymentResult.ErrorMessage ?? "Payment processing failed.");
             }
 
-            // 7. Clear cart items
-            await _cartService.ClearCartItemsAsync(request.CartItemIds, ct);
+            var payment = order.Payments
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefault();
+            if (payment == null)
+            {
+                await _orderService.CancelOrderAsync(order.Id, userId, ct);
+                return Fail("The payment record could not be created.");
+            }
 
-            // 8. Record voucher usage
-            if (orderVoucherId != null)
-                await _voucherService.RecordVoucherUsageAsync((Guid)orderVoucherId, userId, order.Id, orderDiscountAmount);
-            if (shippingVoucherId != null)
-                await _voucherService.RecordVoucherUsageAsync((Guid)shippingVoucherId, userId, order.Id, shippingDiscountAmount);
+            try
+            {
+                // Persist the payment record and clear purchased cart lines
+                // atomically. Cart clearing is set-based/idempotent, so repeated
+                // requests safely observe an already-empty cart.
+                await _unitOfWork.ExecuteInTransactionAsync(
+                    async transactionCt =>
+                    {
+                        await _payments.AddAsync(payment, transactionCt);
+                        await _cartService.ClearCartItemsAsync(
+                            request.CartItemIds,
+                            transactionCt);
+                        await _unitOfWork.SaveChangesAsync(transactionCt);
+                        return true;
+                    },
+                    ct);
+            }
+            catch (DbUpdateException)
+            {
+                _unitOfWork.ClearTrackedEntities();
+                await _orderService.CancelOrderAsync(order.Id, userId, ct);
+                return Fail(
+                    "Checkout could not be finalized. Reserved stock and discounts were released; please try again.",
+                    true);
+            }
 
-            // 7. Save address if requested
             if (request.SaveAddress)
             {
-                await _userService.AddAddressAsync(userId, new Features.User.Dtos.CreateUserAddressDto
-                {
-                    FullName = request.ShippingInfo.FullName,
-                    PhoneNumber = request.ShippingInfo.PhoneNumber,
-                    AddressLine = request.ShippingInfo.Address,
-                    Ward = request.ShippingInfo.Ward,
-                    District = request.ShippingInfo.District,
-                    Province = request.ShippingInfo.Province,
-                    Latitude = request.ShippingInfo.Latitude,
-                    Longitude = request.ShippingInfo.Longitude,
-                    IsDefault = request.IsDefaultAddress,
-                    AddressType = request.ShippingInfo.AddressType
-                });
+                await _users.AddAddressAsync(
+                    userId,
+                    new Features.User.Dtos.CreateUserAddressDto
+                    {
+                        FullName = request.ShippingInfo.FullName,
+                        PhoneNumber = request.ShippingInfo.PhoneNumber,
+                        AddressLine = request.ShippingInfo.Address,
+                        Ward = request.ShippingInfo.Ward,
+                        District = request.ShippingInfo.District,
+                        Province = request.ShippingInfo.Province,
+                        Latitude = request.ShippingInfo.Latitude,
+                        Longitude = request.ShippingInfo.Longitude,
+                        IsDefault = request.IsDefaultAddress,
+                        AddressType = request.ShippingInfo.AddressType
+                    });
             }
 
-            // 8. Persist all changes
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            // 9. Schedule real-time timeout job if PayOS
             if (request.PaymentMethod == PaymentMethod.PayOS)
             {
-                _backgroundJobService.SchedulePaymentTimeout(order.Id, TimeSpan.FromMinutes(10));
+                _backgroundJobs.SchedulePaymentTimeout(order.Id, TimeSpan.FromMinutes(10));
             }
 
             return new CheckoutResponseDto
@@ -215,9 +304,40 @@ namespace GearZone.Application.Features.Checkout
             };
         }
 
-        public async Task<List<CartItem>> GetCheckoutItemsAsync(string userId, List<Guid> cartItemIds, CancellationToken ct = default)
+        public async Task<CheckoutQuoteDto> GetQuoteAsync(
+            string userId,
+            CheckoutQuoteRequestDto request,
+            CancellationToken ct = default)
         {
-            return await _cartItemRepository.Query()
+            if (request.CartItemIds == null || request.CartItemIds.Count == 0)
+            {
+                return new CheckoutQuoteDto
+                {
+                    Success = false,
+                    ErrorMessage = "No items selected for checkout."
+                };
+            }
+
+            var items = await GetCheckoutItemsAsync(userId, request.CartItemIds, ct);
+            if (items.Count != request.CartItemIds.Distinct().Count())
+            {
+                return new CheckoutQuoteDto
+                {
+                    Success = false,
+                    IsConflict = true,
+                    ErrorMessage = "One or more selected cart items are unavailable."
+                };
+            }
+
+            return await BuildQuoteAsync(userId, items, request, ct);
+        }
+
+        public async Task<List<CartItem>> GetCheckoutItemsAsync(
+            string userId,
+            List<Guid> cartItemIds,
+            CancellationToken ct = default)
+        {
+            return await _cartItems.Query()
                 .Include(ci => ci.Variant)
                     .ThenInclude(v => v.Product)
                         .ThenInclude(p => p.Store)
@@ -227,8 +347,197 @@ namespace GearZone.Application.Features.Checkout
                 .Include(ci => ci.Variant)
                     .ThenInclude(v => v.AttributeValues)
                         .ThenInclude(av => av.CategoryAttributeOption)
-                .Where(ci => cartItemIds.Contains(ci.Id) && ci.Cart.UserId == userId)
+                .Where(ci =>
+                    cartItemIds.Contains(ci.Id) &&
+                    ci.Cart.UserId == userId &&
+                    ci.Variant.IsActive &&
+                    !ci.Variant.IsDeleted &&
+                    !ci.Variant.Product.IsDeleted &&
+                    (ci.Variant.Product.Status == ProductStatus.Active ||
+                     ci.Variant.Product.Status == ProductStatus.Approved) &&
+                    ci.Variant.Product.Store.Status == StoreStatus.Approved)
                 .ToListAsync(ct);
+        }
+
+        private async Task<CheckoutQuoteDto> BuildQuoteAsync(
+            string userId,
+            List<CartItem> items,
+            CheckoutQuoteRequestDto request,
+            CancellationToken ct)
+        {
+            var prices = await _pricing.GetPricesAsync(
+                items.Select(x => x.Variant).ToArray(),
+                null,
+                ct);
+
+            var lines = items.Select(item =>
+            {
+                var price = prices[item.VariantId];
+                return new CheckoutQuoteLineDto
+                {
+                    CartItemId = item.Id,
+                    VariantId = item.VariantId,
+                    ProductId = item.Variant.ProductId,
+                    StoreId = item.Variant.Product.StoreId,
+                    CategoryId = item.Variant.Product.CategoryId,
+                    ProductName = item.Variant.Product.Name,
+                    Quantity = item.Quantity,
+                    OriginalUnitPrice = price.OriginalPrice,
+                    EffectiveUnitPrice = price.EffectivePrice,
+                    PromotionDiscountAmount = price.DiscountPerUnit * item.Quantity,
+                    PromotionCampaignId = price.CampaignId,
+                    PromotionName = price.CampaignName,
+                    PromotionEndAt = price.CampaignEndAt,
+                    LineTotal = price.EffectivePrice * item.Quantity
+                };
+            }).ToList();
+
+            var shippingResult =
+                request.Latitude != 0 || request.Longitude != 0
+                    ? await _shipping.CalculateShippingFeeAsync(
+                        request.Latitude,
+                        request.Longitude,
+                        items)
+                    : new Features.Shipping.Dtos.ShippingFeeCalculationResponseDto();
+
+            var context = new VoucherEvaluationContextDto
+            {
+                Lines = lines.Select(x => new VoucherEvaluationLineDto
+                {
+                    StoreId = x.StoreId,
+                    CategoryId = x.CategoryId,
+                    EffectiveSubtotal = x.LineTotal
+                }).ToList(),
+                ShippingFees = shippingResult.StoreFees.Select(x => new VoucherShippingFeeDto
+                {
+                    StoreId = x.StoreId,
+                    ShippingFee = x.ShippingFee
+                }).ToList()
+            };
+
+            VoucherValidationResult? orderVoucher = null;
+            if (!string.IsNullOrWhiteSpace(request.OrderVoucherCode))
+            {
+                orderVoucher = await _vouchers.ValidateVoucherForContextAsync(
+                    request.OrderVoucherCode,
+                    userId,
+                    context,
+                    VoucherType.OrderDiscount,
+                    ct);
+                if (!orderVoucher.IsValid)
+                {
+                    return new CheckoutQuoteDto
+                    {
+                        Success = false,
+                        ErrorMessage = orderVoucher.ErrorMessage
+                    };
+                }
+            }
+
+            VoucherValidationResult? shippingVoucher = null;
+            if (!string.IsNullOrWhiteSpace(request.ShippingVoucherCode))
+            {
+                shippingVoucher = await _vouchers.ValidateVoucherForContextAsync(
+                    request.ShippingVoucherCode,
+                    userId,
+                    context,
+                    VoucherType.ShippingDiscount,
+                    ct);
+                if (!shippingVoucher.IsValid)
+                {
+                    return new CheckoutQuoteDto
+                    {
+                        Success = false,
+                        ErrorMessage = shippingVoucher.ErrorMessage
+                    };
+                }
+            }
+
+            var merchandiseBeforePromotion =
+                lines.Sum(x => x.OriginalUnitPrice * x.Quantity);
+            var merchandise = lines.Sum(x => x.LineTotal);
+            var orderDiscount = orderVoucher?.DiscountAmount ?? 0;
+            var shippingDiscount = shippingVoucher?.DiscountAmount ?? 0;
+
+            return new CheckoutQuoteDto
+            {
+                Success = true,
+                Lines = lines,
+                MerchandiseSubtotalBeforePromotion = merchandiseBeforePromotion,
+                PromotionDiscountAmount = merchandiseBeforePromotion - merchandise,
+                MerchandiseSubtotal = merchandise,
+                ShippingFee = shippingResult.TotalShippingFee,
+                OrderVoucherDiscountAmount = orderDiscount,
+                ShippingVoucherDiscountAmount = shippingDiscount,
+                GrandTotal = Math.Max(
+                    0,
+                    merchandise + shippingResult.TotalShippingFee -
+                    orderDiscount - shippingDiscount),
+                OrderVoucher = ToApplied(orderVoucher),
+                ShippingVoucher = ToApplied(shippingVoucher),
+                AvailableOrderVouchers =
+                    await _vouchers.GetAvailableVouchersForContextAsync(
+                        userId,
+                        context,
+                        VoucherType.OrderDiscount,
+                        ct),
+                AvailableShippingVouchers =
+                    await _vouchers.GetAvailableVouchersForContextAsync(
+                        userId,
+                        context,
+                        VoucherType.ShippingDiscount,
+                        ct),
+                StoreShippingFees = shippingResult.StoreFees
+            };
+        }
+
+        private static AppliedVoucherDto? ToApplied(VoucherValidationResult? result)
+        {
+            if (result?.IsValid != true || !result.VoucherId.HasValue)
+            {
+                return null;
+            }
+
+            return new AppliedVoucherDto
+            {
+                VoucherId = result.VoucherId.Value,
+                Code = result.VoucherCode ?? string.Empty,
+                Name = result.VoucherName ?? string.Empty,
+                Scope = result.Scope,
+                StoreId = result.StoreId,
+                DiscountAmount = result.DiscountAmount
+            };
+        }
+
+        private static CheckoutResponseDto Fail(
+            string message,
+            bool isConflict = false) => new()
+        {
+            Success = false,
+            IsConflict = isConflict,
+            ErrorMessage = message
+        };
+
+        private static CheckoutResponseDto FromExisting(Order order)
+        {
+            if (order.StatusHistories.Any(x =>
+                    x.NewStatus == OrderStatus.Cancelled ||
+                    x.NewStatus == OrderStatus.Rejected ||
+                    x.NewStatus == OrderStatus.Refunded))
+            {
+                return Fail(
+                    "This checkout request was already processed and is no longer active. Start a new checkout request.");
+            }
+
+            var payment = order.Payments.OrderByDescending(x => x.CreatedAt).FirstOrDefault();
+            return new CheckoutResponseDto
+            {
+                Success = true,
+                OrderId = order.Id,
+                OrderCode = order.OrderCode.ToString(),
+                CheckoutUrl = payment?.CheckoutUrl,
+                Amount = payment == null ? (long)order.GrandTotal : (long)payment.Amount
+            };
         }
     }
 }

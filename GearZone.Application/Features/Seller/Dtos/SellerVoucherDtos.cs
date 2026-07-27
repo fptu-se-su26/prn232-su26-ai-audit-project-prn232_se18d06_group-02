@@ -10,6 +10,7 @@ namespace GearZone.Application.Features.Seller.Dtos
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public VoucherType Type { get; set; }
         public DiscountType DiscountType { get; set; }
         public decimal DiscountValue { get; set; }
         public decimal? MaxDiscount { get; set; }
@@ -17,6 +18,8 @@ namespace GearZone.Application.Features.Seller.Dtos
         public int UsageLimit { get; set; }
         public int MaxUsagePerUser { get; set; }
         public int UsedCount { get; set; }
+        public int RedeemedCount { get; set; }
+        public decimal TotalSavedAmount { get; set; }
         public int? CategoryId { get; set; }
         public string? CategoryName { get; set; }
         public string? CategoryIcon { get; set; }

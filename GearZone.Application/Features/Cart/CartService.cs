@@ -17,17 +17,20 @@ namespace GearZone.Application.Features.Cart
         private readonly ICartItemRepository _cartItemRepository;
         private readonly IProductVariantRepository _productVariantRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IPromotionPricingService _promotionPricing;
 
         public CartService(
             ICartRepository cartRepository,
             ICartItemRepository cartItemRepository,
             IProductVariantRepository productVariantRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IPromotionPricingService promotionPricing)
         {
             _cartRepository = cartRepository;
             _cartItemRepository = cartItemRepository;
             _productVariantRepository = productVariantRepository;
             _unitOfWork = unitOfWork;
+            _promotionPricing = promotionPricing;
         }
 
         public async Task<Guid> AddToCartAsync(string userId, Guid variantId, int quantity, bool isBuyNow = false)
@@ -94,6 +97,9 @@ namespace GearZone.Application.Features.Cart
                 return new CartDto { UserId = userId, StoreGroups = new List<StoreCartGroupDto>(), TotalPrice = 0 };
             }
 
+            var prices = await _promotionPricing.GetPricesAsync(
+                cart.Items.Select(x => x.Variant).ToArray());
+
             var storeGroups = cart.Items
                 .GroupBy(i => i.Variant.Product.Store)
                 .Select(g => new StoreCartGroupDto
@@ -108,11 +114,16 @@ namespace GearZone.Application.Features.Cart
                         ProductSlug = i.Variant.Product.Slug,
                         ImageUrl = i.Variant.Product.Images.OrderByDescending(img => img.IsPrimary).FirstOrDefault()?.ImageUrl,
                         VariantName = i.Variant.VariantName,
-                        Price = i.Variant.Price,
+                        Price = prices[i.VariantId].EffectivePrice,
+                        OriginalPrice = prices[i.VariantId].OriginalPrice,
+                        PromotionDiscountAmount = prices[i.VariantId].DiscountPerUnit,
+                        PromotionCampaignId = prices[i.VariantId].CampaignId,
+                        PromotionName = prices[i.VariantId].CampaignName,
+                        PromotionEndAt = prices[i.VariantId].CampaignEndAt,
                         Quantity = i.Quantity,
                         StockQuantity = i.Variant.StockQuantity
                     }).ToList(),
-                    StoreSubtotal = g.Sum(i => i.Quantity * i.Variant.Price)
+                    StoreSubtotal = g.Sum(i => i.Quantity * prices[i.VariantId].EffectivePrice)
                 }).ToList();
 
             var total = storeGroups.Sum(g => g.StoreSubtotal);
