@@ -1,9 +1,11 @@
 using GearZone.Application;
+using GearZone.Api.OData;
 using GearZone.Domain.Entities;
 using GearZone.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.OData;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -41,7 +43,14 @@ var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
 builder.Services.AddScoped<GearZone.Api.Auditing.AdminAuditActionFilter>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers(options =>
-    options.Filters.AddService<GearZone.Api.Auditing.AdminAuditActionFilter>());
+    options.Filters.AddService<GearZone.Api.Auditing.AdminAuditActionFilter>())
+    .AddOData(options => options
+        .Select()
+        .Filter()
+        .OrderBy()
+        .Count()
+        .SetMaxTop(100)
+        .AddRouteComponents("odata", ODataEdmModel.Build()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddRateLimiter(options =>
